@@ -292,3 +292,5 @@ unsubscribeUnits = listenForUnitsUpdates();
 document.getElementById('unitTypeFilter').addEventListener('change', applyFilters);
 document.getElementById('serviceFilter').addEventListener('change', applyFilters);
 document.getElementById('callsignFilter').addEventListener('input', applyFilters);
+
+// test
