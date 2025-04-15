@@ -1,0 +1,400 @@
+/* General Styles */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #555; /* Body text color */
+}
+
+/* Header */
+h1 {
+    text-align: center;
+    margin: 20px 0;
+    font-size: 2.5em;
+    color: #000; /* Header color */
+}
+
+/* Filter Section */
+.filters {
+    margin: 20px 0;
+}
+
+.filters label {
+    font-weight: bold;
+}
+
+.filters select {
+    margin-left: 10px;
+    padding: 5px;
+}
+
+/* Calls List Container */
+#callsListContainer {
+    width: 100%;
+    max-width: 1200px;
+    margin-bottom: 20px;
+    overflow-x: auto; /* Enable horizontal scrolling */
+    white-space: nowrap; /* Prevent items from wrapping to the next line */
+}
+
+.scrollable {
+    display: inline-flex; /* Align the items in a row */
+    gap: 20px;
+    padding: 20px 0;
+}
+
+/* Dispatch Container */
+.dispatch-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    width: 100%;
+    max-width: 1200px;
+    margin-top: 20px;
+    flex-wrap: wrap; /* Ensures proper wrapping */
+}
+
+/* Call Details */
+.call-details {
+    flex: 2;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 12px; /* Rounded corners */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    width: 100%;
+}
+
+.call-location,
+.call-status,
+.caller-name {
+    font-size: 1.1em;
+    margin: 5px 0;
+}
+
+.call-details h2 {
+    margin-top: 0;
+}
+
+.call-details p {
+    font-size: 1.2em;
+    margin: 5px 0;
+}
+
+#attachedUnits {
+    margin-top: 20px;
+}
+
+/* Dispatch Actions */
+.dispatch-actions {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.dispatch-actions button {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px;
+    border: none;
+    border-radius: 12px; /* Rounded corners */
+    margin: 10px 0;
+    cursor: pointer;
+    font-size: 1.1em;
+}
+
+.dispatch-actions button:hover {
+    background-color: #45a049;
+}
+
+/* Available Units Section */
+.unit-browser {
+    flex: 2;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 12px; /* Rounded corners */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    width: 100%;
+}
+
+.unit-browser h2 {
+    margin-top: 0;
+}
+
+.unit-browser input,
+.unit-browser select {
+    padding: 8px;
+    margin-bottom: 20px;
+    width: 100%;
+    max-width: 300px;
+    border: 1px solid #ccc;
+    border-radius: 12px; /* Rounded corners */
+}
+
+.unit-browser input:focus,
+.unit-browser select:focus {
+    border-color: #4CAF50;
+    outline: none;
+}
+
+/* Unit Cards */
+.unit-card {
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin: 10px;
+    border-radius: 8px;
+    width: 200px;
+    box-sizing: border-box;
+  }
+
+.unit-card:hover {
+    transform: scale(1.05);
+}
+
+.unit-card .status {
+    font-size: 16px;
+    font-weight: bold;
+    padding: 5px 0;
+    text-align: center;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.unit-card .unit-details {
+    font-size: 14px;
+    color: #555;
+    padding: 0;
+    margin-bottom: 5px;
+}
+
+.unit-card .unit-details span {
+    font-weight: bold;
+}
+
+.unit-card.available {
+    background-color: #d4edda;
+}
+
+.unit-card.unavailable {
+    background-color: #f8d7da;
+}
+
+.unit-card .status.available {
+    background-color: #28a745;
+    color: white;
+}
+
+.unit-card .status.unavailable {
+    background-color: #dc3545;
+    color: white;
+}
+
+.unit-card .status.off-duty {
+    background-color: #ffc107;
+    color: white;
+}
+
+/* Available Units List */
+#availableUnitsList {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+}
+
+/* Unit Search */
+#unitSearch {
+    padding: 8px;
+    margin-bottom: 20px;
+    width: 100%;
+    max-width: 300px;
+    border: 1px solid #ccc;
+    border-radius: 12px; /* Rounded corners */
+}
+
+/* Status Container */
+.status-container {
+    padding: 5px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    text-align: center;
+    font-weight: bold;
+    color: white;
+  }
+
+.status-container.available {
+    background-color: #28a745;
+    color: white;
+}
+
+.status-container.unavailable {
+    background-color: #dc3545;
+    color: white;
+}
+
+.status-container.off-duty {
+    background-color: #ffc107;
+    color: white;
+}
+
+/* Call Type Box */
+.call-type-box {
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 12px; /* Rounded corners */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.call-type-box h3 {
+    margin: 0;
+    font-size: 1.5em;
+    color: #000;
+}
+
+/* Date Issue Fix (Invalid Date) */
+.call-timestamp {
+    font-size: 1.1em;
+    color: #888;
+}
+
+/* Service Type Box - Added as per request */
+.service-type-box {
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 12px; /* Rounded corners */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.service-type-box h3 {
+    margin: 0;
+    font-size: 1.5em;
+    color: #000;
+}
+
+.service-type-box p {
+    font-size: 1.1em;
+    margin: 5px 0;
+}
+
+/* Call Card - Service Box */
+.call-card {
+    display: inline-block; /* Makes each call card inline */
+    width: 300px; /* Set a fixed width for each card */
+    margin: 10px;
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    padding: 15px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.call-card:hover {
+    transform: scale(1.05);
+}
+
+.call-info {
+    margin-top: 10px;
+}
+
+/* Service Box (inside the call card) */
+.call-service {
+    font-weight: bold;
+    padding: 5px;
+    text-align: center;
+    border-radius: 8px;
+}
+
+/* Highlight selected call */
+.selected-call {
+    background-color: #f1f1f1;
+    border: 2px solid #4CAF50;
+}
+/* Available Units Section */
+.unit-browser {
+    flex: 2;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 12px; /* Rounded corners */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    width: 100%;
+}
+
+.unit-browser h2 {
+    margin-top: 0;
+}
+
+/* Unit Cards */
+.unit-card {
+    background-color: #fff;
+    margin: 10px;
+    padding: 10px;
+    border-radius: 12px; /* Rounded corners */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    height: auto;
+    max-width: 200px;
+    transition: all 0.3s ease;
+}
+
+.unit-card:hover {
+    transform: scale(1.05);
+}
+
+/* Unit Status */
+.unit-card .unit-status {
+    font-size: 16px;
+    font-weight: bold;
+    padding: 5px 0;
+    text-align: center;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.unit-card .unit-details {
+    font-size: 14px;
+    color: #555;
+    padding: 0;
+    margin-bottom: 5px;
+}
+
+.unit-card .unit-details span {
+    font-weight: bold;
+}
+
+/* Unit Status Styles */
+.unit-card.available {
+    background-color: #d4edda;
+}
+
+.unit-card.unavailable {
+    background-color: #f8d7da;
+}
+
+.unit-card .unit-status.available {
+    background-color: #28a745;
+    color: white;
+}
+
+.unit-card .unit-status.unavailable {
+    background-color: #dc3545;
+    color: white;
+}
+
+.unit-card .unit-status.off-duty {
+    background-color: #ffc107;
+    color: white;
+}
+
+

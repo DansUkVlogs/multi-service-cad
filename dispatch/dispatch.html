@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dispatch Panel</title>
+  <link rel="stylesheet" href="dispatch.css">
+</head>
+<body>
+  <h1>Dispatch Panel</h1>
+
+  <!-- Filter for call types -->
+  <div class="filters">
+    <label>Filter by Service:</label>
+    <select id="serviceFilter">
+      <option value="">All Services</option>
+      <option value="Ambulance">Ambulance</option>
+      <option value="Fire">Fire</option>
+      <option value="Police">Police</option>
+      <option value="Multipule">Multipule</option>
+    </select>
+  </div>
+
+  <!-- Active calls list -->
+    <div id="callsListContainer">
+        <div class="scrollable" id="callsList">
+        </div>
+    </div>
+
+  <div class="dispatch-container">
+    <!-- Left: Call details + attached units -->
+    <div class="call-details">
+      <h2>Call Details</h2>
+      <div id="callInfo">
+        <p><strong>Caller:</strong> <span id="callerName"></span></p>
+        <p><strong>Location:</strong> <span id="callLocation"></span></p>
+        <p><strong>Service:</strong> <span id="callService"></span></p>
+        <p><strong>Status:</strong> <span id="callStatus"></span></p>
+        <p><strong>Time:</strong> <span id="callTimestamp"></span></p>
+      </div>
+      <h3>Attached Units</h3>
+      <div id="attachedUnits" class="unit-list"></div>
+    </div>
+
+    <!-- Center: Attach/Detach -->
+    <div class="dispatch-actions">
+      <button id="attachBtn">← Attach</button>
+      <button id="detachBtn">Detach →</button>
+    </div>
+
+    <!-- Right: Available units -->
+    <div class="unit-browser">
+      <h2>Units</h2>
+      <!-- Filters -->
+      <input type="text" id="callsignFilter" placeholder="Search by Callsign">
+      <select id="unitTypeFilter">
+        <option value="">All Unit Types</option>
+        <option value="Ambulance">Ambulance</option>
+        <option value="Fire">Fire</option>
+        <option value="Police">Police</option>
+      </select>
+      <div id="availableUnitsList"></div>
+    </div>
+  </div>
+  <script type="module" src="../firebase/firebase.js"></script>
+  <script type="module" defer src="dispatch.js"></script>
+</body>
+</html>
