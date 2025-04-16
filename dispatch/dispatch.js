@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-import { getFirestore, collection, getDocs, onSnapshot, where, query, doc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+import { getFirestore, collection, getDocs, onSnapshot, where, query, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 import { getUnitTypeColor, getStatusColor } from './statusColor.js'; // Adjust the path if needed
 
 
@@ -97,22 +97,69 @@ function listenForCallsUpdates(filters = {}) {
 
 function updateCallsList(calls) {
   const callsContainer = document.getElementById('callsList');
-  callsContainer.innerHTML = '';
+  callsContainer.innerHTML = ''; // Clear the existing list
+
   calls.forEach(call => {
+    const callId = call.id;
     const callElement = document.createElement('div');
     const serviceColor = getUnitTypeColor(call.service);
+
     callElement.classList.add('call-card');
+    callElement.setAttribute('data-call-id', callId); // Set the data-call-id attribute
+
     callElement.innerHTML = `
         <div class="call-info">
-          <!-- Service field added back at the top -->
           <p class="call-service" style="background-color: ${serviceColor};"><strong>Service:</strong> ${call.service || 'Service not provided'}</p> 
           <p class="caller-name">${call.callerName || 'Unknown'}</p>
           <p class="call-location">${call.location || 'Location not provided'}</p>
           <p class="call-status">${call.status || 'Status not available'}</p>
+          <div class="attached-units-container" id="attached-units-${callId}">
+          <!-- Attached units will be dynamically inserted here -->
+          </div>
         </div>
       `;
+
     callsContainer.appendChild(callElement);
+
+    // Add event listener for double-click to select the call
+    callElement.addEventListener('dblclick', () => {
+      selectCall(call); // Assuming this function shows details in the details section
+    });
+      renderAttachedUnitsList(callId, call.attachedUnits);
+
   });
+}
+
+async function renderAttachedUnitsList(attachedUnitIds) {
+  console.log(document.getElementById('attachedUnitsCallInfoSection')); // Debug log to check if the element exists
+  const container = document.getElementById('attachedUnitsCallInfoSection'); // Ensure this targets the correct element
+  container.innerHTML = ''; // Clear existing units
+
+  for (const unitId of attachedUnitIds) {
+    const unitRef = doc(db, 'units', unitId);
+    const unitSnap = await getDoc(unitRef);
+
+    if (unitSnap.exists()) {
+      const unitData = unitSnap.data();
+      const unitDiv = document.createElement('div');
+      unitDiv.classList.add('unit-card'); // Use the same style as units in .unit-browser
+      unitDiv.dataset.unitId = unitId;
+
+      // Add unit details
+      unitDiv.innerHTML = `
+        <div class="unit-status ${unitData.status.toLowerCase()}">
+          ${unitData.status}
+        </div>
+        <div class="unit-details">
+          <p><strong>Callsign:</strong> ${unitData.callsign || 'N/A'}</p>
+          <p><strong>Unit Type:</strong> ${unitData.unitType || 'Unknown'}</p>
+        </div>
+      `;
+
+      // Append the unit to the container
+      container.appendChild(unitDiv);
+    }
+  }
 }
 
   // Function to listen for updates in the units collection
@@ -171,45 +218,42 @@ function updateCallsList(calls) {
 
 // Display calls in the list
 function displayCalls(calls) {
-    const callListContainer = document.getElementById('callsList'); // Adjust this as per your DOM structure
-    callListContainer.innerHTML = ''; // Clear previous list
-  
-    calls.forEach(call => {
-      const callCard = document.createElement('div');
-      callCard.classList.add('call-card');
-      callCard.dataset.callId = call.id;
-      const callId = call.id;
-  
-      // Create the service color for the service box
-      const serviceColor = getUnitTypeColor(call.service); // Use call.service to get the color
-  
-      // Append the call card to the container
-      callListContainer.appendChild(callCard);
-  
-      // Build the call information for each card
-      callCard.innerHTML = `
+  const callListContainer = document.getElementById('callsList'); // Ensure this element exists in the DOM
+  callListContainer.innerHTML = ''; // Clear previous list
+
+  calls.forEach(call => {
+    console.log(`Rendering call card for ID: ${call.id}`); // Debug log
+
+    const callCard = document.createElement('div');
+    callCard.classList.add('call-card');
+    callCard.dataset.callId = call.id; // Set the data-call-id attribute
+    const callId = call.id;
+
+    // Create the service color for the service box
+    const serviceColor = getUnitTypeColor(call.service);
+
+    // Build the call information for each card
+    callCard.innerHTML = `
       <div class="call-info">
-        <!-- Service field added back at the top -->
         <p class="call-service" style="background-color: ${serviceColor};"><strong>Service:</strong> ${call.service || 'Service not provided'}</p> 
         <p class="caller-name">${call.callerName || 'Unknown'}</p>
         <p class="call-location">${call.location || 'Location not provided'}</p>
         <p class="call-status">${call.status || 'Status not available'}</p>
-        <div class="attached-units-container" id="attached-units-${call.id}">
+        <div class="attached-units-container" id="attached-units-${callId}">
           <!-- Attached units will be dynamically inserted here -->
         </div>
       </div>
     `;
 
-      // Add event listener for double-click to select the call
-      callCard.addEventListener('dblclick', () => {
-        selectCall(call); // Assuming this function shows details in the details section
-      });
-
-      renderAttachedUnits();
-
+    // Append the call card to the container
+    callListContainer.appendChild(callCard);
+    // Add event listener for double-click to select the call
+    callCard.addEventListener('dblclick', () => {
+      selectCall(call);
+      
     });
-  }
-  
+  });
+}
   
 
 // Format the timestamp to a more readable format
@@ -219,32 +263,35 @@ function formatTimestamp(timestamp) {
 }
 
 // Display the selected call's details in the Call Details section
-function selectCall(call) {
-  // Clear previous selection
-  const previousSelectedCall = document.querySelector('.selected-call');
-  if (previousSelectedCall) {
-    previousSelectedCall.classList.remove('selected-call');
-  }
+async function selectCall(call) {
+  console.log(`Querying for call card with ID: ${call.id}`);
 
-  // Highlight the selected call
+  // Wait for the DOM to update
+  await new Promise(resolve => setTimeout(resolve, 50)); // Add a short delay
+
+  // Find the call card in the DOM
   const selectedCard = document.querySelector(`[data-call-id="${call.id}"]`);
-  selectedCard.classList.add('selected-call');
+  console.log('Selected card:', selectedCard); // Log the result of the query
 
-  // Display the call details in the Call Details section
-  callerName.textContent = call.callerName;
-  callLocation.textContent = call.location;
-  callService.textContent = call.service;
-  callStatus.textContent = call.status;
-  callTimestamp.textContent = formatTimestamp(call.timestamp);
+  if (selectedCard) {
+    // Clear the previous selection
+    const previousSelectedCard = document.querySelector('.selected-call');
+    if (previousSelectedCard) {
+      previousSelectedCard.classList.remove('selected-call');
+    }
 
-  // Display the attached units
-  attachedUnits.innerHTML = ''; // Clear previous units
-  if (call.attachedUnits) {
-    call.attachedUnits.forEach(unit => {
-      const unitElement = document.createElement('div');
-      unitElement.textContent = unit.callsign || 'No Unit Assigned';
-      attachedUnits.appendChild(unitElement);
-    });
+    // Highlight the selected call
+    selectedCard.classList.add('selected-call');
+
+    // Display the call details in the Call Details section
+    callerName.textContent = call.callerName || 'Unknown';
+    callLocation.textContent = call.location || 'Location not provided';
+    callService.textContent = call.service || 'Service not provided';
+    callStatus.textContent = call.status || 'Status not available';
+    callTimestamp.textContent = call.timestamp ? formatTimestamp(call.timestamp) : 'Timestamp not available';
+
+    // Render attached units for the selected call
+      renderAttachedUnits(call.id, call.attachedUnits);
   }
 }
 

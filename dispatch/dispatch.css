@@ -410,13 +410,21 @@ h1 {
     border-radius: 4px;
     color: white;
     font-weight: bold;
+    background-color: grey;
   }
   
-  .attached-unit.enroute {
+  .en-route {
     background-color: orange;
   }
   
-  .attached-unit.on-scene {
+  .on-scene {
     background-color: green;
   }
+
+  #attachedUnits {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px; /* Same style as #availableUnitsList */
+    }
   
