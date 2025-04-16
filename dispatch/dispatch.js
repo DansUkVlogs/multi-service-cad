@@ -2,8 +2,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase
 import { getFirestore, collection, getDocs, onSnapshot, where, query, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 import { getUnitTypeColor, getStatusColor } from './statusColor.js'; // Adjust the path if needed
 
-
-
 // DOM element for the available units list
 const availableUnitsList = document.getElementById('availableUnitsList');
 let unsubscribeUnits = null;
