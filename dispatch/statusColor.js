@@ -1,5 +1,3 @@
-// statusColor.js
-
 export function getStatusColor(status) {
   switch (status) {
     case 'Available':
