@@ -397,4 +397,26 @@ h1 {
     color: white;
 }
 
-
+.attached-units-container {
+    display: flex;
+    overflow-x: auto;
+    padding: 10px 0;
+  }
+  
+  .attached-unit {
+    flex: 0 0 auto;
+    margin-right: 10px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    color: white;
+    font-weight: bold;
+  }
+  
+  .attached-unit.enroute {
+    background-color: orange;
+  }
+  
+  .attached-unit.on-scene {
+    background-color: green;
+  }
+  

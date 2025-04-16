@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-import { getFirestore, collection, getDocs, onSnapshot, where, query } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+import { getFirestore, collection, getDocs, onSnapshot, where, query, doc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 import { getUnitTypeColor, getStatusColor } from './statusColor.js'; // Adjust the path if needed
 
 
@@ -178,6 +178,7 @@ function displayCalls(calls) {
       const callCard = document.createElement('div');
       callCard.classList.add('call-card');
       callCard.dataset.callId = call.id;
+      const callId = call.id;
   
       // Create the service color for the service box
       const serviceColor = getUnitTypeColor(call.service); // Use call.service to get the color
@@ -187,19 +188,25 @@ function displayCalls(calls) {
   
       // Build the call information for each card
       callCard.innerHTML = `
-        <div class="call-info">
-          <!-- Service field added back at the top -->
-          <p class="call-service" style="background-color: ${serviceColor};"><strong>Service:</strong> ${call.service || 'Service not provided'}</p> 
-          <p class="caller-name">${call.callerName || 'Unknown'}</p>
-          <p class="call-location">${call.location || 'Location not provided'}</p>
-          <p class="call-status">${call.status || 'Status not available'}</p>
+      <div class="call-info">
+        <!-- Service field added back at the top -->
+        <p class="call-service" style="background-color: ${serviceColor};"><strong>Service:</strong> ${call.service || 'Service not provided'}</p> 
+        <p class="caller-name">${call.callerName || 'Unknown'}</p>
+        <p class="call-location">${call.location || 'Location not provided'}</p>
+        <p class="call-status">${call.status || 'Status not available'}</p>
+        <div class="attached-units-container" id="attached-units-${call.id}">
+          <!-- Attached units will be dynamically inserted here -->
         </div>
-      `;
-  
+      </div>
+    `;
+
       // Add event listener for double-click to select the call
       callCard.addEventListener('dblclick', () => {
         selectCall(call); // Assuming this function shows details in the details section
       });
+
+      renderAttachedUnits();
+
     });
   }
   
@@ -238,6 +245,29 @@ function selectCall(call) {
       unitElement.textContent = unit.callsign || 'No Unit Assigned';
       attachedUnits.appendChild(unitElement);
     });
+  }
+}
+
+async function renderAttachedUnits(callId, attachedUnitIds) {
+  const container = document.getElementById(`attached-units-${callId}`);
+  container.innerHTML = ''; // Clear existing units
+
+  for (const unitId of attachedUnitIds) {
+    const unitRef = doc(db, 'units', unitId);
+    const unitSnap = await getDoc(unitRef);
+
+    if (unitSnap.exists()) {
+      const unitData = unitSnap.data();
+      const unitDiv = document.createElement('div');
+      unitDiv.classList.add('attached-unit');
+
+      // Normalize status for CSS class
+      const statusClass = unitData.status.replace(/\s+/g, '-').toLowerCase();
+      unitDiv.classList.add(statusClass);
+
+      unitDiv.textContent = unitData.callsign;
+      container.appendChild(unitDiv);
+    }
   }
 }
 
