@@ -121,18 +121,21 @@ function updateCallsList(calls) {
 
     callsContainer.appendChild(callElement);
 
+    // Render attached units for this call
+    if (call.attachedUnits && Array.isArray(call.attachedUnits)) {
+      renderAttachedUnits(callId, call.attachedUnits);
+    }
+
     // Add event listener for double-click to select the call
     callElement.addEventListener('dblclick', () => {
       selectCall(call); // Assuming this function shows details in the details section
     });
-      renderAttachedUnitsList(callId, call.attachedUnits);
-
   });
 }
 
 async function renderAttachedUnitsList(attachedUnitIds) {
-  console.log(document.getElementById('attachedUnitsCallInfoSection')); // Debug log to check if the element exists
-  const container = document.getElementById('attachedUnitsCallInfoSection'); // Ensure this targets the correct element
+  console.log(document.getElementById('attachedUnits')); // Debug log to check if the element exists
+  const container = document.getElementById('attachedUnits'); // Ensure this targets the correct element
   container.innerHTML = ''; // Clear existing units
 
   for (const unitId of attachedUnitIds) {
@@ -147,7 +150,7 @@ async function renderAttachedUnitsList(attachedUnitIds) {
 
       // Add unit details
       unitDiv.innerHTML = `
-        <div class="unit-status ${unitData.status.toLowerCase()}">
+        <div class="unit-status ${unitData.status.toLowerCase()}" style="background-color: ${getStatusColor(unitData.status)}; color: white;">
           ${unitData.status}
         </div>
         <div class="unit-details">
@@ -247,10 +250,15 @@ function displayCalls(calls) {
 
     // Append the call card to the container
     callListContainer.appendChild(callCard);
+
+    // Render attached units for this call
+    if (call.attachedUnits && Array.isArray(call.attachedUnits)) {
+      renderAttachedUnits(callId, call.attachedUnits);
+    }
+
     // Add event listener for double-click to select the call
     callCard.addEventListener('dblclick', () => {
       selectCall(call);
-      
     });
   });
 }
@@ -291,7 +299,7 @@ async function selectCall(call) {
     callTimestamp.textContent = call.timestamp ? formatTimestamp(call.timestamp) : 'Timestamp not available';
 
     // Render attached units for the selected call
-      renderAttachedUnits(call.id, call.attachedUnits);
+      renderAttachedUnitsList(call.attachedUnits);
   }
 }
 

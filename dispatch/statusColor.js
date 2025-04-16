@@ -3,11 +3,12 @@
 export function getStatusColor(status) {
   switch (status) {
     case 'Available':
+    case 'On Scene':
       return '#4CAF50'; // Green for Available
     case 'Unavailable':
       return '#FF5722'; // Red-Orange for Unavailable
     case 'En Route':
-      return 'orange';
+      return '#FF5500';
     default:
       return '#9E9E9E'; // Gray for Unknown or undefined statuses
   }
