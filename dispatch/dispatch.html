@@ -9,28 +9,32 @@
 <body>
   <h1>Dispatch Panel</h1>
 
-  <!-- Filter for call types -->
-  <div class="filters">
-    <label>Filter by Service:</label>
-    <select id="serviceFilter">
-      <option value="">All Services</option>
-      <option value="Ambulance">Ambulance</option>
-      <option value="Fire">Fire</option>
+  <!-- Filter for Calls -->
+  <div class="filter-section">
+    <label for="callServiceFilter"><b>Filter Calls by Service:</b></label>
+    <select id="callServiceFilter">
+      <option value="All">All</option>
       <option value="Police">Police</option>
-      <option value="Multipule">Multipule</option>
-    </select>
+      <option value="Fire">Fire</option>
+      <option value="Ambulance">Ambulance</option>
+      <option value="Multiple">Multiple</option> 
+    </select>  
   </div>
 
   <!-- Active calls list -->
-    <div id="callsListContainer">
-        <div class="scrollable" id="callsList">
-        </div>
+  <div id="callsListContainer">
+    <div class="scrollable" id="callsList">
+      <!-- Each call card will now include a description and dropdown -->
     </div>
+  </div>
 
   <div class="dispatch-container">
     <!-- Left: Call details + attached units -->
     <div class="call-details">
-      <h2>Call Details</h2>
+      <div class="call-details-header">
+        <h2>Call Details</h2>
+        <button id="closeCallBtn" class="close-call-btn" style="display: none;">Close Call</button>
+      </div>
       <div id="callInfo">
         <p><strong>Caller:</strong> <span id="callerName"></span></p>
         <p><strong>Location:</strong> <span id="callLocation"></span></p>
@@ -38,9 +42,15 @@
         <p><strong>Status:</strong> <span id="callStatus"></span></p>
         <p><strong>Time:</strong> <span id="callTimestamp"></span></p>
       </div>
+      <h3>Edit Call</h3>
+      <label for="callDescription">Description:</label>
+      <textarea id="callDescription" class="call-description"></textarea>
+      <label for="callTypeDropdown">Call Type:</label>
+      <select id="callTypeDropdown" class="call-type-dropdown"></select>
+      <button id="saveCallDetails">Save Changes</button>
       <h3>Attached Units</h3>
       <div id="attachedUnits" class="unit-list">
-      <p>No Attached Units</p>
+        <p>No Attached Units</p>
       </div>
     </div>
 
@@ -54,9 +64,9 @@
     <div class="unit-browser">
       <h2>Units</h2>
       <!-- Filters -->
-      <input type="text" id="callsignFilter" placeholder="Search by Callsign">
+      <input type="text" id="unitCallsignSearch" placeholder="Search by Callsign">
       <select id="unitTypeFilter">
-        <option value="">All Unit Types</option>
+        <option value="All">All Unit Types</option>
         <option value="Ambulance">Ambulance</option>
         <option value="Fire">Fire</option>
         <option value="Police">Police</option>

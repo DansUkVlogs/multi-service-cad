@@ -58,7 +58,7 @@ h1 {
     flex-wrap: wrap; /* Ensures proper wrapping */
 }
 
-/* Call Details */
+/* Call Details Section */
 .call-details {
     flex: 2;
     background-color: #fff;
@@ -66,17 +66,20 @@ h1 {
     border-radius: 12px; /* Rounded corners */
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
     width: 100%;
-}
-
-.call-location,
-.call-status,
-.caller-name {
-    font-size: 1.1em;
-    margin: 5px 0;
+    margin-top: 20px;
+    margin-bottom: 50px; /* Generous margin at the bottom */
+    padding-bottom: 20px; /* Add consistent padding at the bottom */
+    overflow: visible; /* Allow the container to grow dynamically */
 }
 
 .call-details h2 {
     margin-top: 0;
+}
+
+.call-details h3 {
+    margin-top: 15px;
+    font-size: 1.2em;
+    color: #333;
 }
 
 .call-details p {
@@ -84,8 +87,89 @@ h1 {
     margin: 5px 0;
 }
 
+.call-description {
+    width: 90%;
+    height: 80px;
+    margin-top: 5px;
+    margin-bottom: 15px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1em;
+    resize: vertical;
+}
+
+.call-type-dropdown {
+    width: 100%;
+    margin-top: 5px;
+    margin-bottom: 15px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1em;
+    background-color: #fff;
+}
+
+#saveCallDetails {
+    display: inline-block;
+    padding: 10px 20px;
+    font-size: 1em;
+    color: #fff;
+    background-color: #007bff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+#saveCallDetails:hover {
+    background-color: #0056b3;
+}
+
+/* Attached Units in Call Details Section */
 #attachedUnits {
-    margin-top: 20px;
+    display: flex;
+    flex-direction: column; /* Stack units vertically */
+    align-items: center; /* Center the cards */
+    gap: 15px; /* Add spacing between units */
+    width: 100%;
+}
+
+/* Attached Unit Cards */
+.attached-unit {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 10px; /* Reduced left and right padding */
+    border-radius: 12px; /* Rounded corners */
+    font-size: 1em;
+    font-weight: bold;
+    text-align: center;
+    word-wrap: break-word; /* Wrap long text */
+    width: auto; /* Adjust width to fit content */
+    max-width: 300px; /* Prevent units from being too wide */
+    box-sizing: border-box; /* Include padding and border in width */
+    background-color: unset; /* Ensure no default background color is applied */
+    color: var(--text-color); /* Dynamically set text color */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); /* Add a subtle shadow */
+    cursor: pointer; /* Ensure cards are clickable */
+}
+
+/* Remove conflicting rules */
+.attached-unit {
+    background-color: unset; /* Reset any inherited or conflicting background color */
+}
+
+/* Status Box for Attached Unit Cards */
+.attached-unit .unit-status {
+    width: 75%; /* 75% of the card width */
+    padding: 10px;
+    border-radius: 12px; /* Rounded corners */
+    font-size: 0.9em;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 10px;
+    color: white; /* Default text color */
 }
 
 /* Dispatch Actions */
@@ -110,6 +194,23 @@ h1 {
 
 .dispatch-actions button:hover {
     background-color: #45a049;
+}
+
+/* Close Call Button */
+.close-call-btn {  
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    font-size: 0.9em;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin-left: 10px;
+}
+
+.close-call-btn:hover {
+    background-color: #c82333;
 }
 
 /* Available Units Section */
@@ -140,17 +241,28 @@ h1 {
 .unit-browser select:focus {
     border-color: #4CAF50;
     outline: none;
-}
+}  
 
 /* Unit Cards */
 .unit-card {
-    border: 1px solid #ccc;
-    padding: 10px;
-    margin: 10px;
-    border-radius: 8px;
-    width: 200px;
-    box-sizing: border-box;
-  }
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Center the text */
+    padding: 15px;
+    border-radius: 12px; /* Rounded corners */
+    font-size: 1em;
+    font-weight: bold;
+    text-align: center;
+    word-wrap: break-word; /* Wrap long text */
+    width: 100%; /* Ensure consistent width */
+    max-width: 300px; /* Prevent units from being too wide */
+    box-sizing: border-box; /* Include padding and border in width */
+    background-color: var(--unit-type-color); /* Dynamically set background color */
+    color: var(--text-color); /* Dynamically set text color */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); /* Add a subtle shadow */
+    cursor: pointer; /* Ensure cards are clickable */
+    margin: 0 auto;
+}
 
 .unit-card:hover {
     transform: scale(1.05);
@@ -202,9 +314,10 @@ h1 {
 /* Available Units List */
 #availableUnitsList {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 20px;
+    flex-direction: column; /* Stack cards vertically */
+    align-items: center; /* Center the cards */
+    gap: 15px; /* Add spacing between cards */
+    width: 100%;
 }
 
 /* Unit Search */
@@ -319,6 +432,15 @@ h1 {
     background-color: #f1f1f1;
     border: 2px solid #4CAF50;
 }
+
+/* Fix Overflow in All Calls List */
+.call-card .call-status {
+    white-space: normal; /* Allow text wrapping */
+    overflow: hidden; /* Hide overflowing content */
+    text-overflow: ellipsis; /* Add ellipsis for long text */
+    word-wrap: break-word; /* Wrap long words */
+}
+
 /* Available Units Section */
 .unit-browser {
     flex: 2;
@@ -335,28 +457,32 @@ h1 {
 
 /* Unit Cards */
 .unit-card {
-    background-color: #fff;
-    margin: 10px;
-    padding: 10px;
-    border-radius: 12px; /* Rounded corners */
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
-    height: auto;
-    max-width: 200px;
-    transition: all 0.3s ease;
+    align-items: center; /* Center the text */
+    padding: 15px;
+    border-radius: 12px; /* Rounded corners */
+    font-size: 1em;
+    font-weight: bold;
+    text-align: center;
+    word-wrap: break-word; /* Wrap long text */
+    width: 100%; /* Ensure consistent width */
+    max-width: 300px; /* Prevent units from being too wide */
+    box-sizing: border-box; /* Include padding and border in width */
+    background-color: var(--unit-type-color); /* Dynamically set background color */
+    color: var(--text-color); /* Dynamically set text color */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); /* Add a subtle shadow */
+    cursor: pointer; /* Ensure cards are clickable */
 }
 
 .unit-card:hover {
     transform: scale(1.05);
 }
 
-/* Unit Status */
 .unit-card .unit-status {
     font-size: 16px;
     font-weight: bold;
-    padding: 5px 0;
+    padding: 10px;
     text-align: center;
     border-radius: 5px;
     margin-bottom: 10px;
@@ -375,6 +501,10 @@ h1 {
 
 /* Unit Status Styles */
 .unit-card.available {
+    background-color: #d4edda;
+}
+
+.unit-card.on-scene {
     background-color: #d4edda;
 }
 
@@ -412,14 +542,6 @@ h1 {
     font-weight: bold;
     background-color: grey;
   }
-  
-  .en-route {
-    background-color: rgb(255, 166, 0);
-  }
-  
-  .on-scene {
-    background-color: green;
-  }
 
   #attachedUnits {
     display: flex;
@@ -427,4 +549,31 @@ h1 {
     align-items: flex-start;
     gap: 20px; 
     }
-  
+
+    .selected-unit {
+        border: 5px solid darkgreen; /* Green border for selected unit */
+        background-color: #f1f1f1; /* Light background for selected unit */
+      }
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .call-details {
+    padding: 10px;
+  }
+
+  .call-description,
+  .call-type-dropdown {
+    font-size: 0.9em;
+  }
+
+  #saveCallDetails {
+    font-size: 0.9em;
+    padding: 8px 15px;
+  }
+
+  #availableUnitsList,
+  #attachedUnits {
+    align-items: center; /* Ensure cards are centered on smaller screens */
+  }
+}
+
