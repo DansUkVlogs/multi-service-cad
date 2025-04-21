@@ -18,6 +18,33 @@ h1 {
     color: #000; /* Header color */
 }
 
+/* Ensure the header is positioned relative for the button */
+header {
+    position: relative;
+}
+
+/* Back to Home Button */
+.back-to-home {
+    position: fixed; /* Position relative to the viewport */
+    top: 20px; /* Distance from the top of the page */
+    right: 20px; /* Distance from the right of the page */
+    padding: 10px 20px;
+    font-size: 1em;
+    color: #fff;
+    background-color: #007bff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    text-align: center;
+    transition: background-color 0.3s ease;
+    z-index: 1000; /* Ensure it stays above other elements */
+}
+
+.back-to-home:hover {
+    background-color: #0056b3;
+}
+
 /* Filter Section */
 .filters {
     margin: 20px 0;
