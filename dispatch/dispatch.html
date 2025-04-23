@@ -27,7 +27,7 @@
   <!-- Active calls list -->
   <div id="callsListContainer">
     <div class="scrollable" id="callsList">
-      <!-- Each call card will now include a description and dropdown -->
+      <!-- Each call card will include a description and dropdown -->
     </div>
   </div>
 
@@ -39,9 +39,17 @@
         <button id="closeCallBtn" class="close-call-btn" style="display: none;">Close Call</button>
       </div>
       <div id="callInfo">
+        <p>
+          <strong>Service:</strong>
+          <select id="callServiceDropdown" class="service-card-dropdown">
+            <option value="Police">Police</option>
+            <option value="Fire">Fire</option>
+            <option value="Ambulance">Ambulance</option>
+            <option value="Multiple">Multiple</option>
+          </select>
+        </p>
         <p><strong>Caller:</strong> <span id="callerName"></span></p>
         <p><strong>Location:</strong> <span id="callLocation"></span></p>
-        <p><strong>Service:</strong> <span id="callService"></span></p>
         <p><strong>Status:</strong> <span id="callStatus"></span></p>
         <p><strong>Time:</strong> <span id="callTimestamp"></span></p>
       </div>

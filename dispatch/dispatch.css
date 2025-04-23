@@ -582,6 +582,71 @@ header {
         background-color: #f1f1f1; /* Light background for selected unit */
       }
 
+/* Service Card */
+.service-card {
+  display: inline-block;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-size: 1em;
+  font-weight: bold;
+  color: white;
+  text-align: center;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Service Dropdown */
+.call-service-dropdown {
+  display: block;
+  margin-top: 10px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  font-size: 1em;
+  width: 100%;
+  max-width: 300px;
+  background-color: #fff;
+}
+
+/* Service Dropdown Styled as a Card */
+.service-card-dropdown {
+  display: inline-block;
+  padding: 6px 12px; /* Reduced padding for smaller size */
+  border-radius: 10px; /* Slightly smaller rounded corners */
+  font-size: 0.9em; /* Reduced font size */
+  font-weight: bold;
+  color: white;
+  text-align: center;
+  background-color: gold; /* Default color for "Multiple" */
+  border: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  appearance: none; /* Remove default dropdown styling */
+  cursor: pointer;
+  width: auto;
+}
+
+/* Service Dropdown Options */
+.service-card-dropdown option {
+  color: black; /* Ensure dropdown options are readable */
+}
+
+/* Adjust dropdown color dynamically */
+.service-card-dropdown[data-service="Police"] {
+  background-color: #64B5F6; /* Light blue for Police */
+}
+
+.service-card-dropdown[data-service="Fire"] {
+  background-color: #FF7043; /* Light red-orange for Fire */
+}
+
+.service-card-dropdown[data-service="Ambulance"] {
+  background-color: #81C784; /* Light green for Ambulance */
+}
+
+.service-card-dropdown[data-service="Multiple"] {
+  background-color: gold; /* Gold for Multiple */
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .call-details {
