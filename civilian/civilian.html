@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Civilian Details</title>
+    <link rel="stylesheet" href="civilian.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Civilian Details</h1>
+            <button class="back-button">Back To Home</button>
+        </header>
+        <main>
+            <div class="controls">
+                <button class="new-call">New Call</button>
+                <div class="button-group">
+                    <label for="slot-select">Select Slot</label>
+                    <select id="slot-select">
+                        <option value="">--Select--</option>
+                        <option value="0">Character 1 (Empty)</option>
+                        <option value="1">Character 2 (Empty)</option>
+                    </select>
+                    <button class="load-character">Load Saved Character</button>
+                    <button class="save-character">Save Current Character</button>
+                    <button class="go-live">Go Live</button>
+                </div>
+            </div>
+            <div class="form-container">
+                <div class="profile-picture">
+                    <img src="../imgs/blank-profile-picture-973460.svg" alt="Profile Picture">
+                </div>
+                <form>
+                    <div class="form-group">
+                        <label for="first-name">First Name</label>
+                        <input type="text" id="first-name" name="first-name">
+                    </div>
+                    <div class="form-group">
+                        <label for="last-name">Last Name</label>
+                        <input type="text" id="last-name" name="last-name">
+                    </div>
+                    <div class="form-group">
+                        <label for="dob">Date Of Birth</label>
+                        <input type="date" id="dob" name="dob">
+                    </div>
+                    <div class="form-group">
+                        <label for="age">Age</label>
+                        <input type="number" id="age" name="age" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="phone">Phone Number</label>
+                        <input type="tel" id="phone" name="phone">
+                    </div>
+                    <br>
+                    <div class="form-group-row">
+                        <div class="form-group">
+                            <label for="address">Address</label>
+                            <textarea id="address" name="address"></textarea>
+                        </div>
+                        <div class="form-group" id="other-details">
+                            <label for="details">Other Details</label>
+                            <textarea id="details" name="details"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </main>
+    </div>
+</body>
+<script src="civilian.js"></script>
+</html>
