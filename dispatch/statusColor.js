@@ -1,4 +1,4 @@
-export function getStatusColor(status) {
+function getStatusColor(status) {
   switch (status) {
     case 'Available':
     case 'On Scene':
@@ -13,19 +13,19 @@ export function getStatusColor(status) {
 }
 
 // Function to get contrasting text color (for readability)
-export function getContrastingTextColor(backgroundColor) {
+function getContrastingTextColor(backgroundColor) {
   const color = backgroundColor.charAt(0) === '#' ? backgroundColor.slice(1) : backgroundColor;
   const rgb = parseInt(color, 16); // Convert hex to rgb
   const r = (rgb >> 16) & 0xff;
-  const g = (rgb >>  8) & 0xff;
-  const b = (rgb >>  0) & 0xff;
+  const g = (rgb >> 8) & 0xff;
+  const b = (rgb >> 0) & 0xff;
 
   const brightness = 0.2126 * r + 0.7152 * g + 0.0722 * b;
   return brightness > 128 ? "#FFFFFF" : "#000000"; // Return black or white text
 }
 
 // Function to get color based on unit type (Ambulance, Fire, etc.)
-export function getUnitTypeColor(unitType) {
+function getUnitTypeColor(unitType) {
   switch (unitType) {
     case 'Ambulance':
       return '#81C784'; // Light green for Ambulance

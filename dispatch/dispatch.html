@@ -36,7 +36,7 @@
     <div class="call-details">
       <div class="call-details-header">
         <h2>Call Details</h2>
-        <button id="closeCallBtn" class="close-call-btn" style="display: none;">Close Call</button>
+        <button id="closeCallBtn" class="close-call-btn">Close Call</button>
       </div>
       <div id="callInfo">
         <p>
@@ -85,7 +85,9 @@
       <div id="availableUnitsList"></div>
     </div>
   </div>
-  <script type="module" src="../firebase/firebase.js"></script>
-  <script type="module" defer src="dispatch.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="statusColor.js"></script>
+  <script src="dispatch.js"></script>
 </body>
 </html>

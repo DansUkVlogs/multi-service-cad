@@ -224,20 +224,24 @@ header {
 }
 
 /* Close Call Button */
-.close-call-btn {  
-    background-color: #dc3545;
-    color: white;
+.close-call-btn {
+    display: none; /* Hide the button by default */
+    background-color: #f44336; /* Red background */
+    color: white; /* White text */
     border: none;
-    padding: 8px 12px;
-    font-size: 0.9em;
-    border-radius: 4px;
+    padding: 10px 15px;
+    font-size: 14px;
     cursor: pointer;
-    transition: background-color 0.3s ease;
-    margin-left: 10px;
+    border-radius: 5px;
+    margin-left: auto; /* Align to the right */
+}
+
+.close-call-btn.show {
+    display: inline-block; /* Show the button when the 'show' class is added */
 }
 
 .close-call-btn:hover {
-    background-color: #c82333;
+    background-color: #d32f2f; /* Darker red on hover */
 }
 
 /* Available Units Section */
