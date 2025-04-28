@@ -81,7 +81,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const selectedSlot = slotSelect.value;
 
     if (selectedSlot === "") {
-      showMessage('Please select a slot to save the character.', 'error');
+      showNotification('Please select a slot to save the character.');
       return;
     }
 
@@ -99,7 +99,7 @@ window.addEventListener('DOMContentLoaded', () => {
     savedCivilians[selectedSlot] = character;
     localStorage.setItem('civilians', JSON.stringify(savedCivilians));
 
-    showMessage(`Character saved to slot ${parseInt(selectedSlot) + 1}!`, 'success');
+    showNotification(`Character saved to slot ${parseInt(selectedSlot) + 1}!`);
   });
 
   // Ensure the "Load Saved Character" button works
@@ -108,7 +108,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const selectedSlot = slotSelect.value;
 
     if (selectedSlot === "") {
-      showMessage('Please select a slot to load the character.', 'error');
+      showNotification('Please select a slot to load the character.');
       return;
     }
 
@@ -117,7 +117,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const character = savedCivilians[selectedSlot];
 
     if (!character) {
-      showMessage('No character found in the selected slot.', 'error');
+      showNotification('No character found in the selected slot.');
       return;
     }
 
@@ -130,19 +130,23 @@ window.addEventListener('DOMContentLoaded', () => {
     // Load profile picture
     document.querySelector('.profile-picture img').src = character.profileImage;
 
-    showMessage(`Character loaded from slot ${parseInt(selectedSlot) + 1}!`, 'success');
+    showNotification(`Character loaded from slot ${parseInt(selectedSlot) + 1}!`);
   });
 
   // Ensure the "Go Live" button works
   const goLiveButton = document.querySelector('.go-live');
-  const newCallButton = document.querySelector('.new-call');
+  const newCallButton = document.querySelector('.new-call'); // Declare only once
+  const newCallModal = document.getElementById('newCallModal');
+  const newCallForm = document.getElementById('newCallForm');
+  const closeModal = newCallModal?.querySelector('.close');
+
   goLiveButton.addEventListener('click', async () => {
     const slotSelect = document.getElementById('slot-select');
     const loadButton = document.querySelector('.load-character');
     const selectedSlot = slotSelect.value;
 
     if (selectedSlot === "") {
-      showMessage('Please select a slot to go live.', 'error');
+      showNotification('Please select a slot to go live.');
       return;
     }
 
@@ -151,13 +155,13 @@ window.addEventListener('DOMContentLoaded', () => {
       const character = savedCivilians[selectedSlot];
 
       if (!character) {
-        showMessage('No character found in the selected slot.', 'error');
+        showNotification('No character found in the selected slot.');
         return;
       }
 
       try {
         await db.collection('civilians').doc(`slot${selectedSlot}`).set(character);
-        showMessage(`Character from slot ${parseInt(selectedSlot) + 1} is now live!`, 'success');
+        showNotification(`Character from slot ${parseInt(selectedSlot) + 1} is now live!`);
 
         // Lock the "Select Slot" and "Load Saved Character" buttons
         slotSelect.disabled = true;
@@ -171,12 +175,12 @@ window.addEventListener('DOMContentLoaded', () => {
         newCallButton.disabled = false; // Enable "New Call" button
       } catch (error) {
         console.error('Error saving character to Firebase:', error);
-        showMessage('Failed to go live. Please try again.', 'error');
+        showNotification('Failed to go live. Please try again.');
       }
     } else {
       try {
         await db.collection('civilians').doc(`slot${selectedSlot}`).delete();
-        showMessage(`Character from slot ${parseInt(selectedSlot) + 1} is now offline.`, 'success');
+        showNotification(`Character from slot ${parseInt(selectedSlot) + 1} is now offline.`);
 
         // Unlock the "Select Slot" and "Load Saved Character" buttons
         slotSelect.disabled = false;
@@ -190,59 +194,58 @@ window.addEventListener('DOMContentLoaded', () => {
         newCallButton.disabled = true; // Disable "New Call" button
       } catch (error) {
         console.error('Error deleting character from Firebase:', error);
-        showMessage('Failed to unlive. Please try again.', 'error');
+        showNotification('Failed to unlive. Please try again.');
       }
     }
   });
 
-  // Handle "New Call" modal
-  const newCallModal = document.getElementById('newCallModal');
-  const closeModal = newCallModal.querySelector('.close');
-  const newCallForm = document.getElementById('newCallForm');
+  // Ensure the "New Call" button works
+  if (newCallButton && newCallModal && newCallForm) {
+      newCallButton.addEventListener('click', () => {
+          const savedCivilians = JSON.parse(localStorage.getItem('civilians')) || [null, null];
+          const character = savedCivilians[liveSlot];
+          if (character) {
+              document.getElementById('callerName').value = `${character.details['first-name']} ${character.details['last-name']}`;
+          }
+          newCallModal.style.display = 'block';
+      });
 
-  newCallButton.addEventListener('click', () => {
-    const savedCivilians = JSON.parse(localStorage.getItem('civilians')) || [null, null];
-    const character = savedCivilians[liveSlot];
-    if (character) {
-      document.getElementById('callerName').value = `${character.details['first-name']} ${character.details['last-name']}`;
-    }
-    newCallModal.style.display = 'block';
-  });
+      closeModal?.addEventListener('click', () => {
+          newCallModal.style.display = 'none';
+      });
 
-  closeModal.addEventListener('click', () => {
-    newCallModal.style.display = 'none';
-  });
+      window.addEventListener('click', (event) => {
+          if (event.target === newCallModal) {
+              newCallModal.style.display = 'none';
+          }
+      });
 
-  window.addEventListener('click', (event) => {
-    if (event.target === newCallModal) {
-      newCallModal.style.display = 'none';
-    }
-  });
+      // Handle form submission for "New Call"
+      newCallForm.addEventListener('submit', async (event) => {
+          event.preventDefault();
 
-  // Handle form submission
-  newCallForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
+          const formData = new FormData(newCallForm);
+          const callDetails = Object.fromEntries(formData.entries());
 
-    const formData = new FormData(newCallForm);
-    const callDetails = Object.fromEntries(formData.entries());
+          // Use Firestore's server timestamp for accurate time
+          callDetails.timestamp = firebase.firestore.FieldValue.serverTimestamp();
 
-    // Use Firestore's server timestamp for accurate time
-    callDetails.timestamp = firebase.firestore.FieldValue.serverTimestamp();
+          // Set default status and call type
+          callDetails.status = "Awaiting Dispatch";
+          callDetails.callType = ""; // Empty call type
 
-    // Set default status and call type
-    callDetails.status = "Awaiting Dispatch";
-    callDetails.callType = ""; // Empty call type
+          try {
+              // Add the call to the "calls" collection in Firebase
+              await db.collection('calls').add(callDetails);
+              showNotification('Call created');
+          } catch (error) {
+              console.error('Error adding call to Firebase:', error);
+              showNotification('Failed to place the call. Please try again.');
+          }
 
-    try {
-      // Add the call to the "calls" collection in Firebase
-      await db.collection('calls').add(callDetails);
-    } catch (error) {
-      console.error('Error adding call to Firebase:', error);
-      showMessage('Failed to place the call. Please try again.', 'error');
-    }
-
-    newCallModal.style.display = 'none';
-  });
+          newCallModal.style.display = 'none';
+      });
+  }
 
   // Ensure the dropdown is initialized correctly on page load
   const savedCivilians = JSON.parse(localStorage.getItem('civilians')) || [null, null];
@@ -265,3 +268,23 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('age').value = age >= 0 ? age : ''; // Display the calculated age
   });
 });
+
+// Create a container for notifications
+const notificationsContainer = document.createElement('div');
+notificationsContainer.classList.add('notifications-container');
+document.body.appendChild(notificationsContainer);
+
+// Function to show a notification
+function showNotification(message) {
+    const notification = document.createElement('div');
+    notification.classList.add('notification');
+    notification.textContent = message;
+
+    // Add the notification to the container
+    notificationsContainer.appendChild(notification);
+
+    // Remove the notification after 10 seconds
+    setTimeout(() => {
+        notification.remove();
+    }, 10000); // 10 seconds
+}
