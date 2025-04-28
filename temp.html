@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Temp Data Seeder</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .log {
+      margin-top: 20px;
+      padding: 10px;
+      background-color: #f4f4f4;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>Temp Data Seeder</h1>
+  <button id="seedDataBtn">Seed Sample Data</button>
+  <div class="log" id="log"></div>
+
+  <script type="module">
+  import { db } from "../firebase/firebase.js";
+  import { collection, addDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+  const newUnits = [
+    { unitId: "uGvDvoLJDWxcJZuqLmm4" },
+    { unitId: "qNUK7D92XmXdwjQvs0ap" },
+    { unitId: "ndxcAqBjuAGtCijuBPNW" },
+    { unitId: "gPOJKke7gCpB1lqMMTbr" },
+    { unitId: "YegTXSkhwVnxgcoYh7mg" },
+    { unitId: "W0FFe3w4vefvED1qx0ga" },
+    { unitId: "SCSGq7hnWWbE9Qr1tSrN" },
+    { unitId: "N7LJKtMI8QwDIcXioe5Q" },
+    { unitId: "87Hl4r1ulkVHb0yzl5DK" },
+    { unitId: "5T8wGhWg6Kx0TOjONbRf" }
+  ];
+
+  async function addNewUnits() {
+    const log = document.getElementById('log');
+    log.innerHTML += "Adding new units to availableUnits collection...<br>";
+
+    try {
+      const availableUnitsCollection = collection(db, 'availableUnits'); // Reference the 'availableUnits' collection
+      for (const unit of newUnits) {
+        await addDoc(availableUnitsCollection, unit); // Add new units to the 'availableUnits' collection
+        log.innerHTML += `Added unit: ${unit.unitId}<br>`;
+      }
+      log.innerHTML += "All units added successfully.<br>";
+    } catch (error) {
+      console.error("Error adding new units:", error);
+      log.innerHTML += `Error: ${error.message}<br>`;
+    }
+  }
+
+  document.getElementById('seedDataBtn').addEventListener('click', addNewUnits);
+  </script>
+</body>
+</html>
