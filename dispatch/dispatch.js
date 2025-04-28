@@ -233,20 +233,27 @@ async function renderAttachedUnits(callId) {
 }
 
 // Render attached units under each call in the "All Calls" list
-async function renderAttachedUnitsForCall(callId, attachedUnitIds) {
+async function renderAttachedUnitsForCall(callId) {
   const attachedUnitsContainer = document.getElementById(`attached-units-${callId}`);
   if (!attachedUnitsContainer) return;
 
-  attachedUnitsContainer.innerHTML = ''; // Clear existing attached units
+  // Fetch attached units for the given call ID from the attachedUnits collection
+  const attachedUnitQuery = attachedUnitsRef.where("callID", "==", callId);
+  const attachedUnitSnapshot = await attachedUnitQuery.get();
 
-  if (!attachedUnitIds || attachedUnitIds.length === 0) {
-    attachedUnitsContainer.innerHTML = '<p>No Attached Units</p>'; // Show a message if no units are attached
+  // If no attached units exist, remove the container entirely
+  if (attachedUnitSnapshot.empty) {
+    attachedUnitsContainer.remove(); // Remove the placeholder container
     return;
   }
 
-  for (const unitId of attachedUnitIds) {
+  // Clear the container before rendering attached units
+  attachedUnitsContainer.innerHTML = '';
+
+  for (const docSnap of attachedUnitSnapshot.docs) {
     try {
-      const unitRef = db.collection('units').doc(unitId);
+      const { unitID } = docSnap.data();
+      const unitRef = db.collection('units').doc(unitID);
       const unitSnap = await unitRef.get();
 
       if (!unitSnap || !unitSnap.data()) {
@@ -256,14 +263,14 @@ async function renderAttachedUnitsForCall(callId, attachedUnitIds) {
       const unitData = unitSnap.data();
       const unitDiv = document.createElement('div');
       unitDiv.classList.add('attached-unit');
-      unitDiv.dataset.unitId = unitId;
+      unitDiv.dataset.unitId = unitID;
       unitDiv.style.backgroundColor = getStatusColor(unitData.status);
       unitDiv.style.color = getContrastingTextColor(getStatusColor(unitData.status));
       unitDiv.textContent = `${unitData.callsign || 'N/A'} (${unitData.unitType || 'Unknown'})`;
 
       attachedUnitsContainer.appendChild(unitDiv);
     } catch (error) {
-      console.error(`Error fetching unit details for ID ${unitId}:`, error);
+      console.error(`Error fetching unit details for call ID ${callId}:`, error);
     }
   }
 }
@@ -306,7 +313,7 @@ async function displayCalls(calls) {
         <p class="call-status"><strong>Status:</strong> ${call.status || 'Awaiting Dispatch'}</p>
         <p class="call-timestamp"><strong>Time:</strong> ${formattedTimestamp}</p>
         <div class="attached-units-container" id="attached-units-${call.id}">
-          <p>No Attached Units</p> <!-- Default message for no attached units -->
+          <!-- Placeholder for attached units -->
         </div>
       </div>
     `;
@@ -314,10 +321,8 @@ async function displayCalls(calls) {
     callCard.addEventListener('dblclick', () => selectCall(call));
     callsList.appendChild(callCard);
 
-    // Render attached units for the call
-    if (call.attachedUnits && Array.isArray(call.attachedUnits) && call.attachedUnits.length > 0) {
-      await renderAttachedUnitsForCall(call.id, call.attachedUnits);
-    }
+    // Dynamically fetch and render attached units for the call
+    await renderAttachedUnitsForCall(call.id);
   }
 }
 
@@ -536,6 +541,13 @@ closeCallBtn.addEventListener('click', async () => {
 
       // Clear the call details section
       clearCallDetails();
+
+      // Re-render attached units for all remaining calls
+      for (const call of allCallsProxy) {
+        if (call.attachedUnits && Array.isArray(call.attachedUnits)) {
+          await renderAttachedUnitsForCall(call.id, call.attachedUnits);
+        }
+      }
     } catch (error) {
       console.error('Failed to close the call:', error);
     }
@@ -702,29 +714,9 @@ function listenForUnitUpdates() {
 
 // Listen for real-time updates to the attachedUnits collection
 function listenForAttachedUnitUpdates() {
-  attachedUnitsRef.onSnapshot(async (snapshot) => {
-    const attachedUnits = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-    // Ensure allCallsProxy is populated before processing attached units
-    if (allCallsProxy.length === 0) {
-      return;
-    }
-
-    // Update the "All Calls" list with the latest attached units
-    allCallsProxy = allCallsProxy.map(call => {
-      const callAttachedUnits = attachedUnits.filter(unit => unit.callID === call.id);
-      return { ...call, attachedUnits: callAttachedUnits.map(unit => unit.unitID) };
-    });
-
-    displayCalls(allCallsProxy); // Refresh the "All Calls" list
-
-    // Reload the selected call's details and attached units if it is affected by the update
-    if (selectedCallId) {
-      const selectedCall = allCallsProxy.find(call => call.id === selectedCallId);
-      if (selectedCall) {
-        await renderAttachedUnits(selectedCallId); // Ensure attached units are updated in real-time
-      }
-    }
+  attachedUnitsRef.onSnapshot(async () => {
+    // Refresh the "All Calls" list to ensure attached units are updated dynamically
+    displayCalls(allCallsProxy);
   });
 }
 
@@ -793,6 +785,14 @@ function listenForCallUpdates() {
 
     // Refresh the "All Calls" list and ensure attached units are re-rendered
     displayCalls(allCallsProxy);
+
+
+    for (const call of allCallsProxy) {
+      if (call.attachedUnits && Array.isArray(call.attachedUnits)) {
+        renderAttachedUnitsForCall(call.id, call.attachedUnits);
+      }
+    }
+
   });
 }
 
@@ -826,3 +826,17 @@ fetchCalls();
 // Initial load
 initializeRealTimeListeners();
 clearCallDetails(); // Ensure call details and attached units are cleared on page load
+
+// Update the call type dropdown when the service is changed
+callServiceDropdown.addEventListener('change', async () => {
+  const selectedService = callServiceDropdown.value;
+
+  // Fetch the dropdown options for the selected service
+  const dropdownOptions = await getDropdownOptions(selectedService);
+
+  // Update the call type dropdown with the new options
+  const callTypeDropdown = document.getElementById('callTypeDropdown');
+  callTypeDropdown.innerHTML = dropdownOptions
+    .map(option => `<option value="${option.id}">${option.type}</option>`)
+    .join('');
+});
