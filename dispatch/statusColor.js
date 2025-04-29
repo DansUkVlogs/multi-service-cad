@@ -12,6 +12,9 @@ function getStatusColor(status) {
   }
 }
 
+// Attach the function to the window object to make it globally accessible
+window.getStatusColor = getStatusColor;
+
 // Function to get contrasting text color (for readability)
 function getContrastingTextColor(backgroundColor) {
   const color = backgroundColor.charAt(0) === '#' ? backgroundColor.slice(1) : backgroundColor;

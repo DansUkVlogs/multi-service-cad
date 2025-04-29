@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ambulance Menu</title>
+    <link rel="stylesheet" href="ambulance.css">
+    <script type="module" src="../firebase/firebase.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>Ambulance Menu</h1>
+        <div class="button-group">
+            <button class="back-button" onclick="window.location.href='../index.html'">Back To Home</button>
+            <button class="panic-button">Panic</button>
+        </div>
+    </div>
+    <div class="status-buttons">
+        <button>Available</button>
+        <button>En Route</button>
+        <button>On Scene</button>
+        <button>Transporting To Hospital</button>
+        <button>At Hospital</button>
+        <button>Going To Base</button>
+        <button>Go To Standby</button>
+        <button>Unavailable</button>
+        <button>Busy</button>
+        <button>Refueling</button>
+        <button>Meal Break</button>
+        <button>On Duty</button>
+        <div class="right-buttons">
+            <button class="open-modal-button">Open Civilian</button>
+            <button class="extra-button">Select Callsign</button>
+        </div>
+    </div>
+    <div class="main-content">
+        <div class="details-container" style="display: flex; gap: 20px;">
+            <div class="call-details">
+                <h2>Call Details</h2>
+                <div class="incident-location-box">
+                    <div class="incident">Incident: </div>
+                    <div class="location">Location: </div>
+                </div>
+                <p><strong>Caller Name:</strong> <span class="callerName"></span></p>
+                <div class="description">
+                    <p><strong>Description:</strong></p>
+                    <div class="descriptionText"></div>
+                </div>
+                <h3 class="attached-units-title">Attached Units</h3>
+                <div class="attached-units">
+                    <div id="attached-units-container">
+                        <!-- Units will be dynamically populated here -->
+                    </div>
+                </div>
+                <p class="timestamp">Time Stamp: </p>
+            </div>
+            <div class="calls-list">
+                <h2>Calls List</h2>
+                <button class="self-attach">Self Attach</button>
+                <div id="calls-container">
+                    <!-- Calls will be dynamically populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Structure -->
+    <div id="civilian-modal" class="modal" style="display: none;">
+        <div class="modal-content" style="position: relative;"> <!-- Added relative positioning -->
+            <button class="close-modal-button top-right" onclick="closeModal()">&times;</button>
+            <iframe src="../civilian/civilian.html" frameborder="0" style="width: 100%; height: 100%;"></iframe>
+        </div>
+    </div>
+
+    <script src="../dispatch/statusColor.js"></script>
+    <script type="module" src="ambulance.js"></script>
+</body>
+</html>
