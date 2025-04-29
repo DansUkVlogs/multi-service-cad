@@ -14,7 +14,7 @@
         </header>
         <main>
             <div class="controls">
-                <button class="new-call">New Call</button>
+                <button class="new-call" disabled>New Call</button> <!-- Disabled by default -->
                 <div class="button-group">
                     <label for="slot-select">Select Slot</label>
                     <select id="slot-select">
@@ -65,8 +65,41 @@
                     </div>
                 </form>
             </div>
+            <!-- Modal for creating a new call -->
+            <div id="newCallModal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <span class="close">&times;</span>
+                    <h2>Create New Call</h2>
+                    <form id="newCallForm">
+                        <div class="form-group">
+                            <label for="callerName">Caller Name</label>
+                            <input type="text" id="callerName" name="callerName" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label for="description">Description</label>
+                            <textarea id="description" name="description" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="location">Location</label>
+                            <input type="text" id="location" name="location" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="service">Service</label>
+                            <select id="service" name="service" required>
+                                <option value="Multiple">Multiple</option>
+                                <option value="Fire">Fire</option>
+                                <option value="Police">Police</option>
+                                <option value="Ambulance">Ambulance</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="submit-call">Place Call</button>
+                    </form>
+                </div>
+            </div>
         </main>
     </div>
 </body>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="civilian.js"></script>
 </html>

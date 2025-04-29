@@ -36,7 +36,7 @@
     <div class="call-details">
       <div class="call-details-header">
         <h2>Call Details</h2>
-        <button id="closeCallBtn" class="close-call-btn" style="display: none;">Close Call</button>
+        <button id="closeCallBtn" class="close-call-btn">Close Call</button>
       </div>
       <div id="callInfo">
         <p>
@@ -69,6 +69,7 @@
     <div class="dispatch-actions">
       <button id="attachBtn">← Attach</button>
       <button id="detachBtn">Detach →</button>
+      <button id="addCallBtn">Add Call</button> <!-- New Add Call button -->
     </div>
 
     <!-- Right: Available units -->
@@ -85,7 +86,46 @@
       <div id="availableUnitsList"></div>
     </div>
   </div>
-  <script type="module" src="../firebase/firebase.js"></script>
-  <script type="module" defer src="dispatch.js"></script>
+
+  <!-- Modal for creating a new call -->
+<div id="addCallModal" class="modal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h2>Create New Call</h2>
+    <form id="addCallForm">
+      <div class="form-group">
+        <label for="callerName">Caller Name</label>
+        <input type="text" id="callerName" name="callerName" value="DISPATCH GENERATED" readonly>
+      </div>
+      <div class="form-group">
+        <label for="description">Description</label>
+        <textarea id="description" name="description" required></textarea>
+      </div>
+      <div class="form-group">
+        <label for="location">Location</label>
+        <input type="text" id="location" name="location" required>
+      </div>
+      <div class="form-group">
+        <label for="service">Service</label>
+        <select id="service" name="service" required>
+          <option value="Multiple">Multiple</option>
+          <option value="Fire">Fire</option>
+          <option value="Police">Police</option>
+          <option value="Ambulance">Ambulance</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="callType">Call Type</label>
+        <select id="callType" name="callType" required></select>
+      </div>
+      <button type="submit" class="submit-call">Place Call</button>
+    </form>
+  </div>
+</div>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="statusColor.js"></script>
+  <script src="dispatch.js"></script>
 </body>
 </html>
