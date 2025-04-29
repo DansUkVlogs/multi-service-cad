@@ -1,3 +1,6 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
 // Initialize Firebase with the provided configuration
 const firebaseConfig = {
   apiKey: "AIzaSyBWM3d9NXDzItCM4z3lZK2LC0z41tPw-bE",
@@ -8,8 +11,9 @@ const firebaseConfig = {
   appId: "1:573720799939:web:5828efc1893892a4929076",
   measurementId: "G-XQ55M4GC92"
 };
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 // Export db to be used in other files
 export { db };
