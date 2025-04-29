@@ -534,12 +534,31 @@ function listenForCallUpdates() {
 
 // Listen for real-time updates to the availableUnits collection
 function listenForUnitUpdates() {
-  const availableUnitsRef = db.collection('availableUnits');
-  availableUnitsRef.onSnapshot(snapshot => {
-    const updatedUnits = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+  availableUnitsRef.onSnapshot(async (snapshot) => {
+    const updatedUnits = [];
+
+    for (const doc of snapshot.docs) {
+      const unitData = doc.data();
+      const unitId = unitData.unitId;
+
+      if (unitId) {
+        try {
+          // Fetch full unit details from the 'units' collection
+          const unitRef = db.collection('units').doc(unitId);
+          const unitSnap = await unitRef.get();
+
+          if (unitSnap.exists) {
+            updatedUnits.push({ id: unitId, ...unitSnap.data() });
+          } else {
+            console.warn(`Unit with ID ${unitId} not found in the 'units' collection.`);
+          }
+        } catch (error) {
+          console.error(`Error fetching unit details for ID ${unitId}:`, error);
+        }
+      } else {
+        console.warn(`Unit in availableUnits collection is missing unitId:`, unitData);
+      }
+    }
 
     allUnits = updatedUnits; // Update the global units array
     renderUnitCards(allUnits); // Refresh the "Available Units" section
