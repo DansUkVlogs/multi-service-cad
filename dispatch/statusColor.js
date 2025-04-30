@@ -1,4 +1,4 @@
-function getStatusColor(status) {
+export function getStatusColor(status) {
   switch (status) {
     case 'Available':
     case 'On Scene':
@@ -12,11 +12,7 @@ function getStatusColor(status) {
   }
 }
 
-// Attach the function to the window object to make it globally accessible
-window.getStatusColor = getStatusColor;
-
-// Function to get contrasting text color (for readability)
-function getContrastingTextColor(backgroundColor) {
+export function getContrastingTextColor(backgroundColor) {
   const color = backgroundColor.charAt(0) === '#' ? backgroundColor.slice(1) : backgroundColor;
   const rgb = parseInt(color, 16); // Convert hex to rgb
   const r = (rgb >> 16) & 0xff;
@@ -27,21 +23,17 @@ function getContrastingTextColor(backgroundColor) {
   return brightness > 128 ? "#FFFFFF" : "#000000"; // Return black or white text
 }
 
-// Export the getUnitTypeColor function
 export function getUnitTypeColor(unitType) {
-    switch (unitType) {
-        case 'Ambulance':
-            return '#81C784'; // Light green for Ambulance
-        case 'Fire':
-            return '#FF7043'; // Light red-orange for Fire
-        case 'Police':
-            return '#64B5F6'; // Light blue for Police
-        case 'Multiple':
-            return 'gold';
-        default:
-            return '#BDBDBD'; // Light gray for unknown
-    }
+  switch (unitType) {
+    case 'Ambulance':
+      return '#81C784'; // Light green for Ambulance
+    case 'Fire':
+      return '#FF7043'; // Light red-orange for Fire
+    case 'Police':
+      return '#64B5F6'; // Light blue for Police
+    case 'Multiple':
+      return 'gold';
+    default:
+      return '#BDBDBD'; // Light gray for unknown
+  }
 }
-
-// Ensure getContrastingTextColor is also available globally
-window.getContrastingTextColor = getContrastingTextColor;

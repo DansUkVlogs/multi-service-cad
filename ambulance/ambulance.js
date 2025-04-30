@@ -1,5 +1,5 @@
 import { db } from "../firebase/firebase.js";
-import { collection, addDoc, deleteDoc, doc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+import { collection, addDoc, deleteDoc, doc, getDocs, query, where, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 import { getUnitTypeColor } from "../dispatch/statusColor.js"; // Correctly import the function
 
 let liveUnitId = null; // Store the unique ID of the live unit
@@ -28,6 +28,18 @@ function initializeModal() {
         });
     }
 }
+
+// Function to get contrasting text color (for readability)
+function getContrastingTextColor(backgroundColor) {
+    const color = backgroundColor.charAt(0) === '#' ? backgroundColor.slice(1) : backgroundColor;
+    const rgb = parseInt(color, 16); // Convert hex to rgb
+    const r = (rgb >> 16) & 0xff;
+    const g = (rgb >> 8) & 0xff;
+    const b = (rgb >> 0) & 0xff;
+  
+    const brightness = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return brightness > 128 ? "#FFFFFF" : "#000000"; // Return black or white text
+  }
 
 // Function to close the modal and restore interaction
 function closeModal() {
@@ -109,7 +121,7 @@ async function removeUnitReferences(unitId) {
             await deleteDoc(doc(db, "units", unitId));
 
             // Remove references in "attachedUnits" and "availableUnits"
-            const attachedUnitsQuery = query(collection(db, "attachedUnits"), where("unitId", "==", unitId));
+            const attachedUnitsQuery = query(collection(db, "attachedUnits"), where("unitID", "==", unitId));
             const attachedUnitsSnapshot = await getDocs(attachedUnitsQuery);
             attachedUnitsSnapshot.forEach(async (docRef) => {
                 await deleteDoc(doc(db, "attachedUnits", docRef.id));
@@ -302,7 +314,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-// Function to populate the calls list
+// Function to get the background color for a service
+function getServiceColor(service) {
+    switch (service) {
+        case 'Ambulance':
+            return '#2196F3'; // Blue for Ambulance
+        case 'Multiple':
+            return '#FFC107'; // Yellow for Multiple
+        default:
+            return '#9E9E9E'; // Gray for unknown services
+    }
+}
+
 async function populateCallsList() {
     const callsContainer = document.getElementById("calls-container");
     if (!callsContainer) return;
@@ -318,40 +341,44 @@ async function populateCallsList() {
             if (callData.service === "Ambulance" || callData.service === "Multiple") {
                 const callElement = document.createElement("div");
                 callElement.className = "call-item";
+                callElement.dataset.callId = doc.id; // Store the call ID in a data attribute
 
-                // Add a colored service label
-                const serviceLabel = document.createElement("div");
-                serviceLabel.className = "service";
-                serviceLabel.textContent = callData.service;
-                serviceLabel.style.backgroundColor = getUnitTypeColor(callData.service);
-                serviceLabel.style.color = getContrastingTextColor(serviceLabel.style.backgroundColor);
+                // Add service box
+                const serviceBox = document.createElement("div");
+                serviceBox.className = "service-box";
+                serviceBox.textContent = `Service: ${callData.service}`;
+                serviceBox.style.backgroundColor = getServiceColor(callData.service);
+                serviceBox.style.color = "#FFFFFF"; // Ensure text is readable
 
-                // Add other call details
+                // Add status
+                const statusElement = document.createElement("div");
+                statusElement.className = "status";
+                statusElement.textContent = `Incident: ${callData.status || "Unknown"}`;
+
+                // Add caller name with label
                 const nameElement = document.createElement("div");
                 nameElement.className = "name";
-                nameElement.textContent = `Status: ${callData.status}`;
+                nameElement.textContent = `Caller Name: ${callData.callerName || "Unknown"}`;
 
+                // Add location with label
                 const locationElement = document.createElement("div");
                 locationElement.className = "location";
                 locationElement.textContent = `Location: ${callData.location || "Unknown"}`;
 
-                const descriptionElement = document.createElement("div");
-                descriptionElement.className = "description";
-                descriptionElement.textContent = callData.description || "No description provided.";
-
+                // Add timestamp
                 const timestampElement = document.createElement("div");
                 timestampElement.className = "timestamp";
                 const date = new Date(callData.timestamp.seconds * 1000); // Convert Firestore timestamp to JavaScript Date
-                timestampElement.textContent = `Timestamp: ${date.toLocaleString()}`;
+                timestampElement.textContent = `Time: ${date.toLocaleTimeString()} ${date.toLocaleDateString()}`;
 
                 // Append elements to the call item
-                callElement.appendChild(timestampElement);
-                callElement.appendChild(serviceLabel);
-                callElement.appendChild(locationElement);
+                callElement.appendChild(serviceBox);
+                callElement.appendChild(statusElement);
                 callElement.appendChild(nameElement);
-                callElement.appendChild(descriptionElement);
+                callElement.appendChild(locationElement);
+                callElement.appendChild(timestampElement);
 
-                // Add click event listener to populate "Call Details" and highlight the selected call
+                // Add click event listener to populate "Call Details" and attached units
                 callElement.addEventListener("click", () => {
                     // Remove highlight from previously selected call
                     const previouslySelected = document.querySelector(".call-item.selected");
@@ -363,24 +390,14 @@ async function populateCallsList() {
                     callElement.classList.add("selected");
 
                     // Populate the "Call Details" section
-                    document.querySelector(".incident").textContent = `Incident: ${callData.incident || "Unknown"}`;
+                    document.querySelector(".incident").textContent = `Incident: ${callData.status || "Unknown"}`;
                     document.querySelector(".location").textContent = `Location: ${callData.location || "Unknown"}`;
                     document.querySelector(".callerName").textContent = callData.callerName || "Unknown";
                     document.querySelector(".descriptionText").textContent = callData.description || "No description provided.";
                     document.querySelector(".timestamp").textContent = `Time Stamp: ${date.toLocaleString()}`;
 
-                    // Populate attached units if available
-                    const attachedUnitsContainer = document.getElementById("attached-units-container");
-                    attachedUnitsContainer.innerHTML = ""; // Clear existing units
-                    if (callData.attachedUnits && callData.attachedUnits.length > 0) {
-                        callData.attachedUnits.forEach((unit) => {
-                            const unitElement = document.createElement("div");
-                            unitElement.textContent = unit;
-                            attachedUnitsContainer.appendChild(unitElement);
-                        });
-                    } else {
-                        attachedUnitsContainer.textContent = "No units attached.";
-                    }
+                    // Populate attached units
+                    populateAttachedUnits(doc.id);
                 });
 
                 // Append the call item to the container
@@ -389,6 +406,146 @@ async function populateCallsList() {
         });
     } catch (error) {
         console.error("Error fetching calls:", error);
+    }
+}
+
+// Function to update the "Call Details" section dynamically
+function updateCallDetails(callId) {
+    const callDocRef = doc(db, "calls", callId);
+
+    // Fetch the latest call details
+    getDoc(callDocRef).then((callDoc) => {
+        if (callDoc.exists()) {
+            const callData = callDoc.data();
+            const date = new Date(callData.timestamp.seconds * 1000); // Convert Firestore timestamp to JavaScript Date
+
+            // Update the "Call Details" section
+            document.querySelector(".incident").textContent = `Incident: ${callData.status || "Unknown"}`;
+            document.querySelector(".location").textContent = `Location: ${callData.location || "Unknown"}`;
+            document.querySelector(".callerName").textContent = callData.callerName || "Unknown";
+            document.querySelector(".descriptionText").textContent = callData.description || "No description provided.";
+            document.querySelector(".timestamp").textContent = `Time Stamp: ${date.toLocaleString()}`;
+        }
+    }).catch((error) => {
+        console.error("Error fetching call details:", error);
+    });
+
+    // Update the attached units dynamically
+    populateAttachedUnits(callId);
+}
+
+// Listen for real-time updates to the `calls` collection
+onSnapshot(collection(db, "calls"), (snapshot) => {
+    snapshot.docChanges().forEach((change) => {
+        if (change.type === "modified" || change.type === "added") {
+            const selectedCallId = document.querySelector(".call-item.selected")?.dataset.callId;
+
+            // If the updated call is the currently selected call, update the details
+            if (selectedCallId === change.doc.id) {
+                updateCallDetails(change.doc.id);
+            }
+        }
+    });
+});
+
+// Listen for real-time updates to the `attachedUnits` collection
+onSnapshot(collection(db, "attachedUnits"), (snapshot) => {
+    snapshot.docChanges().forEach((change) => {
+        const selectedCallId = document.querySelector(".call-item.selected")?.dataset.callId;
+
+        // If the change affects the currently selected call, update the attached units
+        if (selectedCallId && (change.type === "added" || change.type === "modified" || change.type === "removed")) {
+            populateAttachedUnits(selectedCallId);
+        }
+    });
+});
+
+// Function to populate attached units dynamically
+async function populateAttachedUnits(callId) {
+    const attachedUnitsContainer = document.getElementById("attached-units-container");
+    attachedUnitsContainer.innerHTML = ""; // Clear existing units
+
+    try {
+        // Query attachedUnits collection for units with the matching callID
+        const attachedUnitsQuery = query(collection(db, "attachedUnits"), where("callID", "==", callId));
+        const attachedUnitsSnapshot = await getDocs(attachedUnitsQuery);
+
+        if (attachedUnitsSnapshot.empty) {
+            attachedUnitsContainer.textContent = "No units attached.";
+            return;
+        }
+
+        // Create a flex container for the units
+        const unitsFlexContainer = document.createElement("div");
+        unitsFlexContainer.style.display = "flex";
+        unitsFlexContainer.style.gap = "10px";
+        unitsFlexContainer.style.flexWrap = "wrap";
+
+        // Fetch and display each attached unit
+        for (const attachedUnitDoc of attachedUnitsSnapshot.docs) {
+            const unitData = attachedUnitDoc.data();
+            const unitDocRef = doc(db, "units", unitData.unitID); // Correct usage of unitID
+            const unitDoc = await getDoc(unitDocRef); // Fetch unit details
+            if (unitDoc.exists()) {
+                const unit = unitDoc.data();
+
+                // Create a pill-shaped element for the unit
+                const unitElement = document.createElement("div");
+                unitElement.textContent = `${unit.callsign} (${unit.unitType})`;
+                unitElement.style.backgroundColor = getStatusColor(unit.status);
+                unitElement.style.color = "#FFFFFF"; // Ensure text is readable
+                unitElement.style.padding = "10px 15px";
+                unitElement.style.borderRadius = "20px";
+                unitElement.style.fontSize = "0.9em";
+                unitElement.style.fontWeight = "bold";
+                unitElement.style.textAlign = "center";
+                unitElement.style.whiteSpace = "nowrap";
+
+                // Append the unit element to the flex container
+                unitsFlexContainer.appendChild(unitElement);
+            }
+        }
+
+        // Append the flex container to the attached units container
+        attachedUnitsContainer.appendChild(unitsFlexContainer);
+    } catch (error) {
+        console.error("Error fetching attached units:", error);
+        attachedUnitsContainer.textContent = "Failed to load attached units.";
+    }
+}
+
+// Helper function to get the status color
+function getStatusColor(status) {
+    switch (status) {
+        case 'Available':
+        case 'On Scene':
+            return '#4CAF50'; // Green for Available
+        case 'Unavailable':
+            return '#FF5722'; // Red-Orange for Unavailable
+        case 'En Route':
+            return '#FF5500';
+        default:
+            return '#9E9E9E'; // Gray for Unknown or undefined statuses
+    }
+}
+
+// Ensure populateAttachedUnits is defined
+document.addEventListener("DOMContentLoaded", () => {
+    populateCallsList(); // Ensure calls list is still populated
+});
+
+// Function to fetch calls from the database
+export async function getCalls() {
+    try {
+        const querySnapshot = await getDocs(collection(db, "calls"));
+        const calls = [];
+        querySnapshot.forEach((doc) => {
+            calls.push(doc.data());
+        });
+        return calls;
+    } catch (error) {
+        console.error("Error fetching calls:", error);
+        return [];
     }
 }
 

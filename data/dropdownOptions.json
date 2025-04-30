@@ -142,7 +142,7 @@
     { "id": "P140", "type": "Exploding mailbox incident" },
     { "id": "P141", "type": "Mysterious clown sighting (not causing traffic disruption)" },
     { "id": "P142", "type": "Loitering with intent to dance" },
-    { "id": "P177", "type": "P999 Other Police call" }
+    { "id": "P177", "type": "Other Police call" }
   ],
     "Fire": [
     { "id": "F001", "type": "Building fire" },
@@ -244,7 +244,7 @@
     { "id": "F097", "type": "Fire at a theater" },
     { "id": "F098", "type": "Fire at a concert venue" },
     { "id": "F099", "type": "Fire involving a drone" },
-    { "id": "F100", "type": "Fire - Other" }
+    { "id": "F999", "type": "Other Fire Call" }
   ],
     "Ambulance": [
     { "id": "A001", "type": "Cardiac arrest" },
@@ -346,7 +346,20 @@
     { "id": "A097", "type": "Collapse - Structural" },
     { "id": "A098", "type": "Explosion injury" },
     { "id": "A099", "type": "Electrocution" },
-    { "id": "A100", "type": "Other medical emergency" }
+    { "id": "A99A1", "type": "Other non-medical emergency - Non-specific" },
+    { "id": "A99A2", "type": "Other non-medical emergency - Unknown cause" },
+    { "id": "A99A3", "type": "Other non-medical emergency - Non-traumatic" },
+    { "id": "A99A4", "type": "Other non-medical emergency - Traumatic" },
+    { "id": "A99A5", "type": "Other non-medical emergency - Pediatric" },
+    { "id": "A99A6", "type": "Other non-medical emergency - Geriatric" },
+    { "id": "A99A7", "type": "Other non-medical emergency - Obstetric" },
+    { "id": "A99B1", "type": "Other medical emergency - Non-specific" },
+    { "id": "A99B2", "type": "Other medical emergency - Unknown cause" },
+    { "id": "A99B3", "type": "Other medical emergency - Non-traumatic" },
+    { "id": "A99B4", "type": "Other medical emergency - Traumatic" },
+    { "id": "A99B5", "type": "Other medical emergency - Pediatric" },
+    { "id": "A99B6", "type": "Other medical emergency - Geriatric" },
+    { "id": "A99B7", "type": "Other medical emergency - Obstetric" }
   ],
     "Multiple": [
     { "id": "M001", "type": "Mass casualty incident (MCI)" },
@@ -448,7 +461,8 @@
     { "id": "M097", "type": "Avalanche rescue" },
     { "id": "M098", "type": "Collapse - Shopping mall" },
     { "id": "M099", "type": "Hurricane - Emergency evacuation" },
-    { "id": "M100", "type": "Nuclear explosion - Rescue and recovery" }
+    { "id": "M100", "type": "Nuclear explosion - Rescue and recovery" },
+    { "id": "M999", "type": "Other Multi Service Call" }
   ]
   }
   

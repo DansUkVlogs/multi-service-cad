@@ -23,7 +23,7 @@
         <button>At Hospital</button>
         <button>Going To Base</button>
         <button>Go To Standby</button>
-        <button>Unavailable</button>
+        <button class="selected-status">Unavailable</button>
         <button>Busy</button>
         <button>Refueling</button>
         <button>Meal Break</button>
@@ -132,6 +132,131 @@
 <!-- Display Saved Callsign -->
 <div id="callsign-display" style="text-align: center; font-weight: bold; margin-top: 20px;"></div>
 
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    // Firebase configuration
+    const firebaseConfig = {
+        apiKey: "AIzaSyBWM3d9NXDzItCM4z3lZK2LC0z41tPw-bE",
+        authDomain: "emergencycad-561d4.firebaseapp.com",
+        projectId: "emergencycad-561d4",
+        storageBucket: "emergencycad-561d4.firebasestorage.app",
+        messagingSenderId: "573720799939",
+        appId: "1:573720799939:web:5828efc1893892a4929076",
+        measurementId: "G-XQ55M4GC92"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // DOM element for the calls list
+    const callsContainer = document.getElementById("calls-container");
+
+    // Function to render calls with the original design and consistent filtering
+    function renderCalls(calls) {
+        callsContainer.innerHTML = ""; // Clear existing calls
+
+        // Apply the filter to show only "Ambulance" or "Multiple" services
+        const filteredCalls = calls.filter(call => call.service === "Ambulance" || call.service === "Multiple");
+
+        if (filteredCalls.length === 0) {
+            callsContainer.innerHTML = "<p>No calls available.</p>";
+            return;
+        }
+
+        filteredCalls.forEach(call => {
+            const callDiv = document.createElement("div");
+            callDiv.classList.add("call-item"); // Match the original class
+
+            // Create the service box
+            const serviceBox = document.createElement("div");
+            serviceBox.classList.add("service-box");
+            serviceBox.style.backgroundColor = getServiceColor(call.service); // Use a function to determine the color
+            serviceBox.style.color = getContrastingTextColor(serviceBox.style.backgroundColor);
+            serviceBox.textContent = `Service: ${call.service || "Unknown"}`;
+
+            // Create the status (use callData.status directly)
+            const statusDiv = document.createElement("div");
+            statusDiv.classList.add("status");
+            statusDiv.textContent = `Incident: ${call.status || "Unknown"}`;
+
+            // Create the caller name
+            const nameDiv = document.createElement("div");
+            nameDiv.classList.add("name");
+            nameDiv.textContent = `Caller Name: ${call.callerName || "Unknown"}`;
+
+            // Create the location
+            const locationDiv = document.createElement("div");
+            locationDiv.classList.add("location");
+            locationDiv.textContent = `Location: ${call.location || "Unknown"}`;
+
+            // Create the timestamp
+            const timestampDiv = document.createElement("div");
+            timestampDiv.classList.add("timestamp");
+            const timestamp = call.timestamp?.toDate ? call.timestamp.toDate() : new Date(call.timestamp);
+            timestampDiv.textContent = `Time: ${timestamp.toLocaleTimeString("en-GB")} ${timestamp.toLocaleDateString("en-GB")}`;
+
+            // Append all elements to the call item
+            callDiv.appendChild(serviceBox);
+            callDiv.appendChild(statusDiv);
+            callDiv.appendChild(nameDiv);
+            callDiv.appendChild(locationDiv);
+            callDiv.appendChild(timestampDiv);
+
+            // Add the call item to the container
+            callsContainer.appendChild(callDiv);
+
+            // Attach the click event listener
+            callDiv.addEventListener("click", () => {
+                console.log(`Call selected: ${call.id}`);
+            });
+        });
+    }
+
+    // Helper function to get the service color
+    function getServiceColor(service) {
+        switch (service) {
+            case "Police":
+                return "#007bff"; // Blue
+            case "Fire":
+                return "#dc3545"; // Red
+            case "Ambulance":
+                return "#28a745"; // Green
+            case "Multiple":
+                return "#ffc107"; // Yellow
+            default:
+                return "#6c757d"; // Gray
+        }
+    }
+
+    // Helper function to get contrasting text color
+    function getContrastingTextColor(bgColor) {
+        const color = bgColor.substring(1); // Remove the "#" character
+        const rgb = parseInt(color, 16); // Convert hex to integer
+        const r = (rgb >> 16) & 0xff; // Extract red
+        const g = (rgb >> 8) & 0xff; // Extract green
+        const b = rgb & 0xff; // Extract blue
+        const luminance = 0.299 * r + 0.587 * g + 0.114 * b; // Calculate luminance
+        return luminance > 186 ? "#000000" : "#ffffff"; // Return black or white
+    }
+
+    // Listen for real-time updates to the calls collection
+    onSnapshot(collection(db, "calls"), (snapshot) => {
+        const calls = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderCalls(calls); // Always apply the filter when rendering
+    });
+
+    // Add event listener for the service filter dropdown
+    document.getElementById("serviceFilter")?.addEventListener("change", (e) => {
+        const filter = e.target.value;
+        onSnapshot(collection(db, "calls"), (snapshot) => {
+            const calls = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            renderCalls(calls, filter);
+        });
+    });
+</script>
 <script type="module" src="../dispatch/statusColor.js"></script>
 <script type="module" src="ambulance.js"></script>
 </body>

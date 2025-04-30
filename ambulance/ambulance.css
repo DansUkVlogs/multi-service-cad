@@ -37,6 +37,11 @@ body {
     color: white;
 }
 
+.selected-status {
+    background-color: #ffd900;/* Yellow background for selected status */
+    color: black;
+}
+
 .status-buttons {
     display: flex;
     flex-wrap: wrap;
@@ -178,42 +183,57 @@ body {
 
 /* Style for call cards */
 .call-item {
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    padding: 10px;
-    margin-bottom: 10px;
+    border: 2px solid #ccc;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
     background-color: #f9f9f9;
-    transition: box-shadow 0.3s, transform 0.3s;
-    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
 }
 
-.call-item:hover {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    transform: translateY(-2px);
-}
-
-.call-item.selected {
-    border: 5px solid lightgreen;
-    background-color: #e8f5e9;
-}
-
-/* Style for service label */
-.call-item .service {
+.call-item .service-box {
+    font-size: 1.2em;
     font-weight: bold;
-    padding: 5px;
-    border-radius: 4px;
-    display: inline-block;
-    margin-bottom: 5px;
+    padding: 5px 10px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    text-transform: uppercase;
 }
 
-/* Style for other call details */
-.call-item .name,
-.call-item .location,
-.call-item .description,
+.call-item .status {
+    font-size: 1em;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #555;
+}
+
+.call-item .name {
+    font-size: 0.9em;
+    margin-bottom: 10px;
+    color: #666;
+}
+
+.call-item .location {
+    font-size: 1em;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #444;
+}
+
 .call-item .timestamp {
-    margin: 5px 0;
-    font-size: 14px;
-    color: #333;
+    font-size: 0.8em;
+    color: #888;
+    margin-top: 10px;
+}
+
+/* Highlight selected call */
+.call-item.selected {
+    border: 5px solid #4CAF50;
+    background-color: #cdffcd;
 }
 
 .call-details p {
