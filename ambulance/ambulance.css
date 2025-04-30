@@ -176,86 +176,267 @@ body {
     margin-top: 10px;
 }
 
+/* Style for call cards */
 .call-item {
-    background-color: rgb(0, 51, 0); /* Dark green background */
-    color: white; /* White text color */
-    padding: 15px;
-    border-radius: 10px; /* Increased rounding for a smoother look */
-    margin-bottom: 15px; /* Add spacing between call items */
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Add subtle shadow for depth */
-    text-align: center; /* Center-align text */
-    border: 2px solid transparent; /* Default border */
-    transition: border 0.3s ease; /* Smooth transition for border changes */
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
+    background-color: #f9f9f9;
+    transition: box-shadow 0.3s, transform 0.3s;
+    cursor: pointer;
+}
+
+.call-item:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transform: translateY(-2px);
 }
 
 .call-item.selected {
-    border: 4px solid #66ff66; /* Thicker green border for selected call */
+    border: 5px solid lightgreen;
+    background-color: #e8f5e9;
 }
 
+/* Style for service label */
 .call-item .service {
-    background-color: #66ff66; /* Light green background for service */
-    color: black;
     font-weight: bold;
-    padding: 5px 10px;
-    border-radius: 10px; /* Rounded corners for the service label */
+    padding: 5px;
+    border-radius: 4px;
     display: inline-block;
-    margin-bottom: 10px; /* Space below the service label */
+    margin-bottom: 5px;
 }
 
-.call-item .name {
-    font-size: 1.2rem; /* Larger font for the name */
-    font-weight: bold;
-    margin-bottom: 5px; /* Space below the name */
-}
-
-.call-item .id {
-    font-size: 1rem; /* Smaller font for the ID */
-    color: gray;
-    margin-bottom: 10px; /* Space below the ID */
-}
-
-.call-item .status {
-    font-weight: bold;
-    margin-bottom: 5px; /* Space below the status */
-}
-
-.call-item .time {
-    font-size: 0.9rem; /* Smaller font for the time */
-    color: gray;
+/* Style for other call details */
+.call-item .name,
+.call-item .location,
+.call-item .description,
+.call-item .timestamp {
+    margin: 5px 0;
+    font-size: 14px;
+    color: #333;
 }
 
 .call-details p {
     margin-bottom: 5px; /* Reduced space between paragraphs */
 }
 
-.modal {
+/* Modal Styling */
+#setup-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    width: 500px;
+    max-width: 90%; /* Ensure it fits on smaller screens */
+    box-sizing: border-box;
+}
+
+#setup-modal .modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+#setup-modal h2.modal-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #333;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.profile-picture-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.profile-picture-container img {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 2px solid #ccc;
+    object-fit: cover;
+}
+
+.slot-selection {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.slot-selection label {
+    font-weight: bold;
+    font-size: 14px;
+    color: #333;
+}
+
+.slot-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.slot-controls select {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color 0.3s ease;
+    flex: 1;
+}
+
+.slot-controls select:focus {
+    border-color: #4CAF50;
+    outline: none;
+    box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+}
+
+.slot-controls button {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 10px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.slot-controls button:hover {
+    background-color: #45a049;
+}
+
+.character-details {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.character-details .form-row {
+    display: flex;
+    gap: 15px;
+}
+
+.character-details .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex: 1;
+}
+
+.character-details .form-group label {
+    font-weight: bold;
+    font-size: 14px;
+    color: #333;
+}
+
+.character-details .form-group input {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    font-size: 14px;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.character-details .form-group input:focus {
+    border-color: #4CAF50;
+    box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+    outline: none;
+}
+
+.unit-details {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.unit-details .form-row {
+    display: flex;
+    gap: 15px;
+}
+
+.unit-details .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex: 1;
+}
+
+.unit-details .form-group label {
+    font-weight: bold;
+    font-size: 14px;
+    color: #333;
+}
+
+.unit-details .form-group input {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    font-size: 14px;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.unit-details .form-group input:focus {
+    border-color: #4CAF50;
+    box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+    outline: none;
+}
+
+.save-details-btn {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+    width: 100%;
+    text-align: center;
+}
+
+.save-details-btn:hover {
+    background-color: #45a049;
+}
+
+/* Modal Overlay */
+.modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    background-color: rgba(0, 0, 0, 0.7); /* Darker semi-transparent black background */
+    z-index: 999; /* Ensure it is above other elements */
+    display: none; /* Hidden by default */
+    pointer-events: none; /* Disable interaction by default */
 }
 
-.modal-content {
-    background-color: white;
-    width: 80%;
-    height: 80%;
-    border-radius: 10px;
+/* Show the overlay when the modal is active */
+.modal-overlay.active {
+    display: block;
+    pointer-events: all; /* Enable interaction with the overlay */
+}
+
+/* Prevent scrolling and interaction when modal is open */
+body.no-scroll {
     overflow: hidden;
+    pointer-events: none; /* Disable interaction with all elements */
 }
 
-.close-modal-button.top-right {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background-color: transparent;
-    color: black;
-    font-size: 1.5rem;
-    border: none;
-    cursor: pointer;
-    z-index: 10; /* Ensure it appears above the modal content */
+/* Allow interaction with the modal */
+body.no-scroll #setup-modal {
+    pointer-events: all;
 }

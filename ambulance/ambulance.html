@@ -29,7 +29,7 @@
         <button>Meal Break</button>
         <button>On Duty</button>
         <div class="right-buttons">
-            <button class="open-modal-button">Open Civilian</button>
+            <button class="open-modal-button" onclick="openCivilianModal()">Open Civilian</button>
             <button class="extra-button">Select Callsign</button>
         </div>
     </div>
@@ -64,15 +64,75 @@
         </div>
     </div>
 
-    <!-- Modal Structure -->
-    <div id="civilian-modal" class="modal" style="display: none;">
-        <div class="modal-content" style="position: relative;"> <!-- Added relative positioning -->
-            <button class="close-modal-button top-right" onclick="closeModal()">&times;</button>
-            <iframe src="../civilian/civilian.html" frameborder="0" style="width: 100%; height: 100%;"></iframe>
+    <!-- Setup Modal -->
+<div id="setup-modal" class="modal" style="display: flex;">
+    <div class="modal-content">
+        <h2 class="modal-title">Unit Details</h2>
+        <div class="profile-picture-container">
+            <img src="../imgs/blank-profile-picture-973460.svg" alt="Profile Picture" id="profile-picture">
         </div>
+        <div class="slot-selection">
+            <label for="slot-select" class="slot-label">Select Slot</label>
+            <div class="slot-controls">
+                <select id="slot-select">
+                    <option value="" disabled selected>--Select--</option>
+                    <!-- Slots will be dynamically populated -->
+                </select>
+                <button id="load-character-btn" class="load-character-btn">Load Saved Character</button>
+            </div>
+        </div>
+        <div class="character-details">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="first-name">First Name</label>
+                    <input type="text" id="first-name" name="first-name" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="last-name">Last Name</label>
+                    <input type="text" id="last-name" name="last-name" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="phone">Phone Number</label>
+                    <input type="tel" id="phone" name="phone" readonly>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="dob">Date Of Birth</label>
+                    <input type="date" id="dob" name="dob">
+                </div>
+                <div class="form-group">
+                    <label for="age">Age</label>
+                    <input type="number" id="age" name="age" readonly>
+                </div>
+            </div>
+            <!-- Hidden field for address -->
+            <input type="hidden" id="address" name="address">
+        </div>
+        <div class="unit-details">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="callsign-input">Callsign</label>
+                    <input type="text" id="callsign-input" placeholder="Enter your callsign">
+                </div>
+                <div class="form-group">
+                    <label for="unit-type">Unit Type</label>
+                    <input type="text" id="unit-type" value="Ambulance" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="specific-type">Specific Type</label>
+                    <input type="text" id="specific-type" placeholder="Enter specific type">
+                </div>
+            </div>
+        </div>
+        <button id="save-details-btn" class="save-details-btn">Save Details</button>
     </div>
+</div>
 
-    <script src="../dispatch/statusColor.js"></script>
-    <script type="module" src="ambulance.js"></script>
+<!-- Display Saved Callsign -->
+<div id="callsign-display" style="text-align: center; font-weight: bold; margin-top: 20px;"></div>
+
+<script type="module" src="../dispatch/statusColor.js"></script>
+<script type="module" src="ambulance.js"></script>
 </body>
 </html>

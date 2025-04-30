@@ -1,290 +1,328 @@
-// Initialize Firebase with the provided configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyBWM3d9NXDzItCM4z3lZK2LC0z41tPw-bE",
-  authDomain: "emergencycad-561d4.firebaseapp.com",
-  projectId: "emergencycad-561d4",
-  storageBucket: "emergencycad-561d4.firebasestorage.app",
-  messagingSenderId: "573720799939",
-  appId: "1:573720799939:web:5828efc1893892a4929076",
-  measurementId: "G-XQ55M4GC92"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+import { db } from "../firebase/firebase.js";
+import { collection, addDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
-// Ensure the DOM is fully loaded before attaching event listeners
-window.addEventListener('DOMContentLoaded', () => {
-  let liveSlot = null; // Track the currently live slot
+let liveCharacterId = null; // Store the unique ID of the live character
 
-  // Function to show non-intrusive UI messages
-  function showMessage(message, type = 'info') {
-    const messageContainer = document.createElement('div');
-    messageContainer.className = `message ${type}`;
-    messageContainer.textContent = message;
-    document.body.appendChild(messageContainer);
+// Function to populate character slots dynamically
+function populateCharacterSlots() {
+    const slotSelect = document.getElementById("slot-select");
+    slotSelect.innerHTML = ""; // Clear existing options
 
-    setTimeout(() => {
-      messageContainer.remove();
-    }, 3000); // Auto-remove after 3 seconds
-  }
+    const globalCharacters = JSON.parse(localStorage.getItem("globalCharacters")) || {};
 
-  // Redirect to home page when "Back To Home" button is clicked
-  document.querySelector('.back-button').addEventListener('click', async () => {
-    if (liveSlot !== null) {
-      try {
-        await db.collection('civilians').doc(`slot${liveSlot}`).delete();
-        console.log(`Character from slot ${parseInt(liveSlot) + 1} deleted from Firebase.`);
-      } catch (error) {
-        console.error('Error deleting character from Firebase:', error);
-      }
+    // Loop through the two character slots
+    for (let i = 0; i < 2; i++) {
+        const characterData = globalCharacters[`slot${i}`];
+        if (characterData) {
+            slotSelect.innerHTML += `<option value="${i}">Character ${i + 1}: ${characterData.firstName} ${characterData.lastName}</option>`;
+        } else {
+            slotSelect.innerHTML += `<option value="${i}">Character ${i + 1} (Empty)</option>`;
+        }
     }
-    window.location.href = '../index.html';
-  });
+}
 
-  // Handle tab close or refresh
-  window.addEventListener('beforeunload', async (event) => {
-    if (liveSlot !== null) {
-      try {
-        await db.collection('civilians').doc(`slot${liveSlot}`).delete();
-        console.log(`Character from slot ${parseInt(liveSlot) + 1} deleted from Firebase.`);
-      } catch (error) {
-        console.error('Error deleting character from Firebase:', error);
-      }
+// Function to load a character from the selected slot
+function loadCharacterFromSlot(slot) {
+    const globalCharacters = JSON.parse(localStorage.getItem("globalCharacters")) || {};
+    const characterData = globalCharacters[`slot${slot}`];
+
+    if (characterData) {
+        document.getElementById("first-name").value = characterData.firstName || "";
+        document.getElementById("last-name").value = characterData.lastName || "";
+        document.getElementById("dob").value = characterData.dob || "";
+        document.getElementById("phone").value = characterData.phone || "";
+        document.getElementById("address").value = characterData.address || "";
+
+        // Update the age field
+        const ageInput = document.getElementById("age");
+        if (characterData.dob) {
+            const age = calculateAge(characterData.dob);
+            ageInput.value = age >= 0 ? age : ""; // Ensure age is not negative
+        } else {
+            ageInput.value = ""; // Clear the age field if no date of birth is provided
+        }
+
+        // Load the profile picture
+        const profilePicture = document.getElementById("profile-picture");
+        profilePicture.src = characterData.profilePicture || "../imgs/blank-profile-picture-973460.svg";
+
+        alert(`Loaded character from Slot ${parseInt(slot) + 1}`);
+    } else {
+        alert(`Slot ${parseInt(slot) + 1} is empty.`);
     }
-  });
+}
 
-  // Handle profile picture upload
-  const profileImage = document.querySelector('.profile-picture img');
-  const imageUpload = document.createElement('input');
-  imageUpload.type = 'file';
-  imageUpload.accept = 'image/*';
-  imageUpload.style.display = 'none';
-  document.body.appendChild(imageUpload);
+// Function to calculate age based on date of birth
+function calculateAge(dob) {
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
 
-  profileImage.addEventListener('click', () => {
-    imageUpload.click();
-  });
-
-  imageUpload.addEventListener('change', function () {
-    const file = this.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        profileImage.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    }
-  });
-
-  // Ensure the "Save Current Character" button works
-  document.querySelector('.save-character').addEventListener('click', () => {
-    const slotSelect = document.getElementById('slot-select');
-    const selectedSlot = slotSelect.value;
-
-    if (selectedSlot === "") {
-      showNotification('Please select a slot to save the character.');
-      return;
+    // Adjust age if the current date is before the birth date in the current year
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
     }
 
-    const form = document.querySelector('form');
-    const formData = new FormData(form);
-    const civilianDetails = Object.fromEntries(formData.entries());
-    const profileImageSrc = document.querySelector('.profile-picture img').src;
+    return age;
+}
 
-    const character = {
-      details: civilianDetails,
-      profileImage: profileImageSrc,
+// Function to update the age field when the DOB changes
+function updateAge() {
+    const dobInput = document.getElementById("dob").value;
+    const ageInput = document.getElementById("age");
+
+    if (dobInput) {
+        const age = calculateAge(dobInput);
+        ageInput.value = age >= 0 ? age : ""; // Ensure age is not negative
+    } else {
+        ageInput.value = ""; // Clear the age field if no DOB is provided
+    }
+}
+
+// Function to save a character to a global local storage key
+function saveCharacterToSlot(slot) {
+    const firstName = document.getElementById("first-name").value.trim();
+    const lastName = document.getElementById("last-name").value.trim();
+    const dob = document.getElementById("dob").value;
+    const phone = document.getElementById("phone").value.trim();
+    const address = document.getElementById("address").value.trim();
+    const profilePicture = localStorage.getItem("tempProfilePicture"); // Get the temporarily stored profile picture
+
+    if (!firstName || !lastName) {
+        alert("First and last names are required.");
+        return;
+    }
+
+    const characterData = {
+        firstName,
+        lastName,
+        dob,
+        phone,
+        address,
+        profilePicture // Save the profile picture
     };
 
-    const savedCivilians = JSON.parse(localStorage.getItem('civilians')) || [null, null];
-    savedCivilians[selectedSlot] = character;
-    localStorage.setItem('civilians', JSON.stringify(savedCivilians));
+    // Save to a global key
+    const globalCharacters = JSON.parse(localStorage.getItem("globalCharacters")) || {};
+    globalCharacters[`slot${slot}`] = characterData;
+    localStorage.setItem("globalCharacters", JSON.stringify(globalCharacters));
 
-    showNotification(`Character saved to slot ${parseInt(selectedSlot) + 1}!`);
-  });
-
-  // Ensure the "Load Saved Character" button works
-  document.querySelector('.load-character').addEventListener('click', () => {
-    const slotSelect = document.getElementById('slot-select');
-    const selectedSlot = slotSelect.value;
-
-    if (selectedSlot === "") {
-      showNotification('Please select a slot to load the character.');
-      return;
-    }
-
-    const savedCivilians = JSON.parse(localStorage.getItem('civilians')) || [null, null];
-
-    const character = savedCivilians[selectedSlot];
-
-    if (!character) {
-      showNotification('No character found in the selected slot.');
-      return;
-    }
-
-    // Load character details into the form
-    Object.entries(character.details).forEach(([key, value]) => {
-      const input = document.querySelector(`[name="${key}"]`);
-      if (input) input.value = value;
-    });
-
-    // Load profile picture
-    document.querySelector('.profile-picture img').src = character.profileImage;
-
-    showNotification(`Character loaded from slot ${parseInt(selectedSlot) + 1}!`);
-  });
-
-  // Ensure the "Go Live" button works
-  const goLiveButton = document.querySelector('.go-live');
-  const newCallButton = document.querySelector('.new-call'); // Declare only once
-  const newCallModal = document.getElementById('newCallModal');
-  const newCallForm = document.getElementById('newCallForm');
-  const closeModal = newCallModal?.querySelector('.close');
-
-  goLiveButton.addEventListener('click', async () => {
-    const slotSelect = document.getElementById('slot-select');
-    const loadButton = document.querySelector('.load-character');
-    const selectedSlot = slotSelect.value;
-
-    if (selectedSlot === "") {
-      showNotification('Please select a slot to go live.');
-      return;
-    }
-
-    if (goLiveButton.textContent === "Go Live") {
-      const savedCivilians = JSON.parse(localStorage.getItem('civilians')) || [null, null];
-      const character = savedCivilians[selectedSlot];
-
-      if (!character) {
-        showNotification('No character found in the selected slot.');
-        return;
-      }
-
-      try {
-        await db.collection('civilians').doc(`slot${selectedSlot}`).set(character);
-        showNotification(`Character from slot ${parseInt(selectedSlot) + 1} is now live!`);
-
-        // Lock the "Select Slot" and "Load Saved Character" buttons
-        slotSelect.disabled = true;
-        loadButton.disabled = true;
-
-        // Change button text to "Unlive"
-        goLiveButton.textContent = "Unlive";
-        goLiveButton.classList.add('flashing'); // Add flashing effect
-
-        liveSlot = selectedSlot; // Track the live slot
-        newCallButton.disabled = false; // Enable "New Call" button
-      } catch (error) {
-        console.error('Error saving character to Firebase:', error);
-        showNotification('Failed to go live. Please try again.');
-      }
-    } else {
-      try {
-        await db.collection('civilians').doc(`slot${selectedSlot}`).delete();
-        showNotification(`Character from slot ${parseInt(selectedSlot) + 1} is now offline.`);
-
-        // Unlock the "Select Slot" and "Load Saved Character" buttons
-        slotSelect.disabled = false;
-        loadButton.disabled = false;
-
-        // Change button text back to "Go Live"
-        goLiveButton.textContent = "Go Live";
-        goLiveButton.classList.remove('flashing'); // Remove flashing effect
-
-        liveSlot = null; // Clear the live slot
-        newCallButton.disabled = true; // Disable "New Call" button
-      } catch (error) {
-        console.error('Error deleting character from Firebase:', error);
-        showNotification('Failed to unlive. Please try again.');
-      }
-    }
-  });
-
-  // Ensure the "New Call" button works
-  if (newCallButton && newCallModal && newCallForm) {
-      newCallButton.addEventListener('click', () => {
-          const savedCivilians = JSON.parse(localStorage.getItem('civilians')) || [null, null];
-          const character = savedCivilians[liveSlot];
-          if (character) {
-              document.getElementById('callerName').value = `${character.details['first-name']} ${character.details['last-name']}`;
-          }
-          newCallModal.style.display = 'block';
-      });
-
-      closeModal?.addEventListener('click', () => {
-          newCallModal.style.display = 'none';
-      });
-
-      window.addEventListener('click', (event) => {
-          if (event.target === newCallModal) {
-              newCallModal.style.display = 'none';
-          }
-      });
-
-      // Handle form submission for "New Call"
-      newCallForm.addEventListener('submit', async (event) => {
-          event.preventDefault();
-
-          const formData = new FormData(newCallForm);
-          const callDetails = Object.fromEntries(formData.entries());
-
-          // Use Firestore's server timestamp for accurate time
-          callDetails.timestamp = firebase.firestore.FieldValue.serverTimestamp();
-
-          // Set default status and call type
-          callDetails.status = "Awaiting Dispatch";
-          callDetails.callType = ""; // Empty call type
-
-          try {
-              // Add the call to the "calls" collection in Firebase
-              await db.collection('calls').add(callDetails);
-              showNotification('Call created');
-          } catch (error) {
-              console.error('Error adding call to Firebase:', error);
-              showNotification('Failed to place the call. Please try again.');
-          }
-
-          newCallModal.style.display = 'none';
-      });
-  }
-
-  // Ensure the dropdown is initialized correctly on page load
-  const savedCivilians = JSON.parse(localStorage.getItem('civilians')) || [null, null];
-  const slotSelect = document.getElementById('slot-select');
-  savedCivilians.forEach((character, index) => {
-    if (character) {
-      slotSelect.options[index + 1].text = `Character ${index + 1}`;
-    }
-  });
-
-  // Ensure the age is calculated correctly from the date of birth
-  document.getElementById('dob').addEventListener('input', function () {
-    const dob = new Date(this.value);
-    const today = new Date();
-    let age = today.getFullYear() - dob.getFullYear();
-    const monthDiff = today.getMonth() - dob.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-      age--;
-    }
-    document.getElementById('age').value = age >= 0 ? age : ''; // Display the calculated age
-  });
-});
-
-// Create a container for notifications
-const notificationsContainer = document.createElement('div');
-notificationsContainer.classList.add('notifications-container');
-document.body.appendChild(notificationsContainer);
-
-// Function to show a notification
-function showNotification(message) {
-    const notification = document.createElement('div');
-    notification.classList.add('notification');
-    notification.textContent = message;
-
-    // Add the notification to the container
-    notificationsContainer.appendChild(notification);
-
-    // Remove the notification after 10 seconds
-    setTimeout(() => {
-        notification.remove();
-    }, 10000); // 10 seconds
+    alert(`Character saved to Slot ${parseInt(slot) + 1}`);
+    populateCharacterSlots(); // Refresh the dropdown
 }
+
+// Function to handle profile picture upload
+function handleProfilePictureUpload(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const profilePicture = document.getElementById("profile-picture");
+            profilePicture.src = e.target.result;
+
+            // Temporarily store the uploaded picture in local storage
+            localStorage.setItem("tempProfilePicture", e.target.result);
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+// Function to handle going live
+async function goLive() {
+    const slotSelect = document.getElementById("slot-select");
+    const selectedSlot = slotSelect.value;
+
+    if (selectedSlot === "") {
+        alert("Please select a slot.");
+        return;
+    }
+
+    const globalCharacters = JSON.parse(localStorage.getItem("globalCharacters")) || {};
+    const characterData = globalCharacters[`slot${selectedSlot}`];
+
+    if (!characterData) {
+        alert("Please save a character to the selected slot before going live.");
+        return;
+    }
+
+    try {
+        // Add the character to the "civilians" collection in Firestore
+        const docRef = await addDoc(collection(db, "civilians"), {
+            firstName: characterData.firstName,
+            lastName: characterData.lastName,
+            dob: characterData.dob,
+            phone: characterData.phone,
+            address: characterData.address,
+            profilePicture: characterData.profilePicture,
+            timestamp: new Date()
+        });
+
+        liveCharacterId = docRef.id; // Store the unique ID of the live character
+
+        // Change the button to "Unlive" and add flashing red effect
+        const goLiveBtn = document.getElementById("go-live-btn");
+        goLiveBtn.textContent = "Unlive";
+        goLiveBtn.classList.add("unlive");
+        goLiveBtn.style.backgroundColor = "red";
+        goLiveBtn.onclick = unlive; // Change the button's functionality to "Unlive"
+
+        // Enable the "New Call" button
+        const newCallBtn = document.querySelector(".new-call");
+        newCallBtn.disabled = false;
+
+        // Disable dropdown, "Load Saved Character," and "Save Current Character" buttons
+        slotSelect.disabled = true;
+        document.querySelector(".load-character").disabled = true;
+        document.querySelector(".save-character").disabled = true;
+
+        alert(`You are now live with ${characterData.firstName} ${characterData.lastName}!`);
+    } catch (error) {
+        console.error("Error going live:", error);
+        alert("Failed to go live. Please try again.");
+    }
+}
+
+// Function to handle going offline
+async function unlive() {
+    if (!liveCharacterId) {
+        console.log("No live character to remove.");
+        return; // No live character to remove
+    }
+
+    try {
+        // Remove the character from the "civilians" collection in Firestore
+        console.log(`Removing character with ID: ${liveCharacterId} from the civilians collection.`);
+        await deleteDoc(doc(db, "civilians", liveCharacterId));
+        liveCharacterId = null; // Clear the stored ID
+
+        // Change the button back to "Go Live"
+        const goLiveBtn = document.getElementById("go-live-btn");
+        goLiveBtn.textContent = "Go Live";
+        goLiveBtn.classList.remove("unlive");
+        goLiveBtn.style.backgroundColor = "#4CAF50"; // Reset to green
+        goLiveBtn.onclick = goLive; // Change the button's functionality back to "Go Live"
+
+        // Disable the "New Call" button
+        const newCallBtn = document.querySelector(".new-call");
+        newCallBtn.disabled = true;
+
+        // Re-enable dropdown, "Load Saved Character," and "Save Current Character" buttons
+        const slotSelect = document.getElementById("slot-select");
+        slotSelect.disabled = false;
+        document.querySelector(".load-character").disabled = false;
+        document.querySelector(".save-character").disabled = false;
+
+        console.log("Character successfully removed from the civilians collection.");
+    } catch (error) {
+        console.error("Error removing character from the civilians collection:", error);
+        alert("Failed to remove the character. Please try again.");
+    }
+}
+
+// Function to handle creating a new call
+function openNewCallModal() {
+    const newCallModal = document.getElementById("newCallModal");
+    const callerNameInput = document.getElementById("callerName");
+
+    // Populate the caller name with the currently loaded character's name
+    const firstName = document.getElementById("first-name").value.trim();
+    const lastName = document.getElementById("last-name").value.trim();
+    if (firstName && lastName) {
+        callerNameInput.value = `${firstName} ${lastName}`;
+    } else {
+        callerNameInput.value = "Unknown Caller"; // Default if no character is loaded
+    }
+
+    newCallModal.style.display = "block"; // Show the modal
+
+    const closeModalBtn = newCallModal.querySelector(".close");
+    closeModalBtn.onclick = () => {
+        newCallModal.style.display = "none"; // Hide the modal when the close button is clicked
+    };
+
+    const newCallForm = document.getElementById("newCallForm");
+    newCallForm.onsubmit = async (event) => {
+        event.preventDefault(); // Prevent the form from submitting normally
+
+        const description = document.getElementById("description").value.trim();
+        const location = document.getElementById("location").value.trim();
+        const service = document.getElementById("service").value;
+
+        if (!description || !location || !service) {
+            alert("Please fill in all required fields.");
+            return;
+        }
+
+        try {
+            // Add the new call to the "calls" collection in Firestore
+            await addDoc(collection(db, "calls"), {
+                callerName: callerNameInput.value,
+                description,
+                location,
+                service,
+                timestamp: new Date()
+            });
+
+            alert("New call placed successfully!");
+            newCallModal.style.display = "none"; // Hide the modal after submission
+        } catch (error) {
+            console.error("Error placing new call:", error);
+            alert("Failed to place the call. Please try again.");
+        }
+    };
+}
+
+// Ensure the buttons are functional on page load
+document.addEventListener("DOMContentLoaded", () => {
+    populateCharacterSlots();
+
+    const profilePictureInput = document.getElementById("profile-picture-input");
+    profilePictureInput.addEventListener("change", handleProfilePictureUpload);
+
+    const dobInput = document.getElementById("dob");
+    dobInput.addEventListener("input", updateAge); // Update age when DOB changes
+
+    const saveCharacterBtn = document.querySelector(".save-character");
+    const loadCharacterBtn = document.querySelector(".load-character");
+    const goLiveBtn = document.getElementById("go-live-btn");
+    const newCallBtn = document.querySelector(".new-call");
+
+    // Disable "New Call" button by default
+    newCallBtn.disabled = true;
+
+    saveCharacterBtn.onclick = () => {
+        const slotSelect = document.getElementById("slot-select");
+        const selectedSlot = slotSelect.value;
+
+        if (selectedSlot === "") {
+            alert("Please select a slot.");
+            return;
+        }
+
+        saveCharacterToSlot(selectedSlot);
+    };
+
+    loadCharacterBtn.onclick = () => {
+        const slotSelect = document.getElementById("slot-select");
+        const selectedSlot = slotSelect.value;
+
+        if (selectedSlot === "") {
+            alert("Please select a slot.");
+            return;
+        }
+
+        loadCharacterFromSlot(selectedSlot);
+    };
+
+    goLiveBtn.onclick = goLive;
+
+    newCallBtn.onclick = openNewCallModal;
+
+    // Handle page unload or navigation
+    window.addEventListener("beforeunload", unlive);
+    document.querySelector(".back-button").onclick = () => {
+        unlive();
+        window.location.href = "../index.html";
+    };
+});

@@ -27,18 +27,21 @@ function getContrastingTextColor(backgroundColor) {
   return brightness > 128 ? "#FFFFFF" : "#000000"; // Return black or white text
 }
 
-// Function to get color based on unit type (Ambulance, Fire, etc.)
-function getUnitTypeColor(unitType) {
-  switch (unitType) {
-    case 'Ambulance':
-      return '#81C784'; // Light green for Ambulance
-    case 'Fire':
-      return '#FF7043'; // Light red-orange for Fire
-    case 'Police':
-      return '#64B5F6'; // Light blue for Police
-    case 'Multiple':
-      return 'gold';
-    default:
-      return '#BDBDBD'; // Light gray for unknown
-  }
+// Export the getUnitTypeColor function
+export function getUnitTypeColor(unitType) {
+    switch (unitType) {
+        case 'Ambulance':
+            return '#81C784'; // Light green for Ambulance
+        case 'Fire':
+            return '#FF7043'; // Light red-orange for Fire
+        case 'Police':
+            return '#64B5F6'; // Light blue for Police
+        case 'Multiple':
+            return 'gold';
+        default:
+            return '#BDBDBD'; // Light gray for unknown
+    }
 }
+
+// Ensure getContrastingTextColor is also available globally
+window.getContrastingTextColor = getContrastingTextColor;

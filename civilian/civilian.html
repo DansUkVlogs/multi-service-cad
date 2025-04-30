@@ -14,22 +14,25 @@
         </header>
         <main>
             <div class="controls">
-                <button class="new-call" disabled>New Call</button> <!-- Disabled by default -->
+                <button class="new-call">New Call</button>
                 <div class="button-group">
                     <label for="slot-select">Select Slot</label>
                     <select id="slot-select">
                         <option value="">--Select--</option>
-                        <option value="0">Character 1 (Empty)</option>
-                        <option value="1">Character 2 (Empty)</option>
+                        <option value="0">Character 1</option>
+                        <option value="1">Character 2</option>
                     </select>
                     <button class="load-character">Load Saved Character</button>
                     <button class="save-character">Save Current Character</button>
-                    <button class="go-live">Go Live</button>
+                    <button class="go-live" id="go-live-btn">Go Live</button>
                 </div>
             </div>
             <div class="form-container">
                 <div class="profile-picture">
-                    <img src="../imgs/blank-profile-picture-973460.svg" alt="Profile Picture">
+                    <label for="profile-picture-input">
+                        <img src="../imgs/blank-profile-picture-973460.svg" alt="Profile Picture" id="profile-picture">
+                    </label>
+                    <input type="file" id="profile-picture-input" accept="image/*" style="display: none;">
                 </div>
                 <form>
                     <div class="form-group">
@@ -52,16 +55,9 @@
                         <label for="phone">Phone Number</label>
                         <input type="tel" id="phone" name="phone">
                     </div>
-                    <br>
-                    <div class="form-group-row">
-                        <div class="form-group">
-                            <label for="address">Address</label>
-                            <textarea id="address" name="address"></textarea>
-                        </div>
-                        <div class="form-group" id="other-details">
-                            <label for="details">Other Details</label>
-                            <textarea id="details" name="details"></textarea>
-                        </div>
+                    <div class="form-group">
+                        <label for="address">Address</label>
+                        <textarea id="address" name="address"></textarea>
                     </div>
                 </form>
             </div>
@@ -98,8 +94,6 @@
             </div>
         </main>
     </div>
+    <script type="module" src="civilian.js"></script>
 </body>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-<script src="civilian.js"></script>
 </html>
