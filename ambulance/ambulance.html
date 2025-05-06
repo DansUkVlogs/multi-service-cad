@@ -6,9 +6,11 @@
     <title>Ambulance Menu</title>
     <link rel="stylesheet" href="ambulance.css">
     <script type="module" src="../firebase/firebase.js"></script>
+    <link rel="icon" href="../imgs/icon.png" type="image/png">
 </head>
 <body>
-    <div class="header">
+    <div class="header" style="text-align: center; margin-bottom: 20px;">
+        <img src="../imgs/logo.png" alt="Logo" style="width: 150px; height: auto; margin-bottom: 10px; border: 2px solid #ccc; border-radius: 10px;">
         <h1>Ambulance Menu</h1>
         <div class="button-group">
             <button class="back-button" onclick="window.location.href='../index.html'">Back To Home</button>
@@ -16,18 +18,18 @@
         </div>
     </div>
     <div class="status-buttons">
-        <button>Available</button>
-        <button>En Route</button>
-        <button>On Scene</button>
-        <button>Transporting To Hospital</button>
-        <button>At Hospital</button>
-        <button>Going To Base</button>
-        <button>Go To Standby</button>
-        <button class="selected-status">Unavailable</button>
-        <button>Busy</button>
-        <button>Refueling</button>
-        <button>Meal Break</button>
-        <button>On Duty</button>
+        <button data-status="Available">Available</button>
+        <button data-status="En Route">En Route</button>
+        <button data-status="On Scene">On Scene</button>
+        <button data-status="Transporting To Hospital">Transporting To Hospital</button>
+        <button data-status="At Hospital">At Hospital</button>
+        <button data-status="Going To Base">Going To Base</button>
+        <button data-status="Go To Standby">Go To Standby</button>
+        <button data-status="Unavailable" class="selected-status">Unavailable</button>
+        <button data-status="Busy">Busy</button>
+        <button data-status="Refueling">Refueling</button>
+        <button data-status="Meal Break">Meal Break</button>
+        <button data-status="On Duty">On Duty</button>
         <div class="right-buttons">
             <button class="open-modal-button" onclick="openCivilianModal()">Open Civilian</button>
             <button class="extra-button">Select Callsign</button>
@@ -129,12 +131,32 @@
     </div>
 </div>
 
+<!-- Add the modal overlay -->
+<div id="modal-overlay" class="modal-overlay"></div>
+
 <!-- Display Saved Callsign -->
 <div id="callsign-display" style="text-align: center; font-weight: bold; margin-top: 20px;"></div>
 
+<!-- Hospital Selection Modal -->
+<div id="hospital-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <h2>Select Hospital</h2>
+        <label for="hospital-select">Choose a hospital:</label>
+        <select id="hospital-select">
+            <option value="" disabled selected>--Select Hospital--</option>
+            <!-- Options will be dynamically populated -->
+        </select>
+        <div class="modal-buttons">
+            <button id="confirm-hospital-btn">Confirm</button>
+            <button id="cancel-hospital-btn">Cancel</button>
+        </div>
+    </div>
+</div>
+
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, getDocs, getDoc, onSnapshot, query, where, deleteDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    import { getStatusColor } from "../dispatch/statusColor.js";
 
     // Firebase configuration
     const firebaseConfig = {
@@ -151,113 +173,186 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // DOM element for the calls list
+    // DOM elements
+    const incidentElement = document.querySelector(".incident");
+    const locationElement = document.querySelector(".location");
+    const callerNameElement = document.querySelector(".callerName");
+    const descriptionTextElement = document.querySelector(".descriptionText");
+    const timestampElement = document.querySelector(".timestamp");
+    const attachedUnitsContainer = document.getElementById("attached-units-container");
     const callsContainer = document.getElementById("calls-container");
 
-    // Function to render calls with the original design and consistent filtering
-    function renderCalls(calls) {
-        callsContainer.innerHTML = ""; // Clear existing calls
+    let selectedCallId = null;
 
-        // Apply the filter to show only "Ambulance" or "Multiple" services
-        const filteredCalls = calls.filter(call => call.service === "Ambulance" || call.service === "Multiple");
+    // Function to update call details
+    async function updateCallDetails(callId) {
+        try {
+            const callDoc = await getDoc(doc(db, "calls", callId));
+            if (callDoc.exists()) {
+                const callData = callDoc.data();
+                incidentElement.textContent = `Incident: ${callData.status || "Unknown"}`;
+                locationElement.textContent = `Location: ${callData.location || "Unknown"}`;
+                callerNameElement.textContent = callData.callerName || "Unknown";
+                descriptionTextElement.textContent = callData.description || "No description provided.";
+                timestampElement.textContent = `Time Stamp: ${callData.timestamp?.toDate().toLocaleString() || "Unknown"}`;
+            }
+        } catch (error) {
+            console.error("Error fetching call details:", error);
+        }
+    }
 
-        if (filteredCalls.length === 0) {
-            callsContainer.innerHTML = "<p>No calls available.</p>";
+    // Function to update attached units
+    async function updateAttachedUnits(callId) {
+        try {
+            attachedUnitsContainer.innerHTML = ""; // Clear existing units
+            const attachedUnitsSnapshot = await getDocs(
+                query(
+                    collection(db, "attachedUnits"),
+                    where("callID", "==", callId),
+                    where("placeholder", "==", false) // Exclude placeholder documents
+                )
+            );
+
+            if (attachedUnitsSnapshot.empty) {
+                // Show "No Attached Units" message if none are attached
+                attachedUnitsContainer.textContent = "No Attached Units";
+                return;
+            }
+
+            const renderedUnitIds = new Set(); // Track rendered unit IDs to prevent duplicates
+
+            for (const docSnap of attachedUnitsSnapshot.docs) {
+                const { unitID } = docSnap.data();
+                if (renderedUnitIds.has(unitID)) continue; // Skip duplicates
+
+                const unitDoc = await getDoc(doc(db, "units", unitID));
+                if (unitDoc.exists() && !unitDoc.data().placeholder) { // Exclude placeholder documents
+                    const unit = unitDoc.data();
+
+                    const unitElement = document.createElement("div");
+                    unitElement.textContent = `${unit.callsign} (${unit.unitType}) - ${unit.status}`;
+                    unitElement.style.backgroundColor = getStatusColor(unit.status); // Use getStatusColor for background
+                    unitElement.style.color = "#FFFFFF"; // Ensure text is readable
+                    unitElement.style.padding = "10px 15px";
+                    unitElement.style.borderRadius = "20px";
+                    unitElement.style.fontSize = "0.9em";
+                    unitElement.style.fontWeight = "bold";
+                    unitElement.style.textAlign = "center";
+                    unitElement.style.whiteSpace = "nowrap";
+
+                    attachedUnitsContainer.appendChild(unitElement);
+                    renderedUnitIds.add(unitID); // Mark this unit as rendered
+                }
+            }
+
+            // If no units were rendered, show "No Attached Units" message
+            if (renderedUnitIds.size === 0) {
+                attachedUnitsContainer.textContent = "No Attached Units";
+            }
+        } catch (error) {
+            console.error("Error fetching attached units:", error);
+            attachedUnitsContainer.textContent = "Error loading attached units.";
+        }
+    }
+
+    // Real-time listener for updates to the `units` collection
+    onSnapshot(collection(db, "units"), (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            if (change.type === "modified" || change.type === "added" || change.type === "removed") {
+                updateAttachedUnits(selectedCallId); // Refresh attached units
+            }
+        });
+    });
+
+    // Function to keep the selected call selected
+    function keepSelectedCallSelected() {
+        const selectedCallElement = document.querySelector(`[data-call-id="${selectedCallId}"]`);
+        if (selectedCallElement) {
+            selectedCallElement.classList.add("selected-call");
+        }
+    }
+
+    // Function to safely delete a document
+    async function safeDeleteDoc(collectionName, docId) {
+        if (!docId || docId.trim() === "") {
+            console.warn(`Invalid document ID for collection '${collectionName}'. Skipping deletion.`);
             return;
         }
-
-        filteredCalls.forEach(call => {
-            const callDiv = document.createElement("div");
-            callDiv.classList.add("call-item"); // Match the original class
-
-            // Create the service box
-            const serviceBox = document.createElement("div");
-            serviceBox.classList.add("service-box");
-            serviceBox.style.backgroundColor = getServiceColor(call.service); // Use a function to determine the color
-            serviceBox.style.color = getContrastingTextColor(serviceBox.style.backgroundColor);
-            serviceBox.textContent = `Service: ${call.service || "Unknown"}`;
-
-            // Create the status (use callData.status directly)
-            const statusDiv = document.createElement("div");
-            statusDiv.classList.add("status");
-            statusDiv.textContent = `Incident: ${call.status || "Unknown"}`;
-
-            // Create the caller name
-            const nameDiv = document.createElement("div");
-            nameDiv.classList.add("name");
-            nameDiv.textContent = `Caller Name: ${call.callerName || "Unknown"}`;
-
-            // Create the location
-            const locationDiv = document.createElement("div");
-            locationDiv.classList.add("location");
-            locationDiv.textContent = `Location: ${call.location || "Unknown"}`;
-
-            // Create the timestamp
-            const timestampDiv = document.createElement("div");
-            timestampDiv.classList.add("timestamp");
-            const timestamp = call.timestamp?.toDate ? call.timestamp.toDate() : new Date(call.timestamp);
-            timestampDiv.textContent = `Time: ${timestamp.toLocaleTimeString("en-GB")} ${timestamp.toLocaleDateString("en-GB")}`;
-
-            // Append all elements to the call item
-            callDiv.appendChild(serviceBox);
-            callDiv.appendChild(statusDiv);
-            callDiv.appendChild(nameDiv);
-            callDiv.appendChild(locationDiv);
-            callDiv.appendChild(timestampDiv);
-
-            // Add the call item to the container
-            callsContainer.appendChild(callDiv);
-
-            // Attach the click event listener
-            callDiv.addEventListener("click", () => {
-                console.log(`Call selected: ${call.id}`);
-            });
-        });
-    }
-
-    // Helper function to get the service color
-    function getServiceColor(service) {
-        switch (service) {
-            case "Police":
-                return "#007bff"; // Blue
-            case "Fire":
-                return "#dc3545"; // Red
-            case "Ambulance":
-                return "#28a745"; // Green
-            case "Multiple":
-                return "#ffc107"; // Yellow
-            default:
-                return "#6c757d"; // Gray
+        try {
+            await deleteDoc(doc(db, collectionName, docId));
+            console.log(`Successfully deleted document ID: ${docId} from collection: '${collectionName}'.`);
+        } catch (error) {
+            console.error(`Error deleting document ID: ${docId} from collection: '${collectionName}'.`, error);
         }
     }
 
-    // Helper function to get contrasting text color
-    function getContrastingTextColor(bgColor) {
-        const color = bgColor.substring(1); // Remove the "#" character
-        const rgb = parseInt(color, 16); // Convert hex to integer
-        const r = (rgb >> 16) & 0xff; // Extract red
-        const g = (rgb >> 8) & 0xff; // Extract green
-        const b = rgb & 0xff; // Extract blue
-        const luminance = 0.299 * r + 0.587 * g + 0.114 * b; // Calculate luminance
-        return luminance > 186 ? "#000000" : "#ffffff"; // Return black or white
+    // Updated removeUnitAndCivilian function
+    async function removeUnitAndCivilian() {
+        const unitId = sessionStorage.getItem("unitId");
+        const civilianId = sessionStorage.getItem("civilianId");
+
+        if (unitId && unitId.trim() !== "") {
+            await safeDeleteDoc("units", unitId);
+        } else {
+            console.warn("Invalid Unit ID in sessionStorage. Skipping unit deletion.");
+        }
+
+        if (civilianId && civilianId.trim() !== "") {
+            await safeDeleteDoc("civilians", civilianId);
+        } else {
+            console.warn("Invalid Civilian ID in sessionStorage. Skipping civilian deletion.");
+        }
     }
 
-    // Listen for real-time updates to the calls collection
-    onSnapshot(collection(db, "calls"), (snapshot) => {
-        const calls = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        renderCalls(calls); // Always apply the filter when rendering
+    // Handle visibility change
+    document.addEventListener("visibilitychange", async () => {
+        if (document.visibilityState === "hidden") {
+            console.log("Page is being hidden. Attempting to remove unit and civilian...");
+            await removeUnitAndCivilian();
+        }
     });
 
-    // Add event listener for the service filter dropdown
-    document.getElementById("serviceFilter")?.addEventListener("change", (e) => {
-        const filter = e.target.value;
-        onSnapshot(collection(db, "calls"), (snapshot) => {
-            const calls = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            renderCalls(calls, filter);
+    // Handle page unload
+    window.addEventListener("beforeunload", async (event) => {
+        console.log("Page is unloading. Attempting to remove unit and civilian...");
+        await removeUnitAndCivilian();
+    });
+
+    // Example: Save unit and civilian IDs to sessionStorage when they are created
+    function saveUnitAndCivilianIds(unitId, civilianId) {
+        sessionStorage.setItem("unitId", unitId);
+        sessionStorage.setItem("civilianId", civilianId);
+        console.log(`Saved Unit ID: ${unitId} and Civilian ID: ${civilianId} to sessionStorage.`);
+    }
+
+    // Call `saveUnitAndCivilianIds` when unit and civilian are created
+    // Example usage:
+    // saveUnitAndCivilianIds("exampleUnitId", "exampleCivilianId");
+
+    // Real-time listener for updates to the `calls` collection
+    onSnapshot(collection(db, "calls"), (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            if (change.type === "modified" && change.doc.id === selectedCallId) {
+                updateCallDetails(selectedCallId);
+                keepSelectedCallSelected();
+            }
         });
     });
+
+    // Example: Set selected call ID and update details
+    callsContainer.addEventListener("click", (e) => {
+        const callElement = e.target.closest(".call-item");
+        if (callElement) {
+            selectedCallId = callElement.dataset.callId;
+            updateCallDetails(selectedCallId);
+            updateAttachedUnits(selectedCallId); // Ensure units are updated correctly
+
+            // Highlight the selected call
+            document.querySelectorAll(".call-item").forEach((item) => item.classList.remove("selected-call"));
+            callElement.classList.add("selected-call");
+        }
+    });
 </script>
-<script type="module" src="../dispatch/statusColor.js"></script>
 <script type="module" src="ambulance.js"></script>
 </body>
 </html>

@@ -2,19 +2,25 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Role Selector - Emergency CAD System</title>
+  <title>Role Selector - British Empire CAD System</title>
   <link rel="stylesheet" href="index.css">
+  <link rel="icon" href="imgs/icon.png" type="image/png">
 </head>
 <body>
-  <h1>Select Your Role</h1>
-  <div class="roles">
-    <button class="role-btn" onclick="window.location.href='ambulance/ambulance.html'">Ambulance</button>
-    <button class="role-btn" onclick="selectRole('police')">Police</button>
-    <button class="role-btn" onclick="selectRole('hospital')">Hospital</button>
-    <button class="role-btn" onclick="window.location.href='civilian/civilian.html'">Civilian</button>
-    <button class="role-btn" onclick="selectRole('dispatch')">Dispatch</button>
-    <button class="role-btn" onclick="selectRole('admin')">Admin</button>
-  </div>
+  <header style="text-align: center; margin: 40px 0;">
+    <img src="imgs/logo.png" alt="Logo" style="width: 150px; height: auto; margin-bottom: 10px; border: 2px solid #ccc; border-radius: 10px;">
+    <h1 style="margin: 0; font-size: 2em;">Role Selector - British Empire CAD System</h1>
+  </header>
+  <main style="text-align: center; margin-top: 20px;">
+    <div class="roles" style="display: inline-block; text-align: left;">
+      <button class="role-btn" onclick="window.location.href='ambulance/ambulance.html'" style="margin: 10px; padding: 10px 20px; font-size: 1em;">Ambulance</button>
+      <button class="role-btn" onclick="selectRole('police')" style="margin: 10px; padding: 10px 20px; font-size: 1em;">Police</button>
+      <button class="role-btn" onclick="selectRole('hospital')" style="margin: 10px; padding: 10px 20px; font-size: 1em;">Hospital</button>
+      <button class="role-btn" onclick="window.location.href='civilian/civilian.html'" style="margin: 10px; padding: 10px 20px; font-size: 1em;">Civilian</button>
+      <button class="role-btn" onclick="selectRole('dispatch')" style="margin: 10px; padding: 10px 20px; font-size: 1em;">Dispatch</button>
+      <button class="role-btn" onclick="selectRole('admin')" style="margin: 10px; padding: 10px 20px; font-size: 1em;">Admin</button>
+    </div>
+  </main>
   
   <div id="civilianModal" class="modal">
     <div class="modal-content">
