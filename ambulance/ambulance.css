@@ -56,6 +56,13 @@ body {
     gap: 10px; /* Adds spacing between the right-docked buttons */
 }
 
+.status-buttons button.selected-status {
+    background-color: #4caf50; /* Green background for selected status */
+    color: white;
+    font-weight: bold;
+    border: 2px solid #388e3c;
+}
+
 .main-content {
     display: flex;
     gap: 20px;
@@ -431,29 +438,95 @@ body {
     background-color: #45a049;
 }
 
-/* Modal Overlay */
+/* Modal overlay styles */
 .modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.7); /* Dark semi-transparent background */
-    z-index: 999; /* Ensure it is above other elements */
+    background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black */
+    z-index: 999; /* Ensure it appears above other elements */
     display: none; /* Hidden by default */
 }
 
-/* Show the overlay when the modal is active */
-.modal-overlay.active {
-    display: block;
+/* Modal styles */
+.modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    z-index: 1000; /* Above the overlay */
+    display: none; /* Hidden by default */
 }
 
-/* Prevent scrolling and interaction when modal is open */
-body.no-scroll {
+/* Prevent interaction with background when modal is open */
+body.modal-open {
     overflow: hidden;
 }
 
-/* Allow interaction with the modal */
-body.no-scroll #setup-modal {
-    pointer-events: all;
+.modal-overlay.active {
+    display: block !important;
+    pointer-events: auto;
+}
+
+.modal.active {
+    display: flex !important;
+}
+
+/* Ensure overlay covers everything and blocks pointer events */
+.modal-overlay {
+    pointer-events: auto;
+}
+
+/* When overlay is not active, don't block pointer events */
+.modal-overlay:not(.active) {
+    pointer-events: none;
+}
+
+/* Notification System */
+.notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: #333;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    opacity: 0.9;
+    font-size: 14px;
+    animation: fadeInOut 3s ease-in-out;
+}
+
+.notification.success {
+    background-color: #4caf50;
+}
+
+.notification.error {
+    background-color: #f44336;
+}
+
+.notification.warning {
+    background-color: #ff9800;
+}
+
+@keyframes fadeInOut {
+    0% {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    10%, 90% {
+        opacity: 0.9;
+        transform: translateY(0);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(20px);
+    }
 }

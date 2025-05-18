@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ambulance Menu</title>
     <link rel="stylesheet" href="ambulance.css">
-    <script type="module" src="../firebase/firebase.js"></script>
+    <script type="module" src="ambulance.js"></script>
     <link rel="icon" href="../imgs/icon.png" type="image/png">
 </head>
 <body>
@@ -13,7 +13,7 @@
         <img src="../imgs/logo.png" alt="Logo" style="width: 150px; height: auto; margin-bottom: 10px; border: 2px solid #ccc; border-radius: 10px;">
         <h1>Ambulance Menu</h1>
         <div class="button-group">
-            <button class="back-button" onclick="window.location.href='../index.html'">Back To Home</button>
+            <button class="back-button">Back To Home</button>
             <button class="panic-button">Panic</button>
         </div>
     </div>
@@ -22,7 +22,6 @@
         <button data-status="En Route">En Route</button>
         <button data-status="On Scene">On Scene</button>
         <button data-status="Transporting To Hospital">Transporting To Hospital</button>
-        <button data-status="At Hospital">At Hospital</button>
         <button data-status="Going To Base">Going To Base</button>
         <button data-status="Go To Standby">Go To Standby</button>
         <button data-status="Unavailable" class="selected-status">Unavailable</button>
@@ -30,10 +29,6 @@
         <button data-status="Refueling">Refueling</button>
         <button data-status="Meal Break">Meal Break</button>
         <button data-status="On Duty">On Duty</button>
-        <div class="right-buttons">
-            <button class="open-modal-button" onclick="openCivilianModal()">Open Civilian</button>
-            <button class="extra-button">Select Callsign</button>
-        </div>
     </div>
     <div class="main-content">
         <div class="details-container" style="display: flex; gap: 20px;">
@@ -67,292 +62,95 @@
     </div>
 
     <!-- Setup Modal -->
-<div id="setup-modal" class="modal" style="display: flex;">
-    <div class="modal-content">
-        <h2 class="modal-title">Unit Details</h2>
-        <div class="profile-picture-container">
-            <img src="../imgs/blank-profile-picture-973460.svg" alt="Profile Picture" id="profile-picture">
-        </div>
-        <div class="slot-selection">
-            <label for="slot-select" class="slot-label">Select Slot</label>
-            <div class="slot-controls">
-                <select id="slot-select">
-                    <option value="" disabled selected>--Select--</option>
-                    <!-- Slots will be dynamically populated -->
-                </select>
-                <button id="load-character-btn" class="load-character-btn">Load Saved Character</button>
+    <div id="setup-modal" class="modal">
+        <div class="modal-content">
+            <button id="modal-back-home" class="back-button" style="margin-bottom: 10px; width: 100%;">Back To Home</button>
+            <h2 class="modal-title">Unit Details</h2>
+            <div class="profile-picture-container">
+                <img src="../imgs/blank-profile-picture-973460.svg" alt="Profile Picture" id="profile-picture">
             </div>
-        </div>
-        <div class="character-details">
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="first-name">First Name</label>
-                    <input type="text" id="first-name" name="first-name" readonly>
-                </div>
-                <div class="form-group">
-                    <label for="last-name">Last Name</label>
-                    <input type="text" id="last-name" name="last-name" readonly>
-                </div>
-                <div class="form-group">
-                    <label for="phone">Phone Number</label>
-                    <input type="tel" id="phone" name="phone" readonly>
+            <div class="slot-selection">
+                <label for="slot-select" class="slot-label">Select Slot</label>
+                <div class="slot-controls">
+                    <select id="slot-select">
+                        <option value="" disabled selected>--Select--</option>
+                        <!-- Slots will be dynamically populated -->
+                    </select>
+                    <button id="load-character-btn" class="load-character-btn">Load Saved Character</button>
                 </div>
             </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="dob">Date Of Birth</label>
-                    <input type="date" id="dob" name="dob">
+            <div class="character-details">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="first-name">First Name</label>
+                        <input type="text" id="first-name" name="first-name" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="last-name">Last Name</label>
+                        <input type="text" id="last-name" name="last-name" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="phone">Phone Number</label>
+                        <input type="tel" id="phone" name="phone" readonly>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="age">Age</label>
-                    <input type="number" id="age" name="age" readonly>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="dob">Date Of Birth</label>
+                        <input type="date" id="dob" name="dob">
+                    </div>
+                    <div class="form-group">
+                        <label for="age">Age</label>
+                        <input type="number" id="age" name="age" readonly>
+                    </div>
+                </div>
+                <!-- Hidden field for address -->
+                <input type="hidden" id="address" name="address">
+            </div>
+            <div class="unit-details">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="callsign-input">Callsign</label>
+                        <input type="text" id="callsign-input" placeholder="Enter your callsign">
+                    </div>
+                    <div class="form-group">
+                        <label for="unit-type">Unit Type</label>
+                        <input type="text" id="unit-type" value="Ambulance" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="specific-type">Specific Type</label>
+                        <input type="text" id="specific-type" placeholder="Enter specific type">
+                    </div>
                 </div>
             </div>
-            <!-- Hidden field for address -->
-            <input type="hidden" id="address" name="address">
-        </div>
-        <div class="unit-details">
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="callsign-input">Callsign</label>
-                    <input type="text" id="callsign-input" placeholder="Enter your callsign">
-                </div>
-                <div class="form-group">
-                    <label for="unit-type">Unit Type</label>
-                    <input type="text" id="unit-type" value="Ambulance" readonly>
-                </div>
-                <div class="form-group">
-                    <label for="specific-type">Specific Type</label>
-                    <input type="text" id="specific-type" placeholder="Enter specific type">
-                </div>
-            </div>
-        </div>
-        <button id="save-details-btn" class="save-details-btn">Save Details</button>
-    </div>
-</div>
-
-<!-- Add the modal overlay -->
-<div id="modal-overlay" class="modal-overlay"></div>
-
-<!-- Display Saved Callsign -->
-<div id="callsign-display" style="text-align: center; font-weight: bold; margin-top: 20px;"></div>
-
-<!-- Hospital Selection Modal -->
-<div id="hospital-modal" class="modal" style="display: none;">
-    <div class="modal-content">
-        <h2>Select Hospital</h2>
-        <label for="hospital-select">Choose a hospital:</label>
-        <select id="hospital-select">
-            <option value="" disabled selected>--Select Hospital--</option>
-            <!-- Options will be dynamically populated -->
-        </select>
-        <div class="modal-buttons">
-            <button id="confirm-hospital-btn">Confirm</button>
-            <button id="cancel-hospital-btn">Cancel</button>
+            <button id="save-details-btn" class="save-details-btn">Save Details</button>
         </div>
     </div>
-</div>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import { getFirestore, collection, doc, getDocs, getDoc, onSnapshot, query, where, deleteDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-    import { getStatusColor } from "../dispatch/statusColor.js";
+    <!-- Add the modal overlay -->
+    <div id="modal-overlay" class="modal-overlay"></div>
 
-    // Firebase configuration
-    const firebaseConfig = {
-        apiKey: "AIzaSyBWM3d9NXDzItCM4z3lZK2LC0z41tPw-bE",
-        authDomain: "emergencycad-561d4.firebaseapp.com",
-        projectId: "emergencycad-561d4",
-        storageBucket: "emergencycad-561d4.firebasestorage.app",
-        messagingSenderId: "573720799939",
-        appId: "1:573720799939:web:5828efc1893892a4929076",
-        measurementId: "G-XQ55M4GC92"
-    };
+    <!-- Display Saved Callsign -->
+    <div id="callsign-display" style="text-align: center; font-weight: bold; margin-top: 20px;"></div>
+    <div id="ids-display" style="text-align: center; font-weight: bold; margin-top: 10px;">
+        <p id="civilian-id-display">Current CivilianID: </p>
+        <p id="unit-id-display">Current UnitID: </p>
+    </div>
 
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    // DOM elements
-    const incidentElement = document.querySelector(".incident");
-    const locationElement = document.querySelector(".location");
-    const callerNameElement = document.querySelector(".callerName");
-    const descriptionTextElement = document.querySelector(".descriptionText");
-    const timestampElement = document.querySelector(".timestamp");
-    const attachedUnitsContainer = document.getElementById("attached-units-container");
-    const callsContainer = document.getElementById("calls-container");
-
-    let selectedCallId = null;
-
-    // Function to update call details
-    async function updateCallDetails(callId) {
-        try {
-            const callDoc = await getDoc(doc(db, "calls", callId));
-            if (callDoc.exists()) {
-                const callData = callDoc.data();
-                incidentElement.textContent = `Incident: ${callData.status || "Unknown"}`;
-                locationElement.textContent = `Location: ${callData.location || "Unknown"}`;
-                callerNameElement.textContent = callData.callerName || "Unknown";
-                descriptionTextElement.textContent = callData.description || "No description provided.";
-                timestampElement.textContent = `Time Stamp: ${callData.timestamp?.toDate().toLocaleString() || "Unknown"}`;
-            }
-        } catch (error) {
-            console.error("Error fetching call details:", error);
-        }
-    }
-
-    // Function to update attached units
-    async function updateAttachedUnits(callId) {
-        try {
-            attachedUnitsContainer.innerHTML = ""; // Clear existing units
-            const attachedUnitsSnapshot = await getDocs(
-                query(
-                    collection(db, "attachedUnits"),
-                    where("callID", "==", callId),
-                    where("placeholder", "==", false) // Exclude placeholder documents
-                )
-            );
-
-            if (attachedUnitsSnapshot.empty) {
-                // Show "No Attached Units" message if none are attached
-                attachedUnitsContainer.textContent = "No Attached Units";
-                return;
-            }
-
-            const renderedUnitIds = new Set(); // Track rendered unit IDs to prevent duplicates
-
-            for (const docSnap of attachedUnitsSnapshot.docs) {
-                const { unitID } = docSnap.data();
-                if (renderedUnitIds.has(unitID)) continue; // Skip duplicates
-
-                const unitDoc = await getDoc(doc(db, "units", unitID));
-                if (unitDoc.exists() && !unitDoc.data().placeholder) { // Exclude placeholder documents
-                    const unit = unitDoc.data();
-
-                    const unitElement = document.createElement("div");
-                    unitElement.textContent = `${unit.callsign} (${unit.unitType}) - ${unit.status}`;
-                    unitElement.style.backgroundColor = getStatusColor(unit.status); // Use getStatusColor for background
-                    unitElement.style.color = "#FFFFFF"; // Ensure text is readable
-                    unitElement.style.padding = "10px 15px";
-                    unitElement.style.borderRadius = "20px";
-                    unitElement.style.fontSize = "0.9em";
-                    unitElement.style.fontWeight = "bold";
-                    unitElement.style.textAlign = "center";
-                    unitElement.style.whiteSpace = "nowrap";
-
-                    attachedUnitsContainer.appendChild(unitElement);
-                    renderedUnitIds.add(unitID); // Mark this unit as rendered
-                }
-            }
-
-            // If no units were rendered, show "No Attached Units" message
-            if (renderedUnitIds.size === 0) {
-                attachedUnitsContainer.textContent = "No Attached Units";
-            }
-        } catch (error) {
-            console.error("Error fetching attached units:", error);
-            attachedUnitsContainer.textContent = "Error loading attached units.";
-        }
-    }
-
-    // Real-time listener for updates to the `units` collection
-    onSnapshot(collection(db, "units"), (snapshot) => {
-        snapshot.docChanges().forEach((change) => {
-            if (change.type === "modified" || change.type === "added" || change.type === "removed") {
-                updateAttachedUnits(selectedCallId); // Refresh attached units
-            }
-        });
-    });
-
-    // Function to keep the selected call selected
-    function keepSelectedCallSelected() {
-        const selectedCallElement = document.querySelector(`[data-call-id="${selectedCallId}"]`);
-        if (selectedCallElement) {
-            selectedCallElement.classList.add("selected-call");
-        }
-    }
-
-    // Function to safely delete a document
-    async function safeDeleteDoc(collectionName, docId) {
-        if (!docId || docId.trim() === "") {
-            console.warn(`Invalid document ID for collection '${collectionName}'. Skipping deletion.`);
-            return;
-        }
-        try {
-            await deleteDoc(doc(db, collectionName, docId));
-            console.log(`Successfully deleted document ID: ${docId} from collection: '${collectionName}'.`);
-        } catch (error) {
-            console.error(`Error deleting document ID: ${docId} from collection: '${collectionName}'.`, error);
-        }
-    }
-
-    // Updated removeUnitAndCivilian function
-    async function removeUnitAndCivilian() {
-        const unitId = sessionStorage.getItem("unitId");
-        const civilianId = sessionStorage.getItem("civilianId");
-
-        if (unitId && unitId.trim() !== "") {
-            await safeDeleteDoc("units", unitId);
-        } else {
-            console.warn("Invalid Unit ID in sessionStorage. Skipping unit deletion.");
-        }
-
-        if (civilianId && civilianId.trim() !== "") {
-            await safeDeleteDoc("civilians", civilianId);
-        } else {
-            console.warn("Invalid Civilian ID in sessionStorage. Skipping civilian deletion.");
-        }
-    }
-
-    // Handle visibility change
-    document.addEventListener("visibilitychange", async () => {
-        if (document.visibilityState === "hidden") {
-            console.log("Page is being hidden. Attempting to remove unit and civilian...");
-            await removeUnitAndCivilian();
-        }
-    });
-
-    // Handle page unload
-    window.addEventListener("beforeunload", async (event) => {
-        console.log("Page is unloading. Attempting to remove unit and civilian...");
-        await removeUnitAndCivilian();
-    });
-
-    // Example: Save unit and civilian IDs to sessionStorage when they are created
-    function saveUnitAndCivilianIds(unitId, civilianId) {
-        sessionStorage.setItem("unitId", unitId);
-        sessionStorage.setItem("civilianId", civilianId);
-        console.log(`Saved Unit ID: ${unitId} and Civilian ID: ${civilianId} to sessionStorage.`);
-    }
-
-    // Call `saveUnitAndCivilianIds` when unit and civilian are created
-    // Example usage:
-    // saveUnitAndCivilianIds("exampleUnitId", "exampleCivilianId");
-
-    // Real-time listener for updates to the `calls` collection
-    onSnapshot(collection(db, "calls"), (snapshot) => {
-        snapshot.docChanges().forEach((change) => {
-            if (change.type === "modified" && change.doc.id === selectedCallId) {
-                updateCallDetails(selectedCallId);
-                keepSelectedCallSelected();
-            }
-        });
-    });
-
-    // Example: Set selected call ID and update details
-    callsContainer.addEventListener("click", (e) => {
-        const callElement = e.target.closest(".call-item");
-        if (callElement) {
-            selectedCallId = callElement.dataset.callId;
-            updateCallDetails(selectedCallId);
-            updateAttachedUnits(selectedCallId); // Ensure units are updated correctly
-
-            // Highlight the selected call
-            document.querySelectorAll(".call-item").forEach((item) => item.classList.remove("selected-call"));
-            callElement.classList.add("selected-call");
-        }
-    });
-</script>
-<script type="module" src="ambulance.js"></script>
+    <!-- Hospital Selection Modal -->
+    <div id="hospital-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Select Hospital</h2>
+            <label for="hospital-select">Choose a hospital:</label>
+            <select id="hospital-select">
+                <option value="" disabled selected>--Select Hospital--</option>
+                <!-- Options will be dynamically populated -->
+            </select>
+            <div class="modal-buttons">
+                <button id="confirm-hospital-btn">Confirm</button>
+                <button id="cancel-hospital-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
