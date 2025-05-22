@@ -1,28 +1,13 @@
 export function getStatusColor(status) {
-  if (!status) return '#9E9E9E';
-  const s = status.toLowerCase();
-
-  // Direct matches for common statuses
-  switch (s) {
-    case 'available':
-      return '#43A047'; // Deep Green
-    case 'unavailable':
-      return '#D32F2F'; // Strong Red
-    case 'busy':
-    case 'on scene':
-      return '#FF9800'; // Orange
-    case 'meal break':
-      return '#D32F2F'; // Strong Red
-    case 'en route':
-      return '#0288D1'; // Cyan Blue
+  switch (status) {
+    case 'Available':
+    case 'On Scene':
+      return '#4CAF50'; // Green for Available
+    case 'Unavailable':
+      return '#FF5722'; // Red-Orange for Unavailable
+    case 'En Route':
+      return '#FF5500';
     default:
-      // Handle prefix-based statuses
-      if (s.startsWith('transporting to hospital')) return '#0288D1'; // Cyan Blue
-      if (s.startsWith('going to hospital')) return '#0288D1'; // Cyan Blue
-      if (s.startsWith('going to standby')) return '#0288D1'; // Cyan Blue
-      if (s.startsWith('at hospital')) return '#FF9800'; // Orange
-      if (s.startsWith('at hospital')) return '#FF9800'; // Orange
-      if (s.startsWith('at standby')) return '#FF9800'; // Orange
       return '#9E9E9E'; // Gray for Unknown or undefined statuses
   }
 }

@@ -1,0 +1,749 @@
+/* General Styles */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #555; /* Body text color */
+}
+
+/* Header */
+h1 {
+    text-align: center;
+    margin: 20px 0;
+    font-size: 2.5em;
+    color: #000; /* Header color */
+}
+
+/* Ensure the header is positioned relative for the button */
+header {
+    position: relative;
+}
+
+/* Back to Home Button */
+.back-to-home {
+    position: fixed; /* Position relative to the viewport */
+    top: 20px; /* Distance from the top of the page */
+    right: 20px; /* Distance from the right of the page */
+    padding: 10px 20px;
+    font-size: 1em;
+    color: #fff;
+    background-color: #007bff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    text-align: center;
+    transition: background-color 0.3s ease;
+    z-index: 1000; /* Ensure it stays above other elements */
+}
+
+.back-to-home:hover {
+    background-color: #0056b3;
+}
+
+/* Filter Section */
+.filters {
+    margin: 20px 0;
+}
+
+.filters label {
+    font-weight: bold;
+}
+
+.filters select {
+    margin-left: 10px;
+    padding: 5px;
+}
+
+/* Calls List Container */
+#callsListContainer {
+    width: 100%;
+    max-width: 1200px;
+    margin-bottom: 20px;
+    overflow-x: auto; /* Enable horizontal scrolling */
+    white-space: nowrap; /* Prevent items from wrapping to the next line */
+}
+
+.scrollable {
+    display: inline-flex; /* Align the items in a row */
+    gap: 20px;
+    padding: 20px 0;
+}
+
+/* Dispatch Container */
+.dispatch-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    width: 100%;
+    max-width: 1200px;
+    margin-top: 20px;
+    flex-wrap: wrap; /* Ensures proper wrapping */
+}
+
+/* Call Details Section */
+.call-details {
+    flex: 2;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 12px; /* Rounded corners */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    margin-top: 20px;
+    margin-bottom: 50px; /* Generous margin at the bottom */
+    padding-bottom: 20px; /* Add consistent padding at the bottom */
+    overflow: visible; /* Allow the container to grow dynamically */
+}
+
+.call-details h2 {
+    margin-top: 0;
+}
+
+.call-details h3 {
+    margin-top: 15px;
+    font-size: 1.2em;
+    color: #333;
+}
+
+.call-details p {
+    font-size: 1.2em;
+    margin: 5px 0;
+}
+
+.call-description {
+    width: 90%;
+    height: 80px;
+    margin-top: 5px;
+    margin-bottom: 15px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1em;
+    resize: vertical;
+}
+
+.call-type-dropdown {
+    width: 100%;
+    margin-top: 5px;
+    margin-bottom: 15px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1em;
+    background-color: #fff;
+}
+
+#saveCallDetails {
+    display: inline-block;
+    padding: 10px 20px;
+    font-size: 1em;
+    color: #fff;
+    background-color: #007bff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+#saveCallDetails:hover {
+    background-color: #0056b3;
+}
+
+/* Attached Units in Call Details Section */
+#attachedUnits {
+    display: flex;
+    flex-direction: column; /* Stack units vertically */
+    align-items: center; /* Center the cards */
+    gap: 15px; /* Add spacing between units */
+    width: 100%;
+}
+
+/* Attached Unit Cards */
+.attached-unit {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 10px; /* Reduced left and right padding */
+    border-radius: 12px; /* Rounded corners */
+    font-size: 1em;
+    font-weight: bold;
+    text-align: center;
+    word-wrap: break-word; /* Wrap long text */
+    width: auto; /* Adjust width to fit content */
+    max-width: 300px; /* Prevent units from being too wide */
+    box-sizing: border-box; /* Include padding and border in width */
+    background-color: unset; /* Ensure no default background color is applied */
+    color: var(--text-color); /* Dynamically set text color */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); /* Add a subtle shadow */
+    cursor: pointer; /* Ensure cards are clickable */
+}
+
+/* Remove conflicting rules */
+.attached-unit {
+    background-color: unset; /* Reset any inherited or conflicting background color */
+}
+
+/* Status Box for Attached Unit Cards */
+.attached-unit .unit-status {
+    width: 75%; /* 75% of the card width */
+    padding: 10px;
+    border-radius: 12px; /* Rounded corners */
+    font-size: 0.9em;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 10px;
+    color: white; /* Default text color */
+}
+
+/* Dispatch Actions */
+.dispatch-actions {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: top;
+    align-items: top;
+}
+
+.dispatch-actions button {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px;
+    border: none;
+    border-radius: 12px; /* Rounded corners */
+    margin: 10px 0;
+    cursor: pointer;
+    font-size: 1.1em;
+}
+
+.dispatch-actions button:hover {
+    background-color: #45a049;
+}
+
+/* Close Call Button */
+.close-call-btn {
+    display: none; /* Hide the button by default */
+    background-color: #f44336; /* Red background */
+    color: white; /* White text */
+    border: none;
+    padding: 10px 15px;
+    font-size: 14px;
+    cursor: pointer;
+    border-radius: 5px;
+    margin-left: auto; /* Align to the right */
+}
+
+.close-call-btn.show {
+    display: inline-block; /* Show the button when the 'show' class is added */
+}
+
+.close-call-btn:hover {
+    background-color: #d32f2f; /* Darker red on hover */
+}
+
+/* Available Units Section */
+.unit-browser {
+    flex: 2;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 12px; /* Rounded corners */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    width: 100%;
+}
+
+.unit-browser h2 {
+    margin-top: 0;
+}
+
+.unit-browser input,
+.unit-browser select {
+    padding: 8px;
+    margin-bottom: 20px;
+    width: 100%;
+    max-width: 300px;
+    border: 1px solid #ccc;
+    border-radius: 12px; /* Rounded corners */
+}
+
+.unit-browser input:focus,
+.unit-browser select:focus {
+    border-color: #4CAF50;
+    outline: none;
+}  
+
+/* Unit Cards */
+.unit-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Center the text */
+    padding: 15px;
+    border-radius: 12px; /* Rounded corners */
+    font-size: 1em;
+    font-weight: bold;
+    text-align: center;
+    word-wrap: break-word; /* Wrap long text */
+    width: 100%; /* Ensure consistent width */
+    max-width: 300px; /* Prevent units from being too wide */
+    box-sizing: border-box; /* Include padding and border in width */
+    background-color: var(--unit-type-color); /* Dynamically set background color */
+    color: var(--text-color); /* Dynamically set text color */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); /* Add a subtle shadow */
+    cursor: pointer; /* Ensure cards are clickable */
+    margin: 0 auto;
+}
+
+.unit-card:hover {
+    transform: scale(1.05);
+}
+
+.unit-card .status {
+    font-size: 16px;
+    font-weight: bold;
+    padding: 5px 0;
+    text-align: center;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.unit-card .unit-details {
+    font-size: 14px;
+    color: #555;
+    padding: 0;
+    margin-bottom: 5px;
+}
+
+.unit-card .unit-details span {
+    font-weight: bold;
+}
+
+.unit-card.available {
+    background-color: #d4edda;
+}
+
+.unit-card.unavailable {
+    background-color: #f8d7da;
+}
+
+.unit-card .status.available {
+    background-color: #28a745;
+    color: white;
+}
+
+.unit-card .status.unavailable {
+    background-color: #dc3545;
+    color: white;
+}
+
+.unit-card .status.off-duty {
+    background-color: #ffc107;
+    color: white;
+}
+
+/* Available Units List */
+#availableUnitsList {
+    display: flex;
+    flex-direction: column; /* Stack cards vertically */
+    align-items: center; /* Center the cards */
+    gap: 15px; /* Add spacing between cards */
+    width: 100%;
+}
+
+/* Unit Search */
+#unitSearch {
+    padding: 8px;
+    margin-bottom: 20px;
+    width: 100%;
+    max-width: 300px;
+    border: 1px solid #ccc;
+    border-radius: 12px; /* Rounded corners */
+}
+
+/* Status Container */
+.status-container {
+    padding: 5px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    text-align: center;
+    font-weight: bold;
+    color: white;
+  }
+
+.status-container.available {
+    background-color: #28a745;
+    color: white;
+}
+
+.status-container.unavailable {
+    background-color: #dc3545;
+    color: white;
+}
+
+.status-container.off-duty {
+    background-color: #ffc107;
+    color: white;
+}
+
+/* Call Type Box */
+.call-type-box {
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 12px; /* Rounded corners */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.call-type-box h3 {
+    margin: 0;
+    font-size: 1.5em;
+    color: #000;
+}
+
+/* Date Issue Fix (Invalid Date) */
+.call-timestamp {
+    font-size: 1.1em;
+    color: #888;
+}
+
+/* Service Type Box - Added as per request */
+.service-type-box {
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 12px; /* Rounded corners */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.service-type-box h3 {
+    margin: 0;
+    font-size: 1.5em;
+    color: #000;
+}
+
+.service-type-box p {
+    font-size: 1.1em;
+    margin: 5px 0;
+}
+
+/* Call Card - Service Box */
+.call-card {
+    display: inline-block; /* Makes each call card inline */
+    width: 300px; /* Set a fixed width for each card */
+    margin: 10px;
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    padding: 15px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.call-card:hover {
+    transform: scale(1.05);
+}
+
+.call-info {
+    margin-top: 10px;
+}
+
+/* Service Box (inside the call card) */
+.call-service {
+    font-weight: bold;
+    padding: 5px;
+    text-align: center;
+    border-radius: 8px;
+}
+
+/* Highlight selected call */
+.selected-call {
+    background-color: #f1f1f1;
+    border: 2px solid #4CAF50;
+}
+
+/* Fix Overflow in All Calls List */
+.call-card .call-status {
+    white-space: normal; /* Allow text wrapping */
+    overflow: hidden; /* Hide overflowing content */
+    text-overflow: ellipsis; /* Add ellipsis for long text */
+    word-wrap: break-word; /* Wrap long words */
+}
+
+/* Available Units Section */
+.unit-browser {
+    flex: 2;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 12px; /* Rounded corners */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    width: 100%;
+}
+
+.unit-browser h2 {
+    margin-top: 0;
+}
+
+/* Unit Cards */
+.unit-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Center the text */
+    padding: 15px;
+    border-radius: 12px; /* Rounded corners */
+    font-size: 1em;
+    font-weight: bold;
+    text-align: center;
+    word-wrap: break-word; /* Wrap long text */
+    width: 100%; /* Ensure consistent width */
+    max-width: 300px; /* Prevent units from being too wide */
+    box-sizing: border-box; /* Include padding and border in width */
+    background-color: var(--unit-type-color); /* Dynamically set background color */
+    color: var(--text-color); /* Dynamically set text color */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); /* Add a subtle shadow */
+    cursor: pointer; /* Ensure cards are clickable */
+}
+
+.unit-card:hover {
+    transform: scale(1.05);
+}
+
+.unit-card .unit-status {
+    font-size: 16px;
+    font-weight: bold;
+    padding: 10px;
+    text-align: center;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.unit-card .unit-details {
+    font-size: 14px;
+    color: #555;
+    padding: 0;
+    margin-bottom: 5px;
+}
+
+.unit-card .unit-details span {
+    font-weight: bold;
+}
+
+/* Unit Status Styles */
+.unit-card.available {
+    background-color: #d4edda;
+}
+
+.unit-card.on-scene {
+    background-color: #d4edda;
+}
+
+.unit-card.unavailable {
+    background-color: #f8d7da;
+}
+
+.unit-card .unit-status.available {
+    background-color: #28a745;
+    color: white;
+}
+
+.unit-card .unit-status.unavailable {
+    background-color: #dc3545;
+    color: white;
+}
+
+.unit-card .unit-status.off-duty {
+    background-color: #ffc107;
+    color: white;
+}
+
+.attached-units-container {
+    display: flex;
+    overflow-x: auto;
+    padding: 10px 0;
+  }
+  
+  .attached-unit {
+    flex: 0 0 auto;
+    margin-right: 10px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    color: white;
+    font-weight: bold;
+    background-color: grey;
+  }
+
+  #attachedUnits {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px; 
+    }
+
+    .selected-unit {
+        border: 5px solid darkgreen; /* Green border for selected unit */
+        background-color: #f1f1f1; /* Light background for selected unit */
+      }
+
+/* Service Card */
+.service-card {
+  display: inline-block;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-size: 1em;
+  font-weight: bold;
+  color: white;
+  text-align: center;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Service Dropdown */
+.call-service-dropdown {
+  display: block;
+  margin-top: 10px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  font-size: 1em;
+  width: 100%;
+  max-width: 300px;
+  background-color: #fff;
+}
+
+/* Service Dropdown Styled as a Card */
+.service-card-dropdown {
+  display: inline-block;
+  padding: 6px 12px; /* Reduced padding for smaller size */
+  border-radius: 10px; /* Slightly smaller rounded corners */
+  font-size: 0.9em; /* Reduced font size */
+  font-weight: bold;
+  color: white;
+  text-align: center;
+  background-color: gold; /* Default color for "Multiple" */
+  border: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  appearance: none; /* Remove default dropdown styling */
+  cursor: pointer;
+  width: auto;
+}
+
+/* Service Dropdown Options */
+.service-card-dropdown option {
+  color: black; /* Ensure dropdown options are readable */
+}
+
+/* Adjust dropdown color dynamically */
+.service-card-dropdown[data-service="Police"] {
+  background-color: #64B5F6; /* Light blue for Police */
+}
+
+.service-card-dropdown[data-service="Fire"] {
+  background-color: #FF7043; /* Light red-orange for Fire */
+}
+
+.service-card-dropdown[data-service="Ambulance"] {
+  background-color: #81C784; /* Light green for Ambulance */
+}
+
+.service-card-dropdown[data-service="Multiple"] {
+  background-color: gold; /* Gold for Multiple */
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .call-details {
+    padding: 10px;
+  }
+
+  .call-description,
+  .call-type-dropdown {
+    font-size: 0.9em;
+  }
+
+  #saveCallDetails {
+    font-size: 0.9em;
+    padding: 8px 15px;
+  }
+
+  #availableUnitsList,
+  #attachedUnits {
+    align-items: center; /* Ensure cards are centered on smaller screens */
+  }
+}
+
+/* Modal Styles */
+.modal {
+  display: none; /* Hidden by default */
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0, 0, 0, 0.4); /* Black background with opacity */
+}
+
+.modal-content {
+  background-color: #fff;
+  margin: 10% auto; /* Center the modal */
+  padding: 20px;
+  border: 1px solid #888;
+  border-radius: 8px;
+  width: 50%; /* Adjust width as needed */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.modal-content h2 {
+  margin-top: 0;
+}
+
+.modal-content .form-group {
+  margin-bottom: 15px;
+}
+
+.modal-content .form-group label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.modal-content .form-group input,
+.modal-content .form-group textarea,
+.modal-content .form-group select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1em;
+}
+
+.modal-content .submit-call {
+  background-color: #007bff;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1em;
+}
+
+.modal-content .submit-call:hover {
+  background-color: #0056b3;
+}
+
+.modal-content .close {
+  color: #aaa;
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.modal-content .close:hover,
+.modal-content .close:focus {
+  color: black;
+  text-decoration: none;
+}
