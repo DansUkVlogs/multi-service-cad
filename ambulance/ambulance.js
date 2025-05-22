@@ -12,9 +12,23 @@ const firebaseConfig = {
     measurementId: "G-XQ55M4GC92"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+let app, db;
+try {
+    app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+} catch (e) {
+    showNotification("Failed to initialize Firebase. Check your internet connection.", "error");
+    throw e;
+}
+
+// Utility: Check network connectivity (keep for UI, not for DB ops)
+function checkNetworkAndNotify() {
+    if (!navigator.onLine) {
+        showNotification("You are offline. Please check your internet connection.", "error");
+        return false;
+    }
+    return true;
+}
 
 // Function to display notifications
 function showNotification(message, type = "info") {
@@ -51,8 +65,8 @@ async function deleteUnit(unitId) {
             showNotification(`Unit with ID=${unitId} does not exist.`, "warning");
         }
     } catch (error) {
+        showNotification("Cannot connect to the database. Please check your network or firewall settings.", "error");
         console.error(`Error deleting unit ID=${unitId}:`, error);
-        showNotification(`Error deleting unit ID=${unitId}. Check console for details.`, "error");
     }
 }
 
@@ -72,8 +86,8 @@ async function deleteCivilian(civilianId) {
             showNotification(`Civilian with ID=${civilianId} does not exist.`, "warning");
         }
     } catch (error) {
+        showNotification("Cannot connect to the database. Please check your network or firewall settings.", "error");
         console.error(`Error deleting civilian ID=${civilianId}:`, error);
-        showNotification(`Error deleting civilian ID=${civilianId}. Check console for details.`, "error");
     }
 }
 
@@ -98,6 +112,7 @@ async function removeUnitandCharacter() {
                 alertMessage += `Civilian with ID=${civilianId} does not exist.\n`;
             }
         } catch (error) {
+            showNotification("Cannot connect to the database. Please check your network or firewall settings.", "error");
             console.error(`Error deleting civilian ID=${civilianId}:`, error);
             alertMessage += `Error deleting Civilian: ID=${civilianId}. Check console for details.\n`;
         }
@@ -146,6 +161,7 @@ async function removeUnitandCharacter() {
             }
 
         } catch (error) {
+            showNotification("Cannot connect to the database. Please check your network or firewall settings.", "error");
             console.error(`Error deleting unit ID=${unitId}:`, error);
             alertMessage += `Error deleting Unit: ID=${unitId}. Check console for details.\n`;
         }
@@ -307,8 +323,8 @@ async function saveDetails() {
         // Close the modal after saving details
         closeSetupModal();
     } catch (error) {
+        showNotification("Cannot connect to the database. Please check your network or firewall settings.", "error");
         console.error("Error saving details:", error);
-        showNotification("Failed to save details. Please try again.", "error");
     }
 }
 
@@ -351,8 +367,8 @@ async function handleStatusChange(status) {
             selectedButton.classList.add("selected-status");
         }
     } catch (error) {
+        showNotification("Cannot connect to the database. Please check your network or firewall settings.", "error");
         console.error(`Error updating status to ${status}:`, error);
-        showNotification(`Failed to change status to: ${status}. Check console for details.`, "error");
     }
 }
 
@@ -371,6 +387,9 @@ function closeSetupModal() {
 
 // Clean up any orphaned unit/civilian on page load
 window.addEventListener('load', async () => {
+    if (!navigator.onLine) {
+        showNotification("You are offline. Please check your internet connection.", "error");
+    }
     // Attempt to remove any leftover unit/civilian from previous session
     const civilianId = sessionStorage.getItem("civilianId");
     const unitId = sessionStorage.getItem("unitId");
@@ -409,6 +428,69 @@ window.addEventListener('load', async () => {
     if (headerBackBtn) headerBackBtn.addEventListener('click', handleBackToHome);
 });
 
+// Add this function before showHospitalModal to fix the error
+function loadHospitalLocations() {
+    // Returns a Promise that resolves to the hospital locations array
+    return fetch("../data/location.json")
+        .then(res => res.json())
+        .then(data => data.hospital || [])
+        .catch(() => []);
+}
+
+// --- Modal logic for Hospital ---
+function showHospitalModal(onConfirm, onCancel) {
+    const modal = document.getElementById("hospital-modal");
+    const select = document.getElementById("hospital-select");
+    const transportTypeSelect = document.getElementById("transport-type-select");
+
+    // Populate hospital dropdown
+    loadHospitalLocations().then(locations => {
+        select.innerHTML = '<option value="" disabled selected>--Select Hospital--</option>';
+        locations.forEach(loc => {
+            const opt = document.createElement("option");
+            opt.value = loc;
+            opt.textContent = loc;
+            select.appendChild(opt);
+        });
+    });
+
+    // Set default for transport type
+    if (transportTypeSelect) {
+        transportTypeSelect.value = "Transport";
+        transportTypeSelect.style.display = ""; // Always show for hospital modal
+        transportTypeSelect.previousElementSibling.style.display = ""; // Show label
+    }
+
+    modal.style.display = "block";
+
+    const confirmBtn = document.getElementById("confirm-hospital-btn");
+    const cancelBtn = document.getElementById("cancel-hospital-btn");
+
+    function cleanup() {
+        modal.style.display = "none";
+        confirmBtn.removeEventListener("click", confirmHandler);
+        cancelBtn.removeEventListener("click", cancelHandler);
+    }
+
+    function confirmHandler() {
+        const location = select.value;
+        const transportType = transportTypeSelect.value;
+        if (!location) {
+            showNotification("Please select a hospital location.", "error");
+            return;
+        }
+        cleanup();
+        onConfirm(location, transportType);
+    }
+    function cancelHandler() {
+        cleanup();
+        if (onCancel) onCancel();
+    }
+
+    confirmBtn.addEventListener("click", confirmHandler);
+    cancelBtn.addEventListener("click", cancelHandler);
+}
+
 // Attach event listeners
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -444,93 +526,129 @@ document.addEventListener("DOMContentLoaded", () => {
         "Unavailable",
         "Busy",
         "Meal Break",
-        "On Duty"
+        "On Duty",
+        "Transporting To Hospital",
+        "Going To Base",
+        "Go To Standby"
     ];
 
     document.querySelectorAll(".status-buttons button").forEach((btn) => {
         const status = btn.getAttribute("data-status");
-        if (statusButtons.includes(status)) {
-            btn.addEventListener("click", async () => {
-                const unitId = sessionStorage.getItem("unitId");
-                if (!unitId || unitId === "None") {
-                    showNotification("No valid UnitID found. Cannot change status.", "error");
-                    return;
-                }
-                try {
-                    if (status === "On Duty") {
-                        // Toggle between On Duty and Off Duty
-                        if (btn.textContent === "On Duty") {
-                            btn.textContent = "Off Duty";
-                            await deleteDoc(doc(db, "units", unitId));
-                            const availableUnitsQuery = await getDocs(collection(db, "availableUnits"));
-                            availableUnitsQuery.forEach(async (docSnap) => {
-                                const data = docSnap.data();
-                                if (data.unitId === unitId) {
-                                    await deleteDoc(doc(db, "availableUnits", docSnap.id));
-                                }
-                            });
-                            const attachedUnitsQuery = await getDocs(collection(db, "attachedUnit"));
-                            attachedUnitsQuery.forEach(async (docSnap) => {
-                                const data = docSnap.data();
-                                if (data.unitID === unitId) {
-                                    await deleteDoc(doc(db, "attachedUnit", docSnap.id));
-                                }
-                            });
-                            // Play statuschange sound
-                            if (audioPaths.statuschange) playSound(audioPaths.statuschange);
-                            document.querySelectorAll(".status-buttons button").forEach(b => b.classList.remove("selected-status"));
-                            btn.classList.add("selected-status");
-                            showNotification("Unit set to Off Duty and removed from system.", "success");
-                        } else {
-                            const callsign = document.getElementById("callsign-input").value.trim();
-                            const specificType = document.getElementById("specific-type").value.trim();
-                            const unitType = document.getElementById("unit-type").value.trim() || "Ambulance";
-                            if (!callsign || !specificType) {
-                                showNotification("Cannot go On Duty: Callsign or Specific Type missing.", "error");
-                                return;
-                            }
-                            await setDoc(doc(db, "units", unitId), {
-                                callsign,
-                                specificType,
-                                status: "Unavailable",
-                                unitType,
-                                timestamp: new Date()
-                            });
-                            btn.textContent = "On Duty";
-                            // Play statuschange sound
-                            if (audioPaths.statuschange) playSound(audioPaths.statuschange);
-                            document.querySelectorAll(".status-buttons button").forEach(b => b.classList.remove("selected-status"));
-                            const unavailableBtn = document.querySelector('.status-buttons button[data-status="Unavailable"]');
-                            if (unavailableBtn) unavailableBtn.classList.add("selected-status");
-                            showNotification("Unit set to On Duty and status set to Unavailable.", "success");
-                        }
-                        return;
-                    }
+        btn.addEventListener("click", async () => {
+            const unitId = sessionStorage.getItem("unitId");
+            if (!unitId || unitId === "None") {
+                showNotification("No valid UnitID found. Cannot change status.", "error");
+                return;
+            }
 
-                    await updateDoc(doc(db, "units", unitId), { status });
-                    if (status === "Available") {
-                        const availableUnitsQuery = await getDocs(collection(db, "availableUnits"));
-                        let alreadyExists = false;
-                        availableUnitsQuery.forEach((docSnap) => {
-                            const data = docSnap.data();
-                            if (data.unitId === unitId) {
-                                alreadyExists = true;
-                            }
-                        });
-                        if (!alreadyExists) {
-                            await addDoc(collection(db, "availableUnits"), { unitId });
-                        }
-                    }
-                    // Play statuschange sound
+            // --- Remove modal logic for Going To Base and Go To Standby ---
+            if (status === "Going To Base") {
+                // Set status directly
+                try {
+                    await updateDoc(doc(db, "units", unitId), { status: "Going To Base" });
                     if (audioPaths.statuschange) playSound(audioPaths.statuschange);
                     document.querySelectorAll(".status-buttons button").forEach(b => b.classList.remove("selected-status"));
                     btn.classList.add("selected-status");
-                    showNotification(`Status changed to: ${status}`, "success");
+                    btn.textContent = "At Base";
+                    btn.setAttribute("data-status", "At Base");
+                    showNotification("Status changed to: Going To Base", "success");
                 } catch (e) {
                     showNotification("Failed to update status.", "error");
                 }
-            });
-        }
+                return;
+            }
+            if (status === "At Base") {
+                try {
+                    await updateDoc(doc(db, "units", unitId), { status: "At Base" });
+                    if (audioPaths.statuschange) playSound(audioPaths.statuschange);
+                    document.querySelectorAll(".status-buttons button").forEach(b => b.classList.remove("selected-status"));
+                    btn.classList.add("selected-status");
+                    showNotification("Status changed to: At Base", "success");
+                } catch (e) {
+                    showNotification("Failed to update status.", "error");
+                }
+                return;
+            }
+
+            if (status === "Go To Standby") {
+                // Set status directly
+                try {
+                    await updateDoc(doc(db, "units", unitId), { status: "Go To Standby" });
+                    if (audioPaths.statuschange) playSound(audioPaths.statuschange);
+                    document.querySelectorAll(".status-buttons button").forEach(b => b.classList.remove("selected-status"));
+                    btn.classList.add("selected-status");
+                    btn.textContent = "At Standby";
+                    btn.setAttribute("data-status", "At Standby");
+                    showNotification("Status changed to: Go To Standby", "success");
+                } catch (e) {
+                    showNotification("Failed to update status.", "error");
+                }
+                return;
+            }
+            if (status === "At Standby") {
+                try {
+                    await updateDoc(doc(db, "units", unitId), { status: "At Standby" });
+                    if (audioPaths.statuschange) playSound(audioPaths.statuschange);
+                    document.querySelectorAll(".status-buttons button").forEach(b => b.classList.remove("selected-status"));
+                    btn.classList.add("selected-status");
+                    showNotification("Status changed to: At Standby", "success");
+                } catch (e) {
+                    showNotification("Failed to update status.", "error");
+                }
+                return;
+            }
+
+            // --- Keep existing modal logic for hospital status ---
+            if (status === "Transporting To Hospital") {
+                showHospitalModal(
+                    async (location, transportType) => {
+                        let newStatus;
+                        if (transportType === "Transport") {
+                            newStatus = `Transporting To Hospital - ${location}`;
+                        } else {
+                            newStatus = `Going To Hospital - ${location}`;
+                        }
+                        try {
+                            await updateDoc(doc(db, "units", unitId), { status: newStatus });
+                            if (audioPaths.statuschange) playSound(audioPaths.statuschange);
+                            document.querySelectorAll(".status-buttons button").forEach(b => b.classList.remove("selected-status"));
+                            btn.classList.add("selected-status");
+                            btn.textContent = "At Hospital";
+                            btn.setAttribute("data-status", "At Hospital");
+                            btn.dataset.hospitalLocation = location;
+                            btn.dataset.hospitalType = transportType;
+                            showNotification(`Status changed to: ${newStatus}`, "success");
+                        } catch (e) {
+                            showNotification("Failed to update status.", "error");
+                        }
+                    },
+                    () => {}
+                );
+                return;
+            }
+            if (status === "At Hospital") {
+                const location = btn.dataset.hospitalLocation || "Unknown";
+                const transportType = btn.dataset.hospitalType || "Transport";
+                let newStatus = `At Hospital - ${location}`;
+                if (transportType === "Transport") {
+                    newStatus += " (Cleaning)";
+                } else if (transportType === "Standby") {
+                    newStatus += " (Standby)";
+                }
+                try {
+                    await updateDoc(doc(db, "units", unitId), { status: newStatus });
+                    if (audioPaths.statuschange) playSound(audioPaths.statuschange);
+                    document.querySelectorAll(".status-buttons button").forEach(b => b.classList.remove("selected-status"));
+                    btn.classList.add("selected-status");
+                    showNotification(`Status changed to: ${newStatus}`, "success");
+                } catch (e) {
+                    showNotification("Failed to update status.", "error");
+                }
+                return;
+            }
+
+            // ...existing code for other statuses...
+        });
     });
 
     // Close modal when overlay is clicked
@@ -551,3 +669,11 @@ fetch('../data/audio-paths.json')
   .catch(err => {
     console.error('Failed to load audio-paths.json:', err);
   });
+
+// Optionally, listen for online/offline events to notify user
+window.addEventListener('offline', () => {
+    showNotification("You have lost internet connection.", "error");
+});
+window.addEventListener('online', () => {
+    showNotification("Internet connection restored.", "success");
+});
