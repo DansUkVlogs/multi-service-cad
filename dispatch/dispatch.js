@@ -758,11 +758,43 @@ function listenForCallUpdates() {
     );
 }
 
+// Add a real-time listener for the `units` collection to update the Manage Units section
+function listenForUnitStatusUpdates() {
+    const unitsRef = collection(db, "units");
+    onSnapshot(unitsRef, async (snapshot) => {
+        try {
+            // Only update units that are currently in availableUnits
+            const availableUnitIds = new Set(allUnits.map(unit => unit.id));
+            let updated = false;
+            for (const docSnap of snapshot.docs) {
+                const unitData = docSnap.data();
+                const unitId = docSnap.id;
+                if (availableUnitIds.has(unitId)) {
+                    // Update the unit in allUnits
+                    const idx = allUnits.findIndex(u => u.id === unitId);
+                    if (idx !== -1) {
+                        allUnits[idx] = { id: unitId, ...unitData };
+                        updated = true;
+                    }
+                }
+            }
+            if (updated) {
+                renderUnitCards(allUnits);
+            }
+        } catch (error) {
+            console.error("Error processing units snapshot:", error);
+        }
+    }, (error) => {
+        console.error("Error listening for units updates:", error);
+    });
+}
+
 // Ensure all real-time listeners are initialized on page load
 document.addEventListener("DOMContentLoaded", async () => {
     listenForCallUpdates(); // Start listening for real-time updates to calls
     listenForAvailableUnitsUpdates(); // Start listening for real-time updates to available units
     listenForAttachedUnitsUpdates(); // Start listening for real-time updates to attached units
+    listenForUnitStatusUpdates(); // Start listening for real-time updates to unit status
     await loadAvailableUnits(); // Load available units initially
     await loadCalls(); // Load calls
 });
@@ -829,6 +861,23 @@ function listenForAttachedUnitsUpdates() {
             console.error("Error handling attachedUnits updates:", error);
         }
     });
+
+    // Listen for changes in the "units" collection to update attached units in real-time
+    const unitsRef = collection(db, "units");
+    onSnapshot(unitsRef, async () => {
+        try {
+            // Re-render attached units for all calls in the "All Calls" section
+            for (const call of allCalls) {
+                await renderAttachedUnitsForCall(call.id);
+            }
+            // Re-render attached units for the selected call
+            if (selectedCallId) {
+                await renderAttachedUnits(selectedCallId);
+            }
+        } catch (error) {
+            console.error("Error updating attached units on unit status change:", error);
+        }
+    });
 }
 
 // Ensure all real-time listeners are initialized on page load
@@ -836,6 +885,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     listenForCallUpdates(); // Start listening for real-time updates to calls
     listenForAvailableUnitsUpdates(); // Start listening for real-time updates to available units
     listenForAttachedUnitsUpdates(); // Start listening for real-time updates to attached units
+    listenForUnitStatusUpdates(); // Start listening for real-time updates to unit status
     await loadAvailableUnits(); // Load available units initially
     await loadCalls(); // Load calls
 });
