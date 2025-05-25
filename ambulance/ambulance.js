@@ -850,8 +850,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     if (snapshot.empty) {
                         callsContainer.innerHTML = '<p>No ambulance calls available.</p>';
                     } else {
+                        console.log('Starting to check for calls...');
                         snapshot.forEach(docSnap => {
                             const call = docSnap.data();
+                            console.log('Found call:', call);
                             const callDiv = document.createElement('div');
                             callDiv.className = 'call-card';
                             callDiv.innerHTML = `
