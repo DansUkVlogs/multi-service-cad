@@ -257,10 +257,12 @@ function openNewCallModal() {
         try {
             // Add the new call to the "calls" collection in Firestore
             await addDoc(collection(db, "calls"), {
+                callType: "",
                 callerName: callerNameInput.value,
                 description,
                 location,
                 service,
+                status: "NEW CALL",
                 timestamp: new Date()
             });
 
