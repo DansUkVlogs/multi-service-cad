@@ -20,9 +20,14 @@ export function getStatusColor(status) {
       if (s.startsWith('transporting to hospital')) return '#0288D1'; // Cyan Blue
       if (s.startsWith('going to hospital')) return '#0288D1'; // Cyan Blue
       if (s.startsWith('going to standby')) return '#0288D1'; // Cyan Blue
+      if (s.startsWith('going to base')) return '#0288D1'; // Cyan Blue
+      if (s.startsWith('going to replenish at base')) return '#D32F2F'; // Strong Red
       if (s.startsWith('at hospital')) return '#FF9800'; // Orange
       if (s.startsWith('at hospital')) return '#FF9800'; // Orange
-      if (s.startsWith('at standby')) return '#FF9800'; // Orange
+      if (s.startsWith('at standby')) return '#43A047'; // Deep Green
+      if (s.startsWith('at base - replenishing')) return '#D32F2F'; // Strong Red
+      if (s.startsWith('at base')) return '#43A047'; // Deep Green
+      if (s.startsWith('refueling')) return '#D32F2F'; // Strong Red
       return '#9E9E9E'; // Gray for Unknown or undefined statuses
   }
 }

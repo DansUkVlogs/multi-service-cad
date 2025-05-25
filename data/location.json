@@ -14,5 +14,12 @@
         "Pillbox Hospital", 
         "Sand Shores Hospital", 
         "Central Hospital"
+    ],
+    "fuel-stations": [
+        "Legion Square Fuel Station", 
+        "Sinner Street Fuel Station", 
+        "Sandy Shores Fuel Station", 
+        "Big Bank Fuel Station", 
+        "Airport Fuel Station"
     ]
 }

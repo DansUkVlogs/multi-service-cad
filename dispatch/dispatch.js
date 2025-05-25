@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getFirestore, collection, doc, getDocs, getDoc, onSnapshot, query, where, setDoc, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { getFirestore, doc, deleteDoc, setDoc, addDoc, getDoc, getDocs, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { getStatusColor, getUnitTypeColor, getContrastingTextColor } from "./statusColor.js";
 
 // Firebase configuration
@@ -12,7 +12,7 @@ const firebaseConfig = {
     appId: "1:573720799939:web:5828efc1893892a4929076",
     measurementId: "G-XQ55M4GC92"
 };
-
+ 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
@@ -43,29 +43,6 @@ const unitCallsignSearch = document.getElementById('unitCallsignSearch');
 // Filtered calls and units
 let allCalls = [];
 let allUnits = []; // Declare and initialize allUnits to store all units for filtering
-
-// Proxy to monitor changes to allCalls
-let allCallsProxy = [];
-function initializeAllCallsListener() {
-    allCallsProxy = new Proxy(allCalls, {
-        set(target, property, value) {
-            const selectedCallId = document.querySelector('.selected-call')?.dataset.callId;
-
-            // Update the target array
-            target[property] = value;
-
-            // Check if the change affects the currently selected call
-            if (selectedCallId) {
-                const selectedCall = target.find(call => call.id === selectedCallId);
-                if (selectedCall && property === target.indexOf(selectedCall).toString()) {
-                    renderAttachedUnits(selectedCallId); // Repopulate the attached units section
-                }
-            }
-
-            return true;
-        }
-    });
-}
 
 // Firestore collections
 const availableUnitsRef = collection(db, 'availableUnits');
@@ -215,15 +192,6 @@ async function loadCalls() {
     }
 }
 
-// Deduplicate calls by their ID
-function deduplicateCalls(calls) {
-    const uniqueCalls = new Map();
-    calls.forEach(call => {
-        uniqueCalls.set(call.id, call); // Use the call ID as the key to ensure uniqueness
-    });
-    return Array.from(uniqueCalls.values());
-}
-
 // Fix `renderAttachedUnitsForCall` to ensure attached units are displayed correctly
 async function renderAttachedUnitsForCall(callId) {
     const attachedUnitsContainer = document.getElementById(`attached-units-${callId}`);
@@ -265,8 +233,7 @@ async function renderAttachedUnitsForCall(callId) {
             unitDiv.classList.add('attached-unit');
             unitDiv.style.backgroundColor = getStatusColor(unitData.status);
             unitDiv.style.color = getContrastingTextColor(getStatusColor(unitData.status));
-            unitDiv.textContent = `${unitData.callsign || 'N/A'} (${unitData.unitType || 'Unknown'})`;
-
+            unitDiv.innerHTML = `<strong>${unitData.callsign || 'N/A'}</strong> (${unitData.unitType || 'Unknown'})`;
             attachedUnitsContainer.appendChild(unitDiv);
             renderedUnitIds.add(unitID); // Mark this unit as rendered
         }
@@ -512,6 +479,7 @@ async function renderAttachedUnits(callId) {
                 <div class="unit-details">
                     <p><strong>Callsign:</strong> ${unitData.callsign}</p>
                     <p><strong>Type:</strong> ${unitData.unitType}</p>
+                    <p><strong>Specific Type:</strong> ${unitData.specificType || ''}</p>
                 </div>
             `;
 
@@ -685,6 +653,7 @@ function renderUnitCards(units) {
             <div class="unit-details">
                 <p><strong>Callsign:</strong> ${callsign}</p>
                 <p><strong>Type:</strong> ${unitType}</p>
+                <p><strong>Specific Type:</strong> ${unit.specificType || ''}</p>
             </div>
         `;
 
@@ -880,15 +849,151 @@ function listenForAttachedUnitsUpdates() {
     });
 }
 
-// Ensure all real-time listeners are initialized on page load
-document.addEventListener("DOMContentLoaded", async () => {
-    listenForCallUpdates(); // Start listening for real-time updates to calls
-    listenForAvailableUnitsUpdates(); // Start listening for real-time updates to available units
-    listenForAttachedUnitsUpdates(); // Start listening for real-time updates to attached units
-    listenForUnitStatusUpdates(); // Start listening for real-time updates to unit status
-    await loadAvailableUnits(); // Load available units initially
-    await loadCalls(); // Load calls
+// --- Dispatcher Duty Modal Logic ---
+function getSessionId() {
+    // Use sessionStorage to persist a unique session ID for this tab
+    let sessionId = sessionStorage.getItem('dispatcherSessionId');
+    if (!sessionId) {
+        sessionId = 'dispatcher-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now();
+        sessionStorage.setItem('dispatcherSessionId', sessionId);
+    }
+    return sessionId;
+}
+
+function showDispatcherDutyModal() {
+    // Create modal HTML
+    const modal = document.createElement('div');
+    modal.id = 'dispatcher-duty-modal';
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100vw';
+    modal.style.height = '100vh';
+    modal.style.background = 'rgba(0,0,0,0.6)';
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.style.zIndex = '9999';
+    modal.innerHTML = `
+        <div style="background: #fff; padding: 40px 32px; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.18); text-align: center; min-width: 320px;">
+            <h2 style="margin-bottom: 18px;">Start Dispatcher Duty</h2>
+            <p style="margin-bottom: 24px;">You must start duty to access the dispatch panel.</p>
+            <button id="start-dispatch-duty-btn" style="padding: 12px 32px; font-size: 1.2em; background: #0288D1; color: #fff; border: none; border-radius: 8px; cursor: pointer;">Start Duty</button>
+            <br><br>
+            <button id="dispatcher-modal-back-home" style="padding: 10px 24px; font-size: 1em; background: #b71c1c; color: #fff; border: none; border-radius: 8px; cursor: pointer;">Back to Home</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    document.body.classList.add('modal-open');
+    document.getElementById('start-dispatch-duty-btn').onclick = async function() {
+        await addDispatcherSession();
+        modal.remove();
+        document.body.classList.remove('modal-open');
+    };
+}
+
+// Function to remove dispatcher session from database and return a message
+async function removeDispatcherSessionFromDB() {
+    const dispatcherId = sessionStorage.getItem('dispatcherSessionId');
+    if (!dispatcherId || dispatcherId === 'None') {
+        return 'No valid DispatcherID to delete.';
+    }
+    let alertMessage = '';
+    try {
+        // Try to delete the dispatcher document from Firestore
+        await deleteDoc(doc(db, 'dispatchers', dispatcherId));
+        alertMessage = `Dispatcher session ${dispatcherId} removed.`;
+    } catch (error) {
+        alertMessage = `Error removing dispatcher session: ${error.message}`;
+    }
+    sessionStorage.removeItem('dispatcherSessionId');
+    return alertMessage;
+}
+
+// Function to handle Back to Home button click (for dispatcher)
+async function handleBackToHomeDispatcher() {
+    const alertMessage = await removeDispatcherSessionFromDB();
+    // Optionally show a notification here if you want
+    window.location.href = '../index.html';
+}
+
+// Attach event listener to the header Back to Home button
+window.addEventListener('DOMContentLoaded', () => {
+    const backHomeBtn = document.querySelector('.back-to-home');
+    if (backHomeBtn) {
+        backHomeBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            handleBackToHomeDispatcher();
+        });
+    }
 });
+
+// Use event delegation for modal Back to Home button
+window.addEventListener('click', function(e) {
+    const btn = e.target;
+    if (btn && btn.id === 'dispatcher-modal-back-home') {
+        handleBackToHomeDispatcher();
+    }
+});
+
+// Display and update the number of active dispatchers
+function setupDispatcherCountDisplay() {
+    let countDisplay = document.getElementById('dispatcher-count-display');
+    if (!countDisplay) {
+        countDisplay = document.createElement('div');
+        countDisplay.id = 'dispatcher-count-display';
+        countDisplay.style.position = 'fixed';
+        countDisplay.style.bottom = '18px';
+        countDisplay.style.right = '24px';
+        countDisplay.style.background = '#0288D1';
+        countDisplay.style.color = '#fff';
+        countDisplay.style.padding = '10px 22px';
+        countDisplay.style.borderRadius = '16px';
+        countDisplay.style.fontWeight = 'bold';
+        countDisplay.style.fontSize = '1.1em';
+        countDisplay.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
+        countDisplay.style.zIndex = '9998';
+        document.body.appendChild(countDisplay);
+    }
+    // Listen for changes in the dispatchers collection
+    const dispatchersRef = collection(db, 'dispatchers');
+    onSnapshot(dispatchersRef, (snapshot) => {
+        const count = snapshot.size;
+        // Subtract 1 to exclude the current user
+        let displayCount = Math.max(0, count - 1);
+        countDisplay.textContent = `Active Dispatchers: ${displayCount}`;
+    });
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    showDispatcherDutyModal();
+    setupDispatcherCountDisplay();
+});
+
+// Add a dispatcher session to Firestore for this tab/session
+async function addDispatcherSession() {
+    const sessionId = getSessionId();
+    try {
+        await setDoc(doc(db, 'dispatchers', sessionId), {
+            startedAt: new Date(),
+            // Optionally, add more info (e.g., user info) here
+        });
+        updateDispatcherSessionIdDisplay(); // <-- Update the display after session is created
+    } catch (error) {
+        console.error('Error adding dispatcher session:', error);
+    }
+}
+
+// Remove the dispatcher session from Firestore for this tab/session
+async function removeDispatcherSession() {
+    const sessionId = getSessionId();
+    try {
+        await deleteDoc(doc(db, 'dispatchers', sessionId));
+        updateDispatcherSessionIdDisplay(); // <-- Update the display after session is removed
+    } catch (error) {
+        console.error('Error removing dispatcher session:', error);
+    }
+}
 
 // Attach event listeners for buttons
 document.addEventListener("DOMContentLoaded", () => {
@@ -1205,3 +1310,66 @@ function playSound(soundKey) {
     const audio = new Audio(audioPaths[soundKey]);
     audio.play().catch(error => console.error(`Error playing sound for ${soundKey}:`, error));
 }
+
+// Remove dispatcher session on page unload (for dispatch page)
+window.addEventListener('beforeunload', () => {
+    try {
+        // Remove any existing dispatcher session, even if the page is reloaded
+        const sessionId = sessionStorage.getItem('dispatcherSessionId');
+        if (sessionId) {
+            const projectId = "emergencycad-561d4";
+            const apiKey = firebaseConfig.apiKey;
+            const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/dispatchers/${sessionId}?key=${apiKey}`;
+            let deleted = false;
+            if (navigator.sendBeacon) {
+                const blob = new Blob([], { type: 'application/json' });
+                deleted = navigator.sendBeacon(url, blob);
+            }
+            if (!deleted) {
+                fetch(url, {
+                    method: 'DELETE',
+                    keepalive: true
+                });
+            }
+            sessionStorage.removeItem('dispatcherSessionId');
+        }
+    } catch (e) {
+        // Ignore errors on unload
+    }
+});
+
+// Ensure dispatcher session is removed on page unload/reload
+window.addEventListener('beforeunload', function () {
+    // Try to remove dispatcher session from Firestore and sessionStorage
+    // Note: async functions can't be awaited here, but this will still trigger the cleanup in most cases
+    removeDispatcherSessionFromDB();
+    aleret("Session successfully ended. You can now close this tab.");
+});
+
+// Display current dispatcher session ID in the UI for debugging/cleanup
+function displayDispatcherSessionId() {
+    let sessionId = sessionStorage.getItem('dispatcherSessionId') || 'None';
+    let el = document.getElementById('dispatcher-id-display');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'dispatcher-id-display';
+        el.style = 'position:fixed;bottom:10px;left:10px;background:#222;color:#fff;padding:6px 12px;border-radius:6px;z-index:9999;font-size:14px;';
+        document.body.appendChild(el);
+    }
+    el.textContent = `Dispatcher-ID: ${sessionId}`;
+}
+
+document.addEventListener('DOMContentLoaded', displayDispatcherSessionId);
+
+// Update dispatcher session ID display on session change
+function updateDispatcherSessionIdDisplay() {
+    let el = document.getElementById('dispatcher-id-display');
+    if (el) {
+        let sessionId = sessionStorage.getItem('dispatcherSessionId') || 'None';
+        el.textContent = `Dispatcher-ID: ${sessionId}`;
+    }
+}
+
+// Call this after adding/removing session
+// Example: after addDispatcherSession() or removeDispatcherSession()
+// updateDispatcherSessionIdDisplay();
