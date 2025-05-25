@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ambulance Menu</title>
+    <link rel="stylesheet" href="ambulance.css">
+    <script type="module" src="ambulance.js"></script>
+    <link rel="icon" href="../imgs/icon.png" type="image/png">
+</head>
+<body>
+    <div class="header" style="text-align: center; margin-bottom: 20px;">
+        <img src="../imgs/logo.png" alt="Logo" style="width: 150px; height: auto; margin-bottom: 10px; border: 2px solid #ccc; border-radius: 10px;">
+        <h1>Ambulance Menu</h1>
+        <div class="button-group">
+            <button class="back-button">Back To Home</button>
+            <button class="panic-button">Panic</button>
+        </div>
+    </div>
+    <div class="status-buttons">
+        <button data-status="Available">Available</button>
+        <button data-status="En Route">En Route</button>
+        <button data-status="On Scene">On Scene</button>
+        <button data-status="Transporting To Hospital">Transporting To Hospital</button>
+        <button data-status="Going To Base">Going To Base</button>
+        <button data-status="Go To Standby">Go To Standby</button>
+        <button data-status="Unavailable" class="selected-status">Unavailable</button>
+        <button data-status="Busy">Busy</button>
+        <button data-status="Refueling">Refueling</button>
+        <button data-status="Meal Break">Meal Break</button>
+        <button data-status="On Duty">On Duty</button>
+    </div>
+    <div class="main-content">
+        <div class="details-container" style="display: flex; gap: 20px;">
+            <div class="call-details">
+                <h2>Call Details</h2>
+                <div class="incident-location-box">
+                    <div class="incident">Incident: </div>
+                    <div class="location">Location: </div>
+                </div>
+                <p><strong>Caller Name:</strong> <span class="callerName"></span></p>
+                <div class="description">
+                    <p><strong>Description:</strong></p>
+                    <div class="descriptionText"></div>
+                </div>
+                <h3 class="attached-units-title">Attached Units</h3>
+                <div class="attached-units">
+                    <div id="attached-units-container">
+                        <!-- Units will be dynamically populated here -->
+                    </div>
+                </div>
+                <p class="timestamp">Time Stamp: </p>
+            </div>
+            <div class="calls-list">
+                <h2>Calls List</h2>
+                <button class="self-attach">Self Attach</button>
+                <div id="calls-container">
+                    <!-- Calls will be dynamically populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Setup Modal -->
+    <div id="setup-modal" class="modal">
+        <div class="modal-content">
+            <button id="modal-back-home" class="back-button" style="margin-bottom: 10px; width: 100%;">Back To Home</button>
+            <h2 class="modal-title">Unit Details</h2>
+            <div class="profile-picture-container">
+                <img src="../imgs/blank-profile-picture-973460.svg" alt="Profile Picture" id="profile-picture">
+            </div>
+            <div class="slot-selection">
+                <label for="slot-select" class="slot-label">Select Slot</label>
+                <div class="slot-controls">
+                    <select id="slot-select">
+                        <option value="" disabled selected>--Select--</option>
+                        <!-- Slots will be dynamically populated -->
+                    </select>
+                    <button id="load-character-btn" class="load-character-btn">Load Saved Character</button>
+                </div>
+            </div>
+            <div class="character-details">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="first-name">First Name</label>
+                        <input type="text" id="first-name" name="first-name" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="last-name">Last Name</label>
+                        <input type="text" id="last-name" name="last-name" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="phone">Phone Number</label>
+                        <input type="tel" id="phone" name="phone" readonly>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="dob">Date Of Birth</label>
+                        <input type="date" id="dob" name="dob">
+                    </div>
+                    <div class="form-group">
+                        <label for="age">Age</label>
+                        <input type="number" id="age" name="age" readonly>
+                    </div>
+                </div>
+                <!-- Hidden field for address -->
+                <input type="hidden" id="address" name="address">
+            </div>
+            <div class="unit-details">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="callsign-input">Callsign</label>
+                        <input type="text" id="callsign-input" placeholder="Enter your callsign">
+                    </div>
+                    <div class="form-group">
+                        <label for="unit-type">Unit Type</label>
+                        <input type="text" id="unit-type" value="Ambulance" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="specific-type">Specific Type</label>
+                        <input type="text" id="specific-type" placeholder="Enter specific type">
+                    </div>
+                </div>
+            </div>
+            <button id="save-details-btn" class="save-details-btn">Save Details</button>
+        </div>
+    </div>
+
+    <!-- Add the modal overlay -->
+    <div id="modal-overlay" class="modal-overlay"></div>
+
+    <!-- Display Saved Callsign -->
+    <div id="callsign-display" style="text-align: center; font-weight: bold; margin-top: 20px;"></div>
+    <div id="ids-display" style="text-align: center; font-weight: bold; margin-top: 10px;">
+        <p id="civilian-id-display">Current CivilianID: </p>
+        <p id="unit-id-display">Current UnitID: </p>
+    </div>
+
+    <!-- Hospital Selection Modal -->
+    <div id="hospital-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Select Hospital</h2>
+            <label for="hospital-select">Choose a hospital:</label>
+            <select id="hospital-select">
+                <option value="" disabled selected>--Select Hospital--</option>
+                <!-- Options will be dynamically populated -->
+            </select>
+            <div class="modal-buttons">
+                <button id="confirm-hospital-btn">Confirm</button>
+                <button id="cancel-hospital-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
