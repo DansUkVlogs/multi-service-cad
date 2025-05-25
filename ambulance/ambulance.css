@@ -1032,3 +1032,47 @@ body.modal-open {
     position: relative;
     z-index: 1; /* header content is above gradient */
 }
+
+/* Improved styling for call cards */
+.call-card {
+    background-color: #f9f9f9; /* Light background */
+    border: 1px solid #ddd; /* Subtle border */
+    border-radius: 8px; /* Rounded corners */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Light shadow */
+    margin: 10px 0; /* Spacing between cards */
+    padding: 10px 15px; /* Adjusted padding for better spacing */
+    font-family: Arial, sans-serif; /* Consistent font */
+}
+
+.call-card .call-info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px; /* Reduced spacing between elements */
+}
+
+.call-card .call-service {
+    font-size: 14px;
+    font-weight: bold;
+    color: #fff; /* White text */
+    padding: 4px 8px; /* Adjusted padding */
+    border-radius: 4px;
+    text-align: center;
+}
+
+.call-card .caller-name,
+.call-card .call-location,
+.call-card .call-status,
+.call-card .call-timestamp {
+    font-size: 13px; /* Slightly smaller font size */
+    color: #333; /* Dark text */
+    margin: 0; /* Remove default margins */
+}
+
+.call-card .call-status {
+    font-weight: bold;
+}
+
+.call-card .call-timestamp {
+    font-style: italic;
+    color: #666; /* Subtle text color */
+}

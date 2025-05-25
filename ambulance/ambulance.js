@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { getFirestore, doc, deleteDoc, getDoc, collection, addDoc, updateDoc, getDocs, setDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { getStatusColor, getContrastingTextColor } from "../dispatch/statusColor.js";
+import { getUnitTypeColor } from '../dispatch/statusColor.js';
 
 // Firebase configuration
 const firebaseConfig = {
@@ -796,7 +797,7 @@ function updateStatusIndicator(status) {
 }
 
 // --- Dispatcher Counter and Calls List Logic ---
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
     // Add dispatcher counter display above calls list
     const callsListDiv = document.querySelector('.calls-list');
     if (callsListDiv && !document.getElementById('dispatcher-counter-display')) {
@@ -814,51 +815,43 @@ document.addEventListener("DOMContentLoaded", () => {
         callsListDiv.insertBefore(msgDiv, callsListDiv.children[1]);
     }
 
-    // Real-time dispatcher count and calls logic
-    const dispatchersRef = collection(db, 'dispatchers');
-    let unsubscribeCalls = null;
-
-    onSnapshot(dispatchersRef, (snapshot) => {
-        console.log('Started checking for active dispatchers.'); // Log when checking starts
-        // Exclude placeholder documents from the count
-        const realDispatchers = snapshot.docs.filter(docSnap => !docSnap.data().placeholder);
-        const dispatcherCount = realDispatchers.length;
-        const counterDiv = document.getElementById('dispatcher-counter-display');
-        const msgDiv = document.getElementById('calls-hidden-message');
-        const callsContainer = document.getElementById('calls-container');
-        if (counterDiv) {
-            counterDiv.textContent = `Active Dispatchers: ${dispatcherCount}`;
-        }
-        if (dispatcherCount > 0) {
-            // Hide calls, show message
-            if (callsContainer) callsContainer.innerHTML = '';
-            if (msgDiv) {
-                msgDiv.textContent = 'No ambulance calls are being shown because a dispatcher is active.';
-                msgDiv.style.display = '';
-            }
-            if (unsubscribeCalls) unsubscribeCalls();
-        } else {
-            // Show ambulance/multiple calls, hide message
-            if (msgDiv) msgDiv.style.display = 'none';
-            // Listen for ambulance/multiple calls in real-time
-            if (unsubscribeCalls) unsubscribeCalls();
-            const callsRef = collection(db, 'calls');
-            const q = query(callsRef, where('service', 'in', ['ambulance', 'multiple']));
-            unsubscribeCalls = onSnapshot(q, (snapshot) => {
-                console.log('Snapshot received:', snapshot.docs.map(doc => doc.data())); // Log the raw snapshot data
-                const calls = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                displayCalls(calls);
-            });
-        }
-    });
-
     // Initial population of calls
-    const callsRef = collection(db, 'calls');
-    const q = query(callsRef, where('service', 'in', ['ambulance', 'multiple']));
-    getDocs(q).then(snapshot => {
+    try {
+        const callsRef = collection(db, 'calls');
+        const q = query(callsRef, where('service', 'in', ['Ambulance', 'Multiple']));
+        const snapshot = await getDocs(q);
+
         console.log('Initial snapshot received:', snapshot.docs.map(doc => doc.data())); // Log the raw snapshot data
+
         const calls = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        if (calls.length === 0) {
+            console.warn('No calls available in the initial snapshot.');
+        }
+
         displayCalls(calls);
+    } catch (error) {
+        console.error('Error fetching initial snapshot of calls:', error);
+    }
+});
+
+// Attach a Firestore real-time listener to the calls collection
+document.addEventListener("DOMContentLoaded", async () => {
+    const callsRef = collection(db, 'calls');
+    const q = query(callsRef, where('service', 'in', ['Ambulance', 'Multiple']));
+
+    onSnapshot(q, (snapshot) => {
+        console.log('Real-time snapshot received:', snapshot.docs.map(doc => doc.data()));
+
+        const calls = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        if (calls.length === 0) {
+            console.warn('No calls available in the real-time snapshot.');
+        }
+
+        displayCalls(calls);
+    }, (error) => {
+        console.error('Error with real-time listener for calls:', error);
     });
 });
 
@@ -899,14 +892,14 @@ async function displayCalls(calls) {
 
         callCard.innerHTML = `
             <div class="call-info">
-                <p class="call-service" style="background-color: ${serviceColor};"><strong>Service:</strong> ${call.service || 'Service not provided'}</p>
-                <p class="caller-name">${call.callerName || 'Unknown'}</p>
-                <p class="call-location">${call.location || 'Location not provided'}</p>
-                <p class="call-status"><strong>Status:</strong> ${call.status || 'Awaiting Dispatch'}</p>
-                <p class="call-timestamp"><strong>Time:</strong> ${formattedTimestamp}</p>
-                <div class="attached-units-container" id="attached-units-${call.id}">
-                    <!-- Placeholder for attached units -->
+                <p class="call-service" style="background-color: ${serviceColor}; font-size: 18px; font-weight: bold; text-align: center;">${call.service || 'Service not provided'}</p>
+                <p class="caller-name" style="font-size: 20px; font-weight: bold;">Caller Name: ${call.callerName || 'Unknown'}</p>
+                <p class="call-location" style="font-size: 18px;">Location: ${call.location || 'Location not provided'}</p>
+                <div class="attached-units" style="margin-top: 10px;">
+                    <p style="font-size: 18px; font-weight: bold; color: black;">Attached Units:</p>
+                    <div style="width: 100%; height: 40px; background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 4px; margin-top: 15px;"></div>
                 </div>
+                <p class="call-timestamp" style="font-size: 12px; color: grey; text-align: right; margin-top: 10px;">${formattedTimestamp}</p>
             </div>
         `;
 
@@ -1353,5 +1346,140 @@ async function setInitialStatusIndicator() {
     } catch (e) {
         // Fallback: set to Unavailable
         updateStatusIndicator("Unavailable");
+    }
+}
+
+let callsArray = [];
+
+async function fetchCalls() {
+    try {
+        const callsRef = collection(db, 'calls');
+        const q = query(callsRef, where('service', 'in', ['Ambulance', 'Multiple']));
+        const snapshot = await getDocs(q);
+
+        console.log('Raw snapshot data:', snapshot.docs.map(doc => doc.data())); // Log raw snapshot data
+
+        callsArray = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        // Populate the dispatch page
+        const callsContainer = document.getElementById('calls-container');
+        if (!callsContainer) {
+            console.error('Dispatch page container not found.');
+            return;
+        }
+
+        callsContainer.innerHTML = ''; // Clear existing calls
+
+        if (callsArray.length === 0) {
+            callsContainer.innerHTML = '<p>No calls available.</p>'; // Show a message if no calls are available
+            return;
+        }
+
+        callsArray.forEach((call) => {
+            const callCard = document.createElement('div');
+            callCard.classList.add('call-card');
+            callCard.dataset.callId = call.id;
+
+            const serviceColor = getUnitTypeColor(call.service);
+
+            // Format the timestamp
+            let formattedTimestamp = 'Timestamp not available';
+            if (call.timestamp) {
+                const timestamp = call.timestamp.toDate ? call.timestamp.toDate() : new Date(call.timestamp);
+                formattedTimestamp = `${timestamp.toLocaleTimeString('en-GB')} ${timestamp.toLocaleDateString('en-GB')}`;
+            }
+
+            callCard.innerHTML = `
+                <div class="call-info">
+                    <p class="call-service" style="background-color: ${serviceColor};"><strong>Service:</strong> ${call.service || 'Service not provided'}</p>
+                    <p class="caller-name"><strong>Caller Name:</strong> ${call.callerName || 'Unknown'}</p>
+                    <p class="call-location"><strong>Location:</strong> ${call.location || 'Location not provided'}</p>
+                    <p class="call-status"><strong>Status:</strong> ${call.status || 'Awaiting Dispatch'}</p>
+                    <p class="call-timestamp" style="font-size: 10px; color: grey; text-align: right;">${formattedTimestamp}</p>
+                </div>
+            `;
+
+            // Attach click event listener to select the call
+            callCard.addEventListener('click', () => selectCall(call));
+
+            callsContainer.appendChild(callCard);
+        });
+    } catch (error) {
+        console.error('Error fetching calls:', error);
+    }
+}
+
+// Call the function to fetch calls
+fetchCalls();
+
+// Listen for changes in the "attachedUnits" collection
+document.addEventListener("DOMContentLoaded", () => {
+    const attachedUnitsRef = collection(db, "attachedUnits");
+
+    onSnapshot(attachedUnitsRef, async () => {
+        try {
+            // Refresh attached units for all calls
+            const callsContainer = document.getElementById('calls-container');
+            if (!callsContainer) return;
+
+            const callCards = callsContainer.querySelectorAll('.call-card');
+            for (const callCard of callCards) {
+                const callId = callCard.dataset.callId;
+                const attachedUnitsContainer = callCard.querySelector('.attached-units div');
+                if (callId && attachedUnitsContainer) {
+                    await renderAttachedUnitsForCall(callId, attachedUnitsContainer);
+                }
+            }
+        } catch (error) {
+            console.error("Error handling attachedUnits updates:", error);
+        }
+    });
+});
+
+async function renderAttachedUnitsForCall(callId, container) {
+    try {
+        const attachedUnitsRef = collection(db, "attachedUnits");
+        const q = query(attachedUnitsRef, where("callId", "==", callId));
+        const snapshot = await getDocs(q);
+
+        if (snapshot.empty) {
+            container.innerHTML = '<p style="color: black;">No Attached Units</p>';
+            return;
+        }
+
+        const unitDetails = await Promise.all(
+            snapshot.docs.map(async (doc) => {
+                const unitId = doc.data().unitId;
+                if (!unitId) return null;
+
+                try {
+                    const unitRef = doc(db, "units", unitId);
+                    const unitSnap = await getDoc(unitRef);
+                    if (unitSnap.exists()) {
+                        return { id: unitId, ...unitSnap.data() };
+                    }
+                } catch (error) {
+                    console.error(`Error fetching unit details for unitId ${unitId}:`, error);
+                }
+
+                return null;
+            })
+        );
+
+        const validUnits = unitDetails.filter((unit) => unit !== null);
+
+        if (validUnits.length === 0) {
+            container.innerHTML = '<p style="color: black;">No Attached Units</p>';
+            return;
+        }
+
+        container.innerHTML = validUnits
+            .map(
+                (unit) => `<p>${unit.unitName || 'Unknown Unit'} - ${unit.status || 'Unknown Status'}</p>`
+            )
+            .join('');
+    } catch (error) {
+        console.error(`Error fetching attached units for call ID ${callId}:`, error);
+        container.innerHTML = '<p>Error loading attached units.</p>';
     }
 }
