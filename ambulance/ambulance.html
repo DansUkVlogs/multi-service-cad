@@ -9,12 +9,18 @@
     <link rel="icon" href="../imgs/icon.png" type="image/png">
 </head>
 <body>
-    <div class="header" style="text-align: center; margin-bottom: 20px;">
-        <img src="../imgs/logo.png" alt="Logo" style="width: 150px; height: auto; margin-bottom: 10px; border: 2px solid #ccc; border-radius: 10px;">
-        <h1>Ambulance Menu</h1>
-        <div class="button-group">
-            <button class="back-button">Back To Home</button>
-            <button class="panic-button">Panic</button>
+    <div class="header-container">
+        <div class="header" style="text-align: center; margin-bottom: 20px;">
+            <div id="status-gradient-bar"></div>
+            <img src="../imgs/logo.png" alt="Logo" style="width: 150px; height: auto; margin-bottom: 10px; border: 2px solid #ccc; border-radius: 10px;">
+            <div class="header-title-status">
+                <h1 style="z-index: 1">Ambulance Menu</h1>
+                <div id="current-status-indicator" style="z-index: 1"></div>
+            </div>
+            <div class="button-group">
+                <button class="back-button">Back To Home</button>
+                <button class="panic-button">Panic</button>
+            </div>
         </div>
     </div>
     <div class="status-buttons">
@@ -167,6 +173,11 @@
                 <option value="" disabled selected>--Select Base--</option>
                 <!-- Options will be dynamically populated -->
             </select>
+            <label for="base-type-select" style="margin-top:10px;">Base Type:</label>
+            <select id="base-type-select">
+                <option value="Standby" selected>Standby</option>
+                <option value="Replenishing">Replenishing</option>
+            </select>
             <div class="modal-buttons">
                 <button id="confirm-base-btn">Confirm</button>
                 <button id="cancel-base-btn">Cancel</button>
@@ -186,6 +197,33 @@
             <div class="modal-buttons">
                 <button id="confirm-standby-btn">Confirm</button>
                 <button id="cancel-standby-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Refuel Location Modal -->
+    <div id="refuel-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Select Fuel Station</h2>
+            <label for="refuel-location-select">Choose a fuel station:</label>
+            <select id="refuel-location-select">
+                <option value="" disabled selected>--Select Fuel Station--</option>
+                <!-- Options will be dynamically populated -->
+            </select>
+            <div class="modal-buttons">
+                <button id="confirm-refuel-btn">Save</button>
+                <button id="cancel-refuel-btn">Close</button>
+            </div>
+        </div>
+    </div>
+    <!-- Refuel Price Modal -->
+    <div id="refuel-price-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Enter Refuel Price</h2>
+            <label for="refuel-price-input">Price (£xxx.xx):</label>
+            <input id="refuel-price-input" type="text" placeholder="£000.00" pattern="£?\d+(\.\d{2})?" autocomplete="off" inputmode="decimal">
+            <div class="modal-buttons">
+                <button id="confirm-refuel-price-btn">Save</button>
             </div>
         </div>
     </div>
