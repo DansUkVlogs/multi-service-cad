@@ -819,6 +819,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let unsubscribeCalls = null;
 
     onSnapshot(dispatchersRef, (snapshot) => {
+        console.log('Started checking for active dispatchers.'); // Log when checking starts
         // Exclude placeholder documents from the count
         const realDispatchers = snapshot.docs.filter(docSnap => !docSnap.data().placeholder);
         const dispatcherCount = realDispatchers.length;
@@ -844,6 +845,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const callsRef = collection(db, 'calls');
             const q = query(callsRef, where('service', 'in', ['ambulance', 'multiple']));
             unsubscribeCalls = onSnapshot(q, (snapshot) => {
+                console.log('Started checking for ambulance/multiple calls.'); // Log when checking starts
                 const callsContainer = document.getElementById('calls-container');
                 if (callsContainer) {
                     callsContainer.innerHTML = '';
@@ -853,7 +855,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         console.log('Starting to check for calls...');
                         snapshot.forEach(docSnap => {
                             const call = docSnap.data();
-                            console.log('Found call:', call);
+                            console.log('Found call:', call); // Log each call found
                             const callDiv = document.createElement('div');
                             callDiv.className = 'call-card';
                             callDiv.innerHTML = `
