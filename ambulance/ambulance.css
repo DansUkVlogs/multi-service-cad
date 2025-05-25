@@ -203,7 +203,6 @@ body {
     text-align: right;
     word-wrap: break-word; /* Break long words */
     overflow-wrap: break-word; /* Modern fallback for word-wrap */
-    white-space: nowrap; /* Keep text on single line */
     text-overflow: ellipsis; /* Add ellipsis for overflow */
     overflow: hidden; /* Hide overflow text */
 }
@@ -579,4 +578,521 @@ body.modal-open {
         opacity: 0;
         transform: translateY(20px);
     }
+}
+
+/* Hospital Modal Styles */
+#hospital-modal.modal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    z-index: 1100;
+    min-width: 320px;
+    max-width: 95vw;
+    padding: 0;
+    animation: fadeInModal 0.2s;
+}
+
+#hospital-modal .modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 32px 28px 24px 28px;
+    align-items: stretch;
+}
+
+#hospital-modal h2 {
+    margin: 0 0 10px 0;
+    font-size: 1.5rem;
+    color: #004d00;
+    text-align: center;
+    font-weight: bold;
+}
+
+#hospital-modal label {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 6px;
+    margin-top: 6px;
+    font-size: 1rem;
+}
+
+#hospital-modal select {
+    padding: 10px;
+    border-radius: 8px;
+    border: 1.5px solid #4caf50;
+    font-size: 1rem;
+    margin-bottom: 8px;
+    background: #f6fff6;
+    transition: border-color 0.2s;
+}
+
+#hospital-modal select:focus {
+    border-color: #388e3c;
+    outline: none;
+}
+
+#hospital-modal .modal-buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 10px;
+}
+
+#hospital-modal .modal-buttons button {
+    flex: 1 1 0;
+    padding: 10px 0;
+    border-radius: 8px;
+    border: none;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+#hospital-modal #confirm-hospital-btn {
+    background: #4caf50;
+    color: #fff;
+    margin-right: 6px;
+}
+
+#hospital-modal #confirm-hospital-btn:hover {
+    background: #388e3c;
+}
+
+#hospital-modal #cancel-hospital-btn {
+    background: #f44336;
+    color: #fff;
+    margin-left: 6px;
+}
+
+#hospital-modal #cancel-hospital-btn:hover {
+    background: #b71c1c;
+}
+
+@keyframes fadeInModal {
+    from { opacity: 0; transform: translate(-50%, -60%);}
+    to   { opacity: 1; transform: translate(-50%, -50%);}
+}
+
+.flashing {
+    animation: flash-green 1s infinite alternate;
+}
+@keyframes flash-green {
+    from { background: #4caf50; }   /* green */
+    to   { background: #256d27; }   /* darker green */
+}
+
+/* Base Modal Styles */
+#base-modal.modal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    z-index: 1100;
+    min-width: 320px;
+    max-width: 95vw;
+    padding: 0;
+    animation: fadeInModal 0.2s;
+}
+
+#base-modal .modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 32px 28px 24px 28px;
+    align-items: stretch;
+}
+
+#base-modal h2 {
+    margin: 0 0 10px 0;
+    font-size: 1.5rem;
+    color: #004d00;
+    text-align: center;
+    font-weight: bold;
+}
+
+#base-modal label {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 6px;
+    margin-top: 6px;
+    font-size: 1rem;
+}
+
+#base-modal select {
+    padding: 10px;
+    border-radius: 8px;
+    border: 1.5px solid #4caf50;
+    font-size: 1rem;
+    margin-bottom: 8px;
+    background: #f6fff6;
+    transition: border-color 0.2s;
+}
+
+#base-modal select:focus {
+    border-color: #388e3c;
+    outline: none;
+}
+
+#base-modal .modal-buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 10px;
+}
+
+#base-modal .modal-buttons button {
+    flex: 1 1 0;
+    padding: 10px 0;
+    border-radius: 8px;
+    border: none;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+#base-modal #confirm-base-btn {
+    background: #4caf50;
+    color: #fff;
+    margin-right: 6px;
+}
+
+#base-modal #confirm-base-btn:hover {
+    background: #388e3c;
+}
+
+#base-modal #cancel-base-btn {
+    background: #f44336;
+    color: #fff;
+    margin-left: 6px;
+}
+
+#base-modal #cancel-base-btn:hover {
+    background: #b71c1c;
+}
+
+/* Standby Modal Styles */
+#standby-modal.modal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    z-index: 1100;
+    min-width: 320px;
+    max-width: 95vw;
+    padding: 0;
+    animation: fadeInModal 0.2s;
+}
+
+#standby-modal .modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 32px 28px 24px 28px;
+    align-items: stretch;
+    margin: 0 auto;
+}
+
+#standby-modal h2 {
+    margin: 0 0 10px 0;
+    font-size: 1.5rem;
+    color: #004d00;
+    text-align: center;
+    font-weight: bold;
+}
+
+#standby-modal label {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 6px;
+    margin-top: 6px;
+    font-size: 1rem;
+}
+
+#standby-modal select {
+    padding: 10px;
+    border-radius: 8px;
+    border: 1.5px solid #4caf50;
+    font-size: 1rem;
+    margin-bottom: 8px;
+    background: #f6fff6;
+    transition: border-color 0.2s;
+}
+
+#standby-modal select:focus {
+    border-color: #388e3c;
+    outline: none;
+}
+
+#standby-modal .modal-buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 10px;
+}
+
+#standby-modal .modal-buttons button {
+    flex: 1 1 0;
+    padding: 10px 0;
+    border-radius: 8px;
+    border: none;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+#standby-modal #confirm-standby-btn {
+    background: #4caf50;
+    color: #fff;
+    margin-right: 6px;
+}
+
+#standby-modal #confirm-standby-btn:hover {
+    background: #388e3c;
+}
+
+#standby-modal #cancel-standby-btn {
+    background: #f44336;
+    color: #fff;
+    margin-left: 6px;
+}
+
+#standby-modal #cancel-standby-btn:hover {
+    background: #b71c1c;
+}
+
+/* Refuel Modal Styles */
+#refuel-modal.modal, #refuel-price-modal.modal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    z-index: 1100;
+    min-width: 320px;
+    max-width: 95vw;
+    padding: 0;
+    animation: fadeInModal 0.2s;
+}
+
+#refuel-modal .modal-content,
+#refuel-price-modal .modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 32px 28px 24px 28px;
+    align-items: stretch;
+    text-align: center;
+}
+
+#refuel-modal h2,
+#refuel-price-modal h2 {
+    margin: 0 0 10px 0;
+    font-size: 1.5rem;
+    color: #004d00;
+    text-align: center;
+    font-weight: bold;
+}
+
+#refuel-modal label,
+#refuel-price-modal label {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 6px;
+    margin-top: 6px;
+    font-size: 1rem;
+}
+
+#refuel-modal select,
+#refuel-price-modal input[type="text"] {
+    padding: 10px;
+    border-radius: 8px;
+    border: 1.5px solid #4caf50;
+    font-size: 1rem;
+    margin-bottom: 8px;
+    background: #f6fff6;
+    transition: border-color 0.2s;
+    text-align: center;
+}
+
+#refuel-modal select:focus,
+#refuel-price-modal input[type="text"]:focus {
+    border-color: #388e3c;
+    outline: none;
+}
+
+#refuel-modal .modal-buttons,
+#refuel-price-modal .modal-buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 10px;
+}
+
+#refuel-modal .modal-buttons button,
+#refuel-price-modal .modal-buttons button {
+    flex: 1 1 0;
+    padding: 10px 0;
+    border-radius: 8px;
+    border: none;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+#refuel-modal #confirm-refuel-btn,
+#refuel-price-modal #confirm-refuel-price-btn {
+    background: #4caf50;
+    color: #fff;
+    margin-right: 6px;
+}
+
+#refuel-modal #confirm-refuel-btn:hover,
+#refuel-price-modal #confirm-refuel-price-btn:hover {
+    background: #388e3c;
+}
+
+#refuel-modal #cancel-refuel-btn {
+    background: #f44336;
+    color: #fff;
+    margin-left: 6px;
+}
+
+#refuel-modal #cancel-refuel-btn:hover {
+    background: #b71c1c;
+}
+
+#status-gradient-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100px;
+    pointer-events: none;
+    z-index: 1;
+    background: linear-gradient(to bottom, transparent, transparent);
+    opacity: 1;
+    transition: opacity 0.7s;
+}
+#status-gradient-bar.flashing {
+    animation: status-gradient-flash 0.25s linear 0s 2;
+}
+@keyframes status-gradient-flash {
+    0%   { opacity: 1; }
+    40%  { opacity: 0.2; }
+    60%  { opacity: 1; }
+    100% { opacity: 1; }
+}
+
+#current-status-indicator {
+    display: inline-block;
+    margin: 8px auto 0 auto;
+    padding: 8px 28px;
+    border-radius: 24px;
+    background: #D32F2F;
+    color: #fff;
+    font-weight: bold;
+    font-size: 1.2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    border: 2px solid #b71c1c;
+    transition: background 0.3s, color 0.3s;
+}
+
+/* Gradient bar at the top of the page */
+#status-gradient-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100px;
+    pointer-events: none;
+    z-index: 1; /* gradient is behind header content */
+    background: linear-gradient(to bottom, transparent, transparent);
+    opacity: 1;
+    transition: opacity 1.5s;
+}
+#status-gradient-bar.flashing {
+    transition: none;
+}
+.header {
+    position: relative;
+    z-index: 1; /* header content is above gradient */
+}
+
+/* Improved styling for call cards */
+.call-card {
+    background-color: #f9f9f9; /* Light background */
+    border: 1px solid #ddd; /* Subtle border */
+    border-radius: 8px; /* Rounded corners */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Light shadow */
+    margin: 10px 0; /* Spacing between cards */
+    padding: 10px 15px; /* Adjusted padding for better spacing */
+    font-family: Arial, sans-serif; /* Consistent font */
+}
+
+.call-card .call-info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px; /* Reduced spacing between elements */
+}
+
+.call-card .call-service {
+    font-size: 14px;
+    font-weight: bold;
+    color: #fff; /* White text */
+    padding: 4px 8px; /* Adjusted padding */
+    border-radius: 4px;
+    text-align: center;
+}
+
+.call-card .caller-name,
+.call-card .call-location,
+.call-card .call-status,
+.call-card .call-timestamp {
+    font-size: 13px; /* Slightly smaller font size */
+    color: #333; /* Dark text */
+    margin: 0; /* Remove default margins */
+}
+
+.call-card .call-status {
+    font-weight: bold;
+}
+
+.call-card .call-timestamp {
+    font-style: italic;
+    color: #666; /* Subtle text color */
+}
+
+/* Selected call card styling */
+.call-card.selected {
+    border: 2px solid #0288D1; /* Blue border for selected state */
+    background-color: #e3f2fd; /* Light blue background */
+    box-shadow: 0 4px 8px rgba(2, 136, 209, 0.3); /* Blue shadow */
+}
+
+/* Hover effect for call cards */
+.call-card:hover {
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Enhanced shadow on hover */
+    transform: translateY(-1px); /* Slight lift effect */
+    transition: all 0.2s ease; /* Smooth transition */
 }
