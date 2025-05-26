@@ -323,47 +323,44 @@ body {
 .call-card {
     border: 1px solid #ccc;
     border-radius: 4px;
-    padding: 6px 8px;
-    margin-bottom: 4px;
+    padding: 4px 6px;
+    margin-bottom: 3px;
     background-color: #fdfdfd;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     transition: background-color 0.1s ease;
-    font-size: 12px;
-    line-height: 1.2;
-    min-height: 54px;
-    max-height: 54px;
-    height: 54px;
+    font-size: 11px;
+    line-height: 1.1;
+    min-height: 42px;
+    max-height: 42px;
+    height: 42px;
     overflow: hidden;
-    cursor: pointer;
 }
 
 .call-card:hover {
-    background-color: #f5f5f5;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    background-color: #f0f0f0;
 }
 
 .call-card .call-service-section {
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-width: 55px;
-    max-width: 55px;
-    width: 55px;
+    min-width: 50px;
+    max-width: 50px;
+    width: 50px;
     flex-shrink: 0;
-    gap: 2px;
+    gap: 1px;
     overflow: hidden;
 }
 
 .call-card .call-service {
     width: 100%;
-    padding: 3px 5px;
+    padding: 2px 4px;
     border-radius: 3px;
     font-weight: bold;
-    font-size: 11px;
+    font-size: 10px;
     text-align: center;
     color: white;
     text-transform: uppercase;
@@ -373,73 +370,68 @@ body {
 
 .call-card .call-location-under-service {
     width: 100%;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: bold;
     color: #333;
     text-align: center;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.2;
-}
-
-.call-card .call-status-caller-container {
-    display: flex;
-    flex-direction: column;
-    min-width: 160px;
-    max-width: 160px;
-    width: 160px;
-    flex-shrink: 0;
-    gap: 3px;
-    margin-left: 10px;
+    line-height: 1.1;
 }
 
 .call-card .call-status {
+    min-width: 140px;
+    max-width: 140px;
+    width: 140px;
+    flex-shrink: 0;
     font-weight: bold;
-    font-size: 11px;
+    font-size: 10px;
     color: #333;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.2;
+    margin-left: 8px;
 }
 
 .call-card .caller-name {
+    min-width: 120px;
+    max-width: 120px;
+    width: 120px;
+    flex-shrink: 0;
     font-size: 10px;
     color: #666;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.2;
 }
 
 .call-card .call-timestamp {
-    min-width: 90px;
-    max-width: 90px;
-    width: 90px;
+    min-width: 85px;
+    max-width: 85px;
+    width: 85px;
     flex-shrink: 0;
-    font-size: 10px;
+    font-size: 9px;
     color: #888;
     text-align: right;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.2;
 }
 
 .call-card .attached-units-compact {
-    min-width: 180px;
-    max-width: 180px;
-    width: 180px;
-    max-height: 48px;
+    min-width: 160px;
+    max-width: 160px;
+    width: 160px;
+    max-height: 38px;
     flex-shrink: 0;
-    font-size: 10px;
+    font-size: 9px;
     color: #555;
     overflow-y: auto;
     overflow-x: hidden;
     border: 1px solid #ddd;
-    border-radius: 3px;
-    padding: 3px;
+    border-radius: 2px;
+    padding: 2px;
     background-color: #f9f9f9;
 }
 
@@ -463,22 +455,22 @@ body {
 
 .call-card .attached-units-compact .unit-card {
     display: block;
-    margin-bottom: 2px;
-    padding: 3px 5px;
-    border-radius: 3px;
-    font-size: 9px;
+    margin-bottom: 1px;
+    padding: 2px 4px;
+    border-radius: 2px;
+    font-size: 8px;
     font-weight: bold;
     color: white;
     text-align: left;
     white-space: nowrap;
-    line-height: 1.2;
-    min-height: 14px;
-    max-height: 14px;
+    line-height: 1.1;
+    min-height: 11px;
+    max-height: 11px;
     overflow: hidden;
 }
 
 .call-card .attached-units-compact .unit-card .unit-callsign {
-    font-size: 10px;
+    font-size: 9px;
     font-weight: bold;
     margin-bottom: 1px;
     white-space: nowrap;
@@ -487,7 +479,7 @@ body {
 }
 
 .call-card .attached-units-compact .unit-card .unit-service-type {
-    font-size: 8px;
+    font-size: 7px;
     opacity: 0.9;
     white-space: nowrap;
     overflow: hidden;
@@ -1254,7 +1246,65 @@ body.modal-open {
     z-index: 1; /* header content is above gradient */
 }
 
-/* First duplicate call-card styles removed - using compact version above */
+/* Improved styling for call cards */
+.call-card {
+    background-color: #f9f9f9; /* Light background */
+    border: 1px solid #ddd; /* Subtle border */
+    border-radius: 8px; /* Rounded corners */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Light shadow */
+    margin: 10px 0; /* Spacing between cards */
+    padding: 10px 15px; /* Adjusted padding for better spacing */
+    font-family: Arial, sans-serif; /* Consistent font */
+}
+
+.call-card .call-info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px; /* Reduced spacing between elements */
+}
+
+.call-card .call-service {
+    font-size: 14px;
+    font-weight: bold;
+    color: #fff; /* White text */
+    padding: 4px 8px; /* Adjusted padding */
+    border-radius: 4px;
+    text-align: center;
+}
+
+.call-card .caller-name,
+.call-card .call-location,
+.call-card .call-status,
+.call-card .call-timestamp {
+    font-size: 13px; /* Slightly smaller font size */
+    color: #333; /* Dark text */
+    margin: 0; /* Remove default margins */
+}
+
+.call-card .call-status {
+    font-weight: bold;
+}
+
+.call-card .call-timestamp {
+    font-style: italic;
+    color: #666; /* Subtle text color */
+}
+
+/* Selected call card styling */
+.call-card.selected {
+    border: 2px solid #0288D1; /* Blue border for selected state */
+    background-color: #e3f2fd; /* Light blue background */
+    box-shadow: 0 4px 8px rgba(2, 136, 209, 0.3); /* Blue shadow */
+}
+
+/* Hover effect for call cards */
+.call-card:hover {
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Enhanced shadow on hover */
+    transform: translateY(-1px); /* Slight lift effect */
+    transition: all 0.2s ease; /* Smooth transition */
+}
+
 #calls-container {
     flex: 1 1 0;
     overflow-y: auto;
@@ -2171,7 +2221,64 @@ body.modal-open {
     z-index: 1; /* header content is above gradient */
 }
 
-/* Second duplicate call-card styles removed */
+/* Improved styling for call cards */
+.call-card {
+    background-color: #f9f9f9; /* Light background */
+    border: 1px solid #ddd; /* Subtle border */
+    border-radius: 8px; /* Rounded corners */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Light shadow */
+    margin: 10px 0; /* Spacing between cards */
+    padding: 10px 15px; /* Adjusted padding for better spacing */
+    font-family: Arial, sans-serif; /* Consistent font */
+}
+
+.call-card .call-info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px; /* Reduced spacing between elements */
+}
+
+.call-card .call-service {
+    font-size: 14px;
+    font-weight: bold;
+    color: #fff; /* White text */
+    padding: 4px 8px; /* Adjusted padding */
+    border-radius: 4px;
+    text-align: center;
+}
+
+.call-card .caller-name,
+.call-card .call-location,
+.call-card .call-status,
+.call-card .call-timestamp {
+    font-size: 13px; /* Slightly smaller font size */
+    color: #333; /* Dark text */
+    margin: 0; /* Remove default margins */
+}
+
+.call-card .call-status {
+    font-weight: bold;
+}
+
+.call-card .call-timestamp {
+    font-style: italic;
+    color: #666; /* Subtle text color */
+}
+
+/* Selected call card styling */
+.call-card.selected {
+    border: 2px solid #0288D1; /* Blue border for selected state */
+    background-color: #e3f2fd; /* Light blue background */
+    box-shadow: 0 4px 8px rgba(2, 136, 209, 0.3); /* Blue shadow */
+}
+
+/* Hover effect for call cards */
+.call-card:hover {
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Enhanced shadow on hover */
+    transform: translateY(-1px); /* Slight lift effect */
+    transition: all 0.2s ease; /* Smooth transition */
+}
 
 #calls-container {
     flex: 1 1 0;

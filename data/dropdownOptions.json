@@ -142,7 +142,7 @@
     { "id": "P140", "type": "Exploding mailbox incident" },
     { "id": "P141", "type": "Mysterious clown sighting (not causing traffic disruption)" },
     { "id": "P142", "type": "Loitering with intent to dance" },
-    { "id": "P177", "type": "Other Police call" }
+    { "id": "P999", "type": "Other Police call" }
   ],
     "Fire": [
     { "id": "F001", "type": "Building fire" },

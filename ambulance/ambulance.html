@@ -12,10 +12,10 @@
     <div class="header-container">
         <div class="header" style="text-align: center; margin-bottom: 20px;">
             <div id="status-gradient-bar"></div>
-            <img src="../imgs/logo.png" alt="Logo" style="width: 150px; height: auto; margin-bottom: 10px; border: 2px solid #ccc; border-radius: 10px;">
+            <img src="../imgs/logo.png" alt="Logo" style="width: 120px; height: auto; margin-bottom: 5px; border: 2px solid #ccc; border-radius: 10px;">
             <div class="header-title-status">
-                <h1 style="z-index: 1">Ambulance Menu</h1>
                 <div id="current-status-indicator" style="z-index: 1"></div>
+                <h1 style="z-index: 1">Ambulance Menu</h1>
             </div>
             <div class="button-group">
                 <button class="back-button">Back To Home</button>
@@ -34,7 +34,6 @@
         <button data-status="Busy">Busy</button>
         <button data-status="Refueling">Refueling</button>
         <button data-status="Meal Break">Meal Break</button>
-        <button data-status="On Duty">On Duty</button>
     </div>
     <div class="main-content">
         <div class="details-container" style="display: flex; gap: 20px;">
@@ -58,11 +57,15 @@
                 <p class="timestamp">Time Stamp: </p>
             </div>
             <div class="calls-list">
-                <h2>Calls List</h2>
-                <button class="self-attach">Self Attach</button>
+                <div class="calls-list-header">
+                    <h2>Calls List</h2>
+                    <button class="self-attach">Self Attach</button>
+                </div>
+                <div class="calls-fade-top"></div>
                 <div id="calls-container">
                     <!-- Calls will be dynamically populated here -->
                 </div>
+                <div class="calls-fade-bottom"></div>
             </div>
         </div>
     </div>

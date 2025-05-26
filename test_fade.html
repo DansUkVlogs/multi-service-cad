@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Fade Effect</title>
+    <style>
+        .calls-list {
+            position: relative;
+            background-color: #004d00;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            width: 400px;
+            height: 400px;
+            margin: 50px auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .calls-list-header {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: #004d00;
+            padding-bottom: 10px;
+        }
+
+        #calls-container {
+            flex: 1 1 0;
+            overflow-y: auto;
+            min-height: 0;
+            position: relative;
+        }        .calls-fade-top,
+        .calls-fade-bottom {
+            position: absolute;
+            left: 20px;
+            right: 20px;
+            height: 40px;
+            pointer-events: none;
+            z-index: 10;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .calls-fade-top.hidden,
+        .calls-fade-bottom.hidden {
+            opacity: 0;
+        }
+
+        .calls-fade-top {
+            top: 100px; /* Position below the sticky header and button */
+            background: linear-gradient(to bottom, rgba(0, 77, 0, 0.95) 0%, rgba(0, 77, 0, 0.8) 50%, transparent 100%);
+        }
+
+        .calls-fade-bottom {
+            bottom: 20px;
+            background: linear-gradient(to top, rgba(0, 77, 0, 0.9) 0%, rgba(0, 77, 0, 0.7) 40%, transparent 100%);
+        }
+
+        .call-card {
+            background: #006600;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #007700;
+        }
+    </style>
+</head>
+<body>
+    <div class="calls-list">
+        <div class="calls-list-header">
+            <h2>Calls List Test</h2>
+            <button>Self Attach</button>
+        </div>
+        <div class="calls-fade-top"></div>
+        <div id="calls-container">
+            <div class="call-card">Call 1 - Test Emergency</div>
+            <div class="call-card">Call 2 - Medical Emergency</div>
+            <div class="call-card">Call 3 - Traffic Accident</div>
+            <div class="call-card">Call 4 - Heart Attack</div>
+            <div class="call-card">Call 5 - Vehicle Collision</div>
+            <div class="call-card">Call 6 - Chest Pain</div>
+            <div class="call-card">Call 7 - Breathing Difficulty</div>
+            <div class="call-card">Call 8 - Stroke Symptoms</div>
+            <div class="call-card">Call 9 - Allergic Reaction</div>
+            <div class="call-card">Call 10 - Overdose</div>
+            <div class="call-card">Call 11 - Burn Injury</div>
+            <div class="call-card">Call 12 - Fracture</div>
+            <div class="call-card">Call 13 - Unconscious Person</div>
+            <div class="call-card">Call 14 - Bleeding</div>
+            <div class="call-card">Call 15 - Seizure</div>
+        </div>
+        <div class="calls-fade-bottom"></div>    </div>
+
+    <script>
+        // Set up dynamic fade visibility based on scroll position
+        function setupFadeScrollHandler() {
+            const callsContainer = document.getElementById('calls-container');
+            const fadeTop = document.querySelector('.calls-fade-top');
+            const fadeBottom = document.querySelector('.calls-fade-bottom');
+            
+            if (!callsContainer || !fadeTop || !fadeBottom) return;
+            
+            function updateFadeVisibility() {
+                const { scrollTop, scrollHeight, clientHeight } = callsContainer;
+                const isAtTop = scrollTop <= 5; // Small threshold for precision
+                const isAtBottom = scrollTop >= scrollHeight - clientHeight - 5;
+                
+                // Hide top fade when at the top
+                if (isAtTop) {
+                    fadeTop.classList.add('hidden');
+                } else {
+                    fadeTop.classList.remove('hidden');
+                }
+                
+                // Hide bottom fade when at the bottom
+                if (isAtBottom) {
+                    fadeBottom.classList.add('hidden');
+                } else {
+                    fadeBottom.classList.remove('hidden');
+                }
+            }
+            
+            // Initial check
+            updateFadeVisibility();
+            
+            // Listen for scroll events
+            callsContainer.addEventListener('scroll', updateFadeVisibility);
+        }
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', setupFadeScrollHandler);
+    </script>
+</body>
+</html>

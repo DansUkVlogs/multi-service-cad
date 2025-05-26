@@ -803,7 +803,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (callsListDiv && !document.getElementById('dispatcher-counter-display')) {
         const counterDiv = document.createElement('div');
         counterDiv.id = 'dispatcher-counter-display';
-        counterDiv.style = 'margin-bottom: 10px; font-weight: bold; color: #0288D1;';
         callsListDiv.insertBefore(counterDiv, callsListDiv.firstChild);    }
       // Function to refresh calls list from database
     async function refreshCallsList() {
@@ -950,6 +949,119 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 });
 
+// Add real-time listeners for attached units updates
+document.addEventListener("DOMContentLoaded", () => {
+    console.log('Initializing real-time listeners for attached units and unit status updates');
+    
+    // Listen for changes in the "attachedUnits" collection
+    const attachedUnitsRef = collection(db, "attachedUnits");
+    onSnapshot(attachedUnitsRef, async () => {
+        try {
+            console.log('AttachedUnits collection updated, refreshing attached units display');
+            
+            // Refresh attached units for all calls in the calls list
+            const callsContainer = document.getElementById('calls-container');
+            if (!callsContainer) return;
+
+            const callCards = callsContainer.querySelectorAll('.call-card');
+            for (const callCard of callCards) {
+                const callId = callCard.dataset.callId;
+                const attachedUnitsContainer = callCard.querySelector('.attached-units div');
+                if (callId && attachedUnitsContainer) {
+                    await renderAttachedUnitsForCall(callId, attachedUnitsContainer);
+                }
+            }
+
+            // Also refresh the selected call's attached units if one is selected
+            if (window.selectedCall) {
+                const attachedUnitsDetailsContainer = document.getElementById('attached-units-container');
+                if (attachedUnitsDetailsContainer) {
+                    await renderAttachedUnitsForSelectedCall(window.selectedCall.id, attachedUnitsDetailsContainer);
+                }
+            }
+        } catch (error) {
+            console.error("Error handling attachedUnits updates:", error);
+        }
+    }, (error) => {
+        console.error("Error listening for attachedUnits updates:", error);
+    });
+
+    // Listen for changes in the "units" collection to update unit status in real-time
+    const unitsRef = collection(db, "units");
+    onSnapshot(unitsRef, async () => {
+        try {
+            console.log('Units collection updated, refreshing attached units status display');
+            
+            // Refresh attached units for all calls to show updated unit statuses
+            const callsContainer = document.getElementById('calls-container');
+            if (!callsContainer) return;
+
+            const callCards = callsContainer.querySelectorAll('.call-card');
+            for (const callCard of callCards) {
+                const callId = callCard.dataset.callId;
+                const attachedUnitsContainer = callCard.querySelector('.attached-units div');
+                if (callId && attachedUnitsContainer) {
+                    await renderAttachedUnitsForCall(callId, attachedUnitsContainer);
+                }
+            }
+
+            // Also refresh the selected call's attached units to show updated statuses
+            if (window.selectedCall) {
+                const attachedUnitsDetailsContainer = document.getElementById('attached-units-container');
+                if (attachedUnitsDetailsContainer) {
+                    await renderAttachedUnitsForSelectedCall(window.selectedCall.id, attachedUnitsDetailsContainer);
+                }
+            }
+        } catch (error) {
+            console.error("Error handling units status updates:", error);
+        }
+    }, (error) => {
+        console.error("Error listening for units updates:", error);
+    });
+    
+    // Set up dynamic fade visibility based on scroll position
+    function setupFadeScrollHandler() {
+        const callsContainer = document.getElementById('calls-container');
+        const fadeTop = document.querySelector('.calls-fade-top');
+        const fadeBottom = document.querySelector('.calls-fade-bottom');
+        
+        if (!callsContainer || !fadeTop || !fadeBottom) return;
+        
+        function updateFadeVisibility() {
+            const { scrollTop, scrollHeight, clientHeight } = callsContainer;
+            const isAtTop = scrollTop <= 5; // Small threshold for precision
+            const isAtBottom = scrollTop >= scrollHeight - clientHeight - 5;
+            
+            // Hide top fade when at the top
+            if (isAtTop) {
+                fadeTop.classList.add('hidden');
+            } else {
+                fadeTop.classList.remove('hidden');
+            }
+            
+            // Hide bottom fade when at the bottom
+            if (isAtBottom) {
+                fadeBottom.classList.add('hidden');
+            } else {
+                fadeBottom.classList.remove('hidden');
+            }
+        }
+        
+        // Initial check
+        updateFadeVisibility();
+        
+        // Listen for scroll events
+        callsContainer.addEventListener('scroll', updateFadeVisibility);
+        
+        // Listen for content changes that might affect scroll
+        const observer = new MutationObserver(updateFadeVisibility);
+        observer.observe(callsContainer, { childList: true, subtree: true });
+    }
+    
+    // Initialize fade handler
+    setupFadeScrollHandler();
+});
+
 async function displayCalls(calls) {
     const callsContainer = document.getElementById('calls-container');
     if (!callsContainer) return;
@@ -975,38 +1087,217 @@ async function displayCalls(calls) {
         const callCard = document.createElement('div');
         callCard.classList.add('call-card');
         callCard.dataset.callId = call.id;
+        
+        // Add comprehensive tooltip for the entire call card
+        const fullTimestamp = call.timestamp ? 
+            (call.timestamp.toDate ? call.timestamp.toDate() : new Date(call.timestamp)).toLocaleString('en-GB') : 'N/A';
+        const callCardTooltip = `Call ID: ${call.id} | Service: ${call.service || 'Unknown'} | Status: ${call.status || 'Unknown'} | Location: ${call.location || 'Unknown'} | Caller: ${call.callerName || 'Unknown'} | Time: ${fullTimestamp}`;
+        callCard.title = callCardTooltip;
 
         const serviceColor = getUnitTypeColor(call.service);
 
-        // Format the timestamp
-        let formattedTimestamp = 'Timestamp not available';
+        // Format the timestamp for compact display
+        let formattedTimestamp = 'N/A';
         if (call.timestamp) {
             const timestamp = call.timestamp.toDate ? call.timestamp.toDate() : new Date(call.timestamp);
-            formattedTimestamp = `${timestamp.toLocaleTimeString('en-GB')} ${timestamp.toLocaleDateString('en-GB')}`;
+            formattedTimestamp = timestamp.toLocaleTimeString('en-GB', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
         }
 
         callCard.innerHTML = `
-            <div class="call-info">                <p class="call-service" style="background-color: ${serviceColor}; font-size: 18px; font-weight: bold; text-align: center;">${call.service || 'Service not provided'}</p>
-                <p class="caller-name" style="font-size: 20px; font-weight: bold;">Call Type: ${call.status || 'Unknown'}</p>
-                <p class="call-location" style="font-size: 15px; font-weight: bold;">Location: ${call.location || 'Location not provided'}</p>
-                <p class="caller-name" style="font-size: 15px;">Caller Name: ${call.callerName || 'Unknown'}</p>
-                <div class="attached-units" style="margin-top: 10px;">
-                    <p style="font-size: 18px; font-weight: bold; color: black;">Attached Units:</p>
-                    <div style="width: 100%; height: 40px; background-color: #f0f0f0; border: 1px solid #ccc; border-radius: 4px; margin-top: 15px;"></div>
-                </div>
-                <p class="call-timestamp" style="font-size: 12px; color: grey; text-align: right; margin-top: 10px;">${formattedTimestamp}</p>
+            <div class="call-service-section" title="Service: ${call.service || 'Unknown'} | Location: ${call.location || 'Location not provided'}">
+                <div class="call-service" style="background-color: ${serviceColor};">${(call.service || 'UNK').substring(0, 3).toUpperCase()}</div>
+                <div class="call-location-under-service">${call.location || 'Location not provided'}</div>
             </div>
+            <div class="call-status-caller-container" title="Status: ${call.status || 'Unknown'} | Caller: ${call.callerName || 'Unknown'}">
+                <div class="call-status">${call.status || 'Unknown'}</div>
+                <div class="caller-name">${call.callerName || 'Unknown'}</div>
+            </div>
+            <div class="attached-units-compact" title="Attached Units"></div>
+            <div class="call-timestamp" title="Call Time: ${formattedTimestamp}">${formattedTimestamp}</div>
         `;        // Attach click event listener to select the call
         callCard.addEventListener('click', () => selectCall(call));
 
         callsContainer.appendChild(callCard);
         
-        // Render attached units for this call
-        const attachedUnitsContainer = callCard.querySelector('.attached-units div');
+        // Render attached units for this call in compact format
+        const attachedUnitsContainer = callCard.querySelector('.attached-units-compact');
         if (attachedUnitsContainer) {
-            renderAttachedUnitsForCall(call.id, attachedUnitsContainer);
+            renderAttachedUnitsForCallCompact(call.id, attachedUnitsContainer);
         }
     });
+}
+
+// Function to render attached units for a specific call in compact format with unit cards
+async function renderAttachedUnitsForCallCompact(callId, container) {
+    if (!container) return;
+    
+    // Prevent multiple simultaneous renders for the same container
+    if (container.dataset.rendering === 'true') {
+        return;
+    }
+    container.dataset.rendering = 'true';
+    
+    container.innerHTML = ''; // Clear existing content
+
+    try {
+        const attachedUnitQuery = query(
+            collection(db, "attachedUnits"),
+            where("callID", "==", callId)
+        );
+        const attachedUnitSnapshot = await getDocs(attachedUnitQuery);
+
+        if (attachedUnitSnapshot.empty) {
+            container.innerHTML = '<div style="color: #999; font-size: 9px; text-align: center; padding: 6px; font-style: italic;">None</div>';
+            container.dataset.rendering = 'false';
+            return;
+        }
+
+        const renderedUnitIds = new Set();
+        const unitCards = [];
+
+        for (const docSnap of attachedUnitSnapshot.docs) {
+            const { unitID } = docSnap.data();
+
+            if (!unitID || renderedUnitIds.has(unitID)) {
+                continue;
+            }
+
+            const unitRef = doc(db, "units", unitID);
+            const unitSnap = await getDoc(unitRef);
+
+            if (!unitSnap.exists()) {
+                console.warn(`Unit with ID ${unitID} not found.`);
+                continue;
+            }
+
+            const unitData = unitSnap.data();
+            const unitService = unitData.service || 'Unknown';
+            const unitStatus = unitData.status || 'Unknown';
+            const unitCallsign = unitData.callsign || 'N/A';
+            const unitType = unitData.unitType || 'Unknown';
+            const specificType = unitData.specificType || 'Unknown';
+            
+            // Get colors for the unit - use status color for background
+            const statusColor = getStatusColor(unitStatus);
+            const textColor = getContrastingTextColor(statusColor);
+            
+            // Create unit card HTML with callsign and service-specificType format
+            // Build tooltip with only non-"Unknown" values
+            const tooltipParts = [];
+            if (unitCallsign && unitCallsign !== 'N/A') tooltipParts.push(unitCallsign);
+            if (unitType && unitType !== 'Unknown') tooltipParts.push(unitType);
+            if (specificType && specificType !== 'Unknown') tooltipParts.push(`(${specificType})`);
+            if (unitService && unitService !== 'Unknown') tooltipParts.push(unitService);
+            if (unitStatus && unitStatus !== 'Unknown') tooltipParts.push(unitStatus);
+            const tooltip = tooltipParts.join(' - ');
+            
+            const unitCardHTML = `
+                <div class="unit-card" style="background-color: ${statusColor}; color: ${textColor};" title="${tooltip}">
+                    <div class="unit-callsign">${unitCallsign}</div>
+                    <div class="unit-service-type">${unitService}-${specificType}</div>
+                </div>
+            `;
+            
+            unitCards.push(unitCardHTML);
+            renderedUnitIds.add(unitID);
+        }
+
+        if (unitCards.length === 0) {
+            container.innerHTML = '<div style="color: #999; font-size: 9px; text-align: center; padding: 6px; font-style: italic;">None</div>';
+        } else {
+            container.innerHTML = unitCards.join('');
+        }
+    } catch (error) {
+        console.error(`Error fetching attached units for call ID ${callId}:`, error);
+        container.innerHTML = '<div style="color: #f44; font-size: 9px; text-align: center; padding: 6px; font-style: italic;">Error</div>';
+    } finally {
+        container.dataset.rendering = 'false';
+    }
+}
+
+// Function to render attached units for the selected call in the call details section
+async function renderAttachedUnitsForSelectedCall(callId, container) {
+    if (!container) return;
+    
+    // Prevent multiple simultaneous renders for the same container
+    if (container.dataset.rendering === 'true') {
+        return;
+    }
+    container.dataset.rendering = 'true';
+    
+    container.innerHTML = ''; // Clear existing content
+
+    try {
+        const attachedUnitQuery = query(
+            collection(db, "attachedUnits"),
+            where("callID", "==", callId) // Fetch units attached to the specific call
+        );
+        const attachedUnitSnapshot = await getDocs(attachedUnitQuery);
+
+        if (attachedUnitSnapshot.empty) {
+            container.innerHTML = '<p style="color: #ccc; font-style: italic; text-align: center; padding: 15px; margin: 0; background-color: rgba(255,255,255,0.05); border-radius: 8px;">No Attached Units</p>';
+            container.dataset.rendering = 'false';
+            return;
+        }
+
+        const renderedUnitIds = new Set(); // Track rendered unit IDs to prevent duplicates
+
+        for (const docSnap of attachedUnitSnapshot.docs) {
+            const { unitID } = docSnap.data();
+
+            if (!unitID || renderedUnitIds.has(unitID)) {
+                continue; // Skip missing unit IDs or duplicates
+            }
+
+            const unitRef = doc(db, "units", unitID);
+            const unitSnap = await getDoc(unitRef);
+
+            if (!unitSnap.exists()) {
+                console.warn(`Unit with ID ${unitID} not found.`);
+                continue;
+            }
+
+            const unitData = unitSnap.data();
+            const unitDiv = document.createElement('div');
+            unitDiv.classList.add('attached-unit-detail');
+            unitDiv.style.backgroundColor = getStatusColor(unitData.status);
+            unitDiv.style.color = getContrastingTextColor(getStatusColor(unitData.status));
+            unitDiv.style.padding = '8px 12px';
+            unitDiv.style.margin = '5px 0';
+            unitDiv.style.borderRadius = '8px';
+            unitDiv.style.fontSize = '14px';
+            unitDiv.style.fontWeight = 'bold';
+            unitDiv.style.display = 'flex';
+            unitDiv.style.justifyContent = 'space-between';
+            unitDiv.style.alignItems = 'center';
+            unitDiv.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+            
+            unitDiv.innerHTML = `
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                    <span style="font-size: 16px; font-weight: bold;">${unitData.unitType || 'Unknown'}</span>
+                    <span style="font-size: 12px; opacity: 0.9;">${unitData.specificType || 'Unknown'}</span>
+                </div>
+                <div style="text-align: right; font-size: 16px; font-weight: bold; margin-left: 20px;">
+                    ${unitData.callsign || 'N/A'}
+                </div>
+            `;
+            
+            container.appendChild(unitDiv);
+            renderedUnitIds.add(unitID); // Mark this unit as rendered
+        }
+
+        if (renderedUnitIds.size === 0) {
+            container.innerHTML = '<p style="color: #ccc; font-style: italic; text-align: center; padding: 10px;">No Attached Units</p>';
+        }
+    } catch (error) {
+        console.error(`Error fetching attached units for selected call ID ${callId}:`, error);
+        container.innerHTML = '<p style="color: #ff6b6b; font-style: italic; text-align: center; padding: 15px; margin: 0; background-color: rgba(255,107,107,0.1); border-radius: 8px; border: 1px solid rgba(255,107,107,0.3);">Error loading attached units.</p>';
+    } finally {
+        container.dataset.rendering = 'false';
+    }
 }
 
 // Function to handle call selection and update call details display
