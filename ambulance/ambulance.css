@@ -463,31 +463,31 @@ body {
 
 .call-card .attached-units-compact .unit-card {
     display: block;
-    margin-bottom: 3px;
-    padding: 4px 5px;
+    margin-bottom: 2px;
+    padding: 3px 5px;
     border-radius: 3px;
     font-size: 9px;
     font-weight: bold;
     color: white;
     text-align: left;
     white-space: nowrap;
-    line-height: 1.3;
-    min-height: 30px;
-    max-height: 30px;
+    line-height: 1.2;
+    min-height: 14px;
+    max-height: 14px;
     overflow: hidden;
 }
 
 .call-card .attached-units-compact .unit-card .unit-callsign {
-    font-size: 12px;
+    font-size: 10px;
     font-weight: bold;
-    margin-bottom: 2px;
+    margin-bottom: 1px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 .call-card .attached-units-compact .unit-card .unit-service-type {
-    font-size: 10px;
+    font-size: 8px;
     opacity: 0.9;
     white-space: nowrap;
     overflow: hidden;
