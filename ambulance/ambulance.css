@@ -34,6 +34,21 @@ body {
     justify-content: space-between; /* Use space-between for full width */
     gap: 20px;
 }
+
+/* Add logo styling for top left */
+.header .logo {
+    width: 100px;
+    height: 100px;
+    object-fit: contain;
+    margin-right: 18px;
+    margin-left: 0 auto;
+    align-self: flex-start;
+    display: block;
+    border: 1px solid black;
+    border-radius: 15px;
+    justify-content: center;
+}
+
 .header img {
     position: relative;
     z-index: 2;
@@ -75,8 +90,9 @@ body {
 }
 
 .self-attach {
-    margin: 5px;
     width: 100%;
+    margin-bottom: 15px;
+    position: absolute;
 }
 
 .back-button, .panic-button, .status-buttons button, .calls-list .self-attach, .open-modal-button, .extra-button {
@@ -132,24 +148,31 @@ body {
     gap: 20px;
     width: 100%;
     height: 100%; /* Ensure both columns fill the parent */
+    align-items: stretch; /* Make children the same height */
 }
 
-.call-details, .calls-list{
+.call-details, .calls-list {
     flex: 0.5;
     height: 100%; /* Use available height in flex container */
     min-height: 0;
     display: flex;
     flex-direction: column;
-    overflow: hidden; /* Prevent individual column overflow */
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 /* Calls List Header (title, active dispatchers, self attach) sticky at the top */
 .calls-list-header {
     position: sticky;
     top: 0;
+    left: 0;
+    right: 0;
     z-index: 2;
     background: #004d00;
     padding-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
 }
 
 /* Calls List Content scrolls */
@@ -158,6 +181,42 @@ body {
     overflow-y: auto;
     min-height: 0;
     position: relative;
+    border-radius: 15px;
+}
+
+.calls-fade-top {
+    top: 26%;
+}
+
+.calls-fade-top, .calls-fade-bottom {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 36px;
+    min-height: 24px;
+    max-height: 48px;
+    pointer-events: none;
+    z-index: 20;
+    transition: opacity 0.3s;
+    background: linear-gradient(to bottom, black 70%, transparent 100%);
+    opacity: 1;
+}
+.calls-fade-bottom {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 48px;
+    min-height: 48px;
+    max-height: 48px;
+    pointer-events: none;
+    z-index: 20;
+    transition: opacity 0.3s;
+    bottom: 5px;
+    background: linear-gradient(to top, black 70%, transparent 100%);
+    opacity: 1;
+}
+.calls-fade-top.hidden, .calls-fade-bottom.hidden {
+    opacity: 0;
 }
 
 .call-details {
@@ -202,7 +261,7 @@ body {
 .attached-units-title {
     margin-top: 5px; /* Further reduced margin for a smaller gap */
     font-size: 1.2rem;
-    color: white; /* Ensure the title is visible */
+    color: black; /* Ensure the title is visible */
     margin-bottom: 0; /* Remove bottom margin to reduce space */
 }
 
@@ -229,6 +288,7 @@ body {
     gap: 2px; /* Further reduced spacing for calls list */
     align-items: flex-start;
     width: 100%;
+    overflow: hidden; /* Prevent overflow in calls list */
 }
 
 .unit {
@@ -270,27 +330,102 @@ body {
 }
 
 .call-details .incident {
-    position: absolute;
-    top: 40px;
-    right: 20px;
-    max-width: 280px; /* Slightly reduced to prevent overlap */
-    font-size: 1.2rem; /* Slightly smaller to reduce space usage */
+    position: static;
+    display: block;
+    top: unset;
+    left: unset;
+    max-width: 100%;
+    font-size: 1.2rem;
     font-weight: bold;
-    text-align: right;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    line-height: 1.2; /* Tighter line height to reduce vertical space */
+    text-align: left;
+    word-wrap: normal;
+    overflow-wrap: normal;
+    line-height: 1.2;
+    align-self: flex-start;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px; /* Add a small gap below incident */
 }
 
 .call-details .location {
-    position: absolute;
-    top: 85px; /* Increased spacing to account for potential text wrapping */
-    right: 20px;
-    font-size: 1.3rem;
+    position: static;
+    display: block;
+    top: unset;
+    right: unset;
+    max-width: 100%;
+    font-size: 1.1rem;
     font-weight: bold;
-    max-width: 280px; /* Consistent with incident text */
-    word-wrap: break-word;
-    overflow-wrap: break-word;
+    text-align: left;
+    word-wrap: normal;
+    overflow-wrap: normal;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 0; /* Remove extra spacing above location */
+}
+
+/* Fix for incident/location alignment in call details */
+.call-details-section.incident-location {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.call-details-section.incident-location > div {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background-color: #003300;
+    border-radius: 15px;
+    padding: 5px;
+}
+.incident, .location {
+    display: inline;
+    font-weight: normal;
+    margin-left: 0;
+    position: static !important;
+    float: none !important;
+}
+
+/* --- Improved Incident/Location Row Styling --- */
+.incident-location-row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    font-size: 1.08rem;
+    margin-bottom: 4px;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+}
+.incident-block, .location-block {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+}
+.incident-label, .location-label {
+    color: #004d00;
+    font-weight: 600;
+    min-width: 80px;
+}
+.incident, .location {
+    color: #222;
+    font-weight: 500;
+    min-width: 60px;
+    word-break: break-word;
+    max-width: 180px;
+    display: inline-block;
+}
+@media (max-width: 700px) {
+    .incident-location-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    .incident, .location {
+        max-width: 95vw;
+    }
 }
 
 .calls-list {
@@ -299,24 +434,24 @@ body {
     padding: 20px;
     border-radius: 10px;
     flex: 0.5; /* Adjust width to take up half the page */
-    height: 100%; /* Use available height in flex container */
-    min-height: 0; /* Allow shrinking */
-    max-height: 100%; /* Don't exceed container height */
+    height: 100%;
+    min-height: 100%;
     display: flex;
     flex-direction: column;
-    position: relative; /* Position relative for absolute children */    overflow: hidden; /* Prevent overflow */
+    overflow: hidden; /* Prevent overflow */
+    position: relative; /* Make fade overlays position relative to this container */
 }
 
 .details-container {
     display: flex;
-    gap: 20px;
-    width: 100%; /* Ensures the combined width of both sections is 100% */
+    gap: 20px;    width: 100%; /* Ensures the combined width of both sections is 100% */
 }
 
 .attached-units {
     display: flex;
     gap: 10px;
     margin-top: 10px;
+    overflow: hidden;
 }
 
 /* Style for call cards - Enhanced Compact version */
@@ -331,11 +466,9 @@ body {
     align-items: center;
     gap: 10px;
     transition: background-color 0.1s ease;
-    font-size: 12px;
+    font-size: 35px;
     line-height: 1.2;
-    min-height: 54px;
-    max-height: 54px;
-    height: 54px;
+    height: 80px;
     overflow: hidden;
     cursor: pointer;
 }
@@ -363,7 +496,7 @@ body {
     padding: 3px 5px;
     border-radius: 3px;
     font-weight: bold;
-    font-size: 11px;
+    font-size: 15px;
     text-align: center;
     color: white;
     text-transform: uppercase;
@@ -373,7 +506,7 @@ body {
 
 .call-card .call-location-under-service {
     width: 100%;
-    font-size: 10px;
+    font-size: 15px;
     font-weight: bold;
     color: #333;
     text-align: center;
@@ -396,7 +529,7 @@ body {
 
 .call-card .call-status {
     font-weight: bold;
-    font-size: 11px;
+    font-size: 15px;
     color: #333;
     white-space: nowrap;
     overflow: hidden;
@@ -405,7 +538,7 @@ body {
 }
 
 .call-card .caller-name {
-    font-size: 10px;
+    font-size: 15px;
     color: #666;
     white-space: nowrap;
     overflow: hidden;
@@ -418,7 +551,7 @@ body {
     max-width: 90px;
     width: 90px;
     flex-shrink: 0;
-    font-size: 10px;
+    font-size: 12px;
     color: #888;
     text-align: right;
     white-space: nowrap;
@@ -431,7 +564,7 @@ body {
     min-width: 180px;
     max-width: 180px;
     width: 180px;
-    max-height: 48px;
+    max-height: 70px;
     flex-shrink: 0;
     font-size: 10px;
     color: #555;
@@ -472,13 +605,13 @@ body {
     text-align: left;
     white-space: nowrap;
     line-height: 1.2;
-    min-height: 14px;
-    max-height: 14px;
+    min-height: 35px;
+    max-height: 35px;
     overflow: hidden;
 }
 
 .call-card .attached-units-compact .unit-card .unit-callsign {
-    font-size: 10px;
+    font-size: 15px;
     font-weight: bold;
     margin-bottom: 1px;
     white-space: nowrap;
@@ -487,7 +620,7 @@ body {
 }
 
 .call-card .attached-units-compact .unit-card .unit-service-type {
-    font-size: 8px;
+    font-size: 12px;
     opacity: 0.9;
     white-space: nowrap;
     overflow: hidden;
@@ -503,8 +636,8 @@ body {
     border: 2px solid #4CAF50;
     background-color: #e8f5e8;
     padding: 3px 5px; /* Adjust padding to compensate for thicker border */
-    height: 42px; /* Maintain consistent height */
-    max-height: 42px;
+    height: 80px; /* Maintain consistent height */
+    max-height: 80px;
     overflow: hidden;
 }
 
@@ -526,6 +659,7 @@ body {
     width: 500px;
     max-width: 90%; /* Ensure it fits on smaller screens */
     box-sizing: border-box;
+    height: 97%;;
 }
 
 #setup-modal .modal-content {
@@ -687,514 +821,53 @@ body {
 }
 
 .save-details-btn {
-    background-color: #4CAF50;
-    color: white;
-    padding: 10px;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: background-color 0.3s ease;
     width: 100%;
-    text-align: center;
+    background: #004d00;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 0;
+    font-weight: 700;
+    font-size: 1.08rem;
+    cursor: pointer;
+    transition: background 0.2s;
 }
 
 .save-details-btn:hover {
-    background-color: #45a049;
+    background: #006600;
 }
 
-/* Modal overlay styles */
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
+/* --- Call Details Flex Row for Description and Attached Units --- */
+.call-details-flex-row {
+
+    display: flex;
+    flex-direction: row;
+    gap: 18px;
     width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black */
-    z-index: 999; /* Ensure it appears above other elements */
-    display: none; /* Hidden by default */
+    align-items: flex-start;
+    margin-bottom: 0;
 }
 
-/* Modal styles */
-.modal {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    z-index: 1000; /* Above the overlay */
-    display: none; /* Hidden by default */
-}
-
-/* Prevent interaction with background when modal is open */
-body.modal-open {
-    overflow: hidden;
-}
-
-.modal-overlay.active {
-    display: block !important;
-    pointer-events: auto;
-}
-
-.modal.active {
-    display: flex !important;
-}
-
-/* Ensure overlay covers everything and blocks pointer events */
-.modal-overlay {
-    pointer-events: auto;
-}
-
-/* When overlay is not active, don't block pointer events */
-.modal-overlay:not(.active) {
-    pointer-events: none;
-}
-
-/* Notification System */
-.notification {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background-color: #333;
-    color: #fff;
-    padding: 10px 20px;
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-    z-index: 1000;
-    opacity: 0.9;
-    font-size: 14px;
-    animation: fadeInOut 3s ease-in-out;
-}
-
-.notification.success {
-    background-color: #4caf50;
-}
-
-.notification.error {
-    background-color: #f44336;
-}
-
-.notification.warning {
-    background-color: #ff9800;
-}
-
-@keyframes fadeInOut {
-    0% {
-        opacity: 0;
-        transform: translateY(20px);
+@media (max-width: 900px) {
+    .call-details-flex-row {
+        flex-direction: column;
+        gap: 10px;
     }
-    10%, 90% {
-        opacity: 0.9;
-        transform: translateY(0);
-    }
-    100% {
-        opacity: 0;
-        transform: translateY(20px);
+    .call-details-section.attached-units-section {
+        margin-left: 0 !important;
     }
 }
-
-/* Hospital Modal Styles */
-#hospital-modal.modal {
-    display: none;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: #fff;
-    border-radius: 14px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
-    z-index: 1100;
-    min-width: 320px;
-    max-width: 95vw;
-    padding: 0;
-    animation: fadeInModal 0.2s;
-}
-
-#hospital-modal .modal-content {
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    padding: 32px 28px 24px 28px;
-    align-items: stretch;
-}
-
-#hospital-modal h2 {
-    margin: 0 0 10px 0;
-    font-size: 1.5rem;
-    color: #004d00;
-    text-align: center;
-    font-weight: bold;
-}
-
-#hospital-modal label {
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 6px;
-    margin-top: 6px;
-    font-size: 1rem;
-}
-
-#hospital-modal select {
-    padding: 10px;
-    border-radius: 8px;
-    border: 1.5px solid #4caf50;
-    font-size: 1rem;
-    margin-bottom: 8px;
-    background: #f6fff6;
-    transition: border-color 0.2s;
-}
-
-#hospital-modal select:focus {
-    border-color: #388e3c;
-    outline: none;
-}
-
-#hospital-modal .modal-buttons {
-    display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    margin-top: 10px;
-}
-
-#hospital-modal .modal-buttons button {
-    flex: 1 1 0;
-    padding: 10px 0;
-    border-radius: 8px;
-    border: none;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s, color 0.2s;
-}
-
-#hospital-modal #confirm-hospital-btn {
-    background: #4caf50;
-    color: #fff;
-    margin-right: 6px;
-}
-
-#hospital-modal #confirm-hospital-btn:hover {
-    background: #388e3c;
-}
-
-#hospital-modal #cancel-hospital-btn {
-    background: #f44336;
-    color: #fff;
-    margin-left: 6px;
-}
-
-#hospital-modal #cancel-hospital-btn:hover {
-    background: #b71c1c;
-}
-
-@keyframes fadeInModal {
-    from { opacity: 0; transform: translate(-50%, -60%);}
-    to   { opacity: 1; transform: translate(-50%, -50%);}
-}
-
-.flashing {
-    animation: flash-green 1s infinite alternate;
-}
-@keyframes flash-green {
-    from { background: #4caf50; }   /* green */
-    to   { background: #256d27; }   /* darker green */
-}
-
-/* Base Modal Styles */
-#base-modal.modal {
-    display: none;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: #fff;
-    border-radius: 14px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
-    z-index: 1100;
-    min-width: 320px;
-    max-width: 95vw;
-    padding: 0;
-    animation: fadeInModal 0.2s;
-}
-
-#base-modal .modal-content {
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    padding: 32px 28px 24px 28px;
-    align-items: stretch;
-}
-
-#base-modal h2 {
-    margin: 0 0 10px 0;
-    font-size: 1.5rem;
-    color: #004d00;
-    text-align: center;
-    font-weight: bold;
-}
-
-#base-modal label {
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 6px;
-    margin-top: 6px;
-    font-size: 1rem;
-}
-
-#base-modal select {
-    padding: 10px;
-    border-radius: 8px;
-    border: 1.5px solid #4caf50;
-    font-size: 1rem;
-    margin-bottom: 8px;
-    background: #f6fff6;
-    transition: border-color 0.2s;
-}
-
-#base-modal select:focus {
-    border-color: #388e3c;
-    outline: none;
-}
-
-#base-modal .modal-buttons {
-    display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    margin-top: 10px;
-}
-
-#base-modal .modal-buttons button {
-    flex: 1 1 0;
-    padding: 10px 0;
-    border-radius: 8px;
-    border: none;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s, color 0.2s;
-}
-
-#base-modal #confirm-base-btn {
-    background: #4caf50;
-    color: #fff;
-    margin-right: 6px;
-}
-
-#base-modal #confirm-base-btn:hover {
-    background: #388e3c;
-}
-
-#base-modal #cancel-base-btn {
-    background: #f44336;
-    color: #fff;
-    margin-left: 6px;
-}
-
-#base-modal #cancel-base-btn:hover {
-    background: #b71c1c;
-}
-
-/* Standby Modal Styles */
-#standby-modal.modal {
-    display: none;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: #fff;
-    border-radius: 14px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
-    z-index: 1100;
-    min-width: 320px;
-    max-width: 95vw;
-    padding: 0;
-    animation: fadeInModal 0.2s;
-}
-
-#standby-modal .modal-content {
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    padding: 32px 28px 24px 28px;
-    align-items: stretch;
-    margin: 0 auto;
-}
-
-#standby-modal h2 {
-    margin: 0 0 10px 0;
-    font-size: 1.5rem;
-    color: #004d00;
-    text-align: center;
-    font-weight: bold;
-}
-
-#standby-modal label {
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 6px;
-    margin-top: 6px;
-    font-size: 1rem;
-}
-
-#standby-modal select {
-    padding: 10px;
-    border-radius: 8px;
-    border: 1.5px solid #4caf50;
-    font-size: 1rem;
-    margin-bottom: 8px;
-    background: #f6fff6;
-    transition: border-color 0.2s;
-}
-
-#standby-modal select:focus {
-    border-color: #388e3c;
-    outline: none;
-}
-
-#standby-modal .modal-buttons {
-    display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    margin-top: 10px;
-}
-
-#standby-modal .modal-buttons button {
-    flex: 1 1 0;
-    padding: 10px 0;
-    border-radius: 8px;
-    border: none;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s, color 0.2s;
-}
-
-#standby-modal #confirm-standby-btn {
-    background: #4caf50;
-    color: #fff;
-    margin-right: 6px;
-}
-
-#standby-modal #confirm-standby-btn:hover {
-    background: #388e3c;
-}
-
-#standby-modal #cancel-standby-btn {
-    background: #f44336;
-    color: #fff;
-    margin-left: 6px;
-}
-
-#standby-modal #cancel-standby-btn:hover {
-    background: #b71c1c;
-}
-
-/* Refuel Modal Styles */
-#refuel-modal.modal, #refuel-price-modal.modal {
-    display: none;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: #fff;
-    border-radius: 14px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
-    z-index: 1100;
-    min-width: 320px;
-    max-width: 95vw;
-    padding: 0;
-    animation: fadeInModal 0.2s;
-}
-
-#refuel-modal .modal-content,
-#refuel-price-modal .modal-content {
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    padding: 32px 28px 24px 28px;
-    align-items: stretch;
-    text-align: center;
-}
-
-#refuel-modal h2,
-#refuel-price-modal h2 {
-    margin: 0 0 10px 0;
-    font-size: 1.5rem;
-    color: #004d00;
-    text-align: center;
-    font-weight: bold;
-}
-
-#refuel-modal label,
-#refuel-price-modal label {
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 6px;
-    margin-top: 6px;
-    font-size: 1rem;
-}
-
-#refuel-modal select,
-#refuel-price-modal input[type="text"] {
-    padding: 10px;
-    border-radius: 8px;
-    border: 1.5px solid #4caf50;
-    font-size: 1rem;
-    margin-bottom: 8px;
-    background: #f6fff6;
-    transition: border-color 0.2s;
-    text-align: center;
-}
-
-#refuel-modal select:focus,
-#refuel-price-modal input[type="text"]:focus {
-    border-color: #388e3c;
-    outline: none;
-}
-
-#refuel-modal .modal-buttons,
-#refuel-price-modal .modal-buttons {
-    display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    margin-top: 10px;
-}
-
-#refuel-modal .modal-buttons button,
-#refuel-price-modal .modal-buttons button {
-    flex: 1 1 0;
-    padding: 10px 0;
-    border-radius: 8px;
-    border: none;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s, color 0.2s;
-}
-
-#refuel-modal #confirm-refuel-btn,
-#refuel-price-modal #confirm-refuel-price-btn {
-    background: #4caf50;
-    color: #fff;
-    margin-right: 6px;
-}
-
-#refuel-modal #confirm-refuel-btn:hover,
-#refuel-price-modal #confirm-refuel-price-btn:hover {
-    background: #388e3c;
-}
-
-#refuel-modal #cancel-refuel-btn {
-    background: #f44336;
-    color: #fff;
-    margin-left: 6px;
-}
-
-#refuel-modal #cancel-refuel-btn:hover {
-    background: #b71c1c;
+@media (max-width: 900px) {
+    .call-details-card {
+        max-width: 98vw;
+        width: 98vw;
+        padding: 8px 2vw;
+        font-size: 0.98rem;
+    }
+    .incident, .location {
+        max-width: 95vw;
+        align-items: left;
+    }
 }
 
 #status-gradient-bar {
@@ -1254,1096 +927,259 @@ body.modal-open {
     z-index: 1; /* header content is above gradient */
 }
 
-/* First duplicate call-card styles removed - using compact version above */
-#calls-container {
-    flex: 1 1 0;
-    overflow-y: auto;
-    min-height: 0;
+/* --- Call Details Section: No Timestamp, No Scroll, Left-Aligned --- */
+.call-details-card {
+    background: #004d00;
+    color: #fff;
+    border-radius: 22px;
+    box-shadow: 0 6px 32px rgba(0,0,0,0.13);
+    padding: 24px 24px 18px 24px;
+    max-width: 50vw;
+    min-width: 340px;
+    width: 50vw;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
     position: relative;
+    font-size: 1.08rem;
+    align-self: flex-start;
+    overflow: visible;
 }
 
-/* --- Fades anchored to calls-list column, not moving content --- */
-.calls-fade-top,
+/* Make all text in call-details-card white by default */
+.call-details-card,
+.call-details-card * {
+    color: #fff;
+}
+
+/* Highlight labels and important info in yellow */
+.call-details-card .incident-label,
+.call-details-card .location-label,
+.call-details-card .caller-info strong,
+.call-details-card .description strong {
+    color: #ffd900;
+}
+
+.call-details-card .attached-units-title {
+    color: black; /* Ensure the title is visible */;
+}
+
+/* Make incident/location values yellow for visibility */
+.call-details-card .incident,
+.call-details-card .location {
+    color: #ffd900;
+    font-weight: bold;
+}
+
+/* Description textarea: darker green for contrast */
+.call-details-card .descriptionText {
+    background: #003300;
+    color: #fff;
+    border: 1px solid #b2d8b2;
+}
+
+/* Attached units section: slightly lighter green for contrast */
+.call-details-card .attached-units-section {
+    background: #005a00;
+    color: #fff;
+}
+
+/* Remove previous color overrides for .call-details-section, .incident-label, .location-label, .incident, .location, .descriptionText, .attached-units-title if present */
+@media (max-width: 900px) {
+    .call-details-card {
+        max-width: 98vw;
+        width: 98vw;
+        padding: 8px 2vw;
+        font-size: 0.98rem;
+    }
+    .incident, .location {
+        max-width: 95vw;
+        align-items: left;
+    }
+}
+
+/* --- Modal Overlay and Modal Improvements --- */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 1000;
+    display: none;
+    pointer-events: auto;
+}
+.modal[style*="display: block"], .modal[style*="display:block"] {
+    z-index: 1100;
+}
+.modal[style*="display: block"], .modal[style*="display:block"] ~ .modal-overlay {
+    display: block !important;
+}
+/* --- Modal Overlay: Block All Interaction When Modal is Open --- */
+body.modal-active {
+    overflow: hidden;
+    pointer-events: none;
+}
+body.modal-active * {
+    pointer-events: none !important;
+}
+body.modal-active .modal, body.modal-active .modal * {
+    pointer-events: auto !important;
+}
+body.modal-active .modal-overlay {
+    display: block !important;
+}
+
+/* --- Modal Styles for All Modals --- */
+.modal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    z-index: 1100;
+    min-width: 320px;
+    max-width: 95vw;
+    padding: 0;
+    animation: fadeInModal 0.2s;
+}
+.modal.active {
+    display: flex !important;
+}
+.modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 32px 28px 24px 28px;
+    align-items: stretch;
+    text-align: center;
+}
+
+#hospital-modal h2, #base-modal h2, #standby-modal h2, #refuel-modal h2, #refuel-price-modal h2 {
+    margin: 0 0 10px 0;
+    font-size: 1.5rem;
+    color: #004d00;
+    text-align: center;
+    font-weight: bold;
+}
+#hospital-modal label, #base-modal label, #standby-modal label, #refuel-modal label, #refuel-price-modal label {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 6px;
+    margin-top: 6px;
+    font-size: 1rem;
+}
+#hospital-modal select, #base-modal select, #standby-modal select, #refuel-modal select, #refuel-price-modal input[type="text"] {
+    padding: 10px;
+    border-radius: 8px;
+    border: 1.5px solid #4caf50;
+    font-size: 1rem;
+    margin-bottom: 8px;
+    background: #f6fff6;
+    transition: border-color 0.2s;
+    text-align: center;
+}
+#hospital-modal select:focus, #base-modal select:focus, #standby-modal select:focus, #refuel-modal select:focus, #refuel-price-modal input[type="text"]:focus {
+    border-color: #388e3c;
+    outline: none;
+}
+#hospital-modal .modal-buttons, #base-modal .modal-buttons, #standby-modal .modal-buttons, #refuel-modal .modal-buttons, #refuel-price-modal .modal-buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 10px;
+}
+#hospital-modal .modal-buttons button, #base-modal .modal-buttons button, #standby-modal .modal-buttons button, #refuel-modal .modal-buttons button, #refuel-price-modal .modal-buttons button {
+    flex: 1 1 0;
+    padding: 10px 0;
+    border-radius: 8px;
+    border: none;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+#hospital-modal #confirm-hospital-btn, #base-modal #confirm-base-btn, #standby-modal #confirm-standby-btn, #refuel-modal #confirm-refuel-btn, #refuel-price-modal #confirm-refuel-price-btn {
+    background: #4caf50;
+    color: #fff;
+    margin-right: 6px;
+}
+#hospital-modal #confirm-hospital-btn:hover, #base-modal #confirm-base-btn:hover, #standby-modal #confirm-standby-btn:hover, #refuel-modal #confirm-refuel-btn:hover, #refuel-price-modal #confirm-refuel-price-btn:hover {
+    background: #388e3c;
+}
+#hospital-modal #cancel-hospital-btn, #base-modal #cancel-base-btn, #standby-modal #cancel-standby-btn, #refuel-modal #cancel-refuel-btn {
+    background: #f44336;
+    color: #fff;
+    margin-left: 6px;
+}
+#hospital-modal #cancel-hospital-btn:hover, #base-modal #cancel-base-btn:hover, #standby-modal #cancel-standby-btn:hover, #refuel-modal #cancel-refuel-btn:hover {
+    background: #b71c1c;
+}
+@keyframes fadeInModal {
+    from { opacity: 0; transform: translate(-50%, -60%);}
+    to   { opacity: 1; transform: translate(-50%, -50%);}
+}
+
+/* Add new style for the saved callsign box next to the status indicator */
+#callsign-display {
+    display: inline-block;
+    margin-left: 2px !important;
+    padding: 8px 24px;
+    border-radius: 24px;
+    background: #388e3c;
+    color: #fff;
+    font-weight: bold;
+    font-size: 1.1rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    border: 2px solid #256029;
+    vertical-align: middle;
+    transition: background 0.3s, color 0.3s; 
+}
+
+@media (max-width: 700px) {
+    #callsign-display {
+        display: block;
+        margin: 8px auto 0 auto;
+        width: fit-content;
+        font-size: 1rem;
+        padding: 7px 12px;
+    }
+}
+
+.calls-fade-top, .calls-fade-bottom {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 36px;
+    min-height: 24px;
+    max-height: 48px;
+    pointer-events: none;
+    z-index: 20;
+    transition: opacity 0.3s;
+    background: linear-gradient(to bottom, #004d00 70%, transparent 100%);
+    opacity: 1;
+}
 .calls-fade-bottom {
     position: absolute;
-    left: 20px; /* Account for padding */
-    right: 20px; /* Account for padding */
-    height: 20px; /* Increased height for better visibility */
+    left: 0;
+    width: 100%;
+    height: 36px;
+    min-height: 24px;
+    max-height: 48px;
     pointer-events: none;
-    z-index: 10;
+    z-index: 20;
+    transition: opacity 0.3s;
+    bottom: 0;
+    background: linear-gradient(to top, #004d00 70%, transparent 100%);
     opacity: 1;
-    transition: opacity 0.3s ease;
 }
-
-.calls-fade-top.hidden,
-.calls-fade-bottom.hidden {
+.calls-fade-top.hidden, .calls-fade-bottom.hidden {
     opacity: 0;
 }
 
-.calls-fade-top {
-    top: 180px; /* Position below the sticky header and button */
-    background: linear-gradient(to bottom, rgba(0, 77, 0, 0.95) 0%, rgba(0, 77, 0, 0.8) 50%, transparent 100%);
-}
-
-.calls-fade-bottom {
-    bottom: 20px; /* Account for padding */
-    background: linear-gradient(to top, rgba(0, 77, 0, 0.95) 0%, rgba(0, 77, 0, 0.8) 50%, transparent 100%);
-}
-
-/* Remove or override previous max-height/overflow-y on .call-details and .calls-list */
-.call-details,
-.calls-list {
-    max-height: none !important;
-    overflow-y: visible !important;
-}
-
-.call-details {
-    background-color: #004d00; /* Dark green background */
-    color: white;
-    padding: 20px;
-    border-radius: 20px; /* Rounded corners */
-    display: flex;
-    flex-direction: column;
-    gap: 15px; /* Space between elements */
-    position: relative; /* Ensure positioning for child elements */
-    flex: 0.5; /* Adjust width to take up half the page, same as calls-list */
-    height: 100%;
-    min-height: 100%;
-    box-sizing: border-box;
-}
-
-.call-details h2 {
-    font-size: 2.2rem; /* Slightly larger font size for the title */
-    margin: 0;
-}
-
-.call-details .description {
-    display: flex;
-    flex-direction: column;
-    gap: 5px; /* Add spacing between the title and the textbox */
-}
-
-.call-details .descriptionText {
-    white-space: pre-wrap; /* Ensures long descriptions wrap properly */
-    max-width: 400px; /* Limit the width of the description box */
-    margin: 0; /* Remove centering */
-    text-align: left; /* Align text to the left */
-    overflow-y: auto; /* Add vertical scrolling if content overflows */
-    padding: 10px; /* Add padding for better readability */
-    background-color: #003300; /* Dark green background for contrast */
-    color: white; /* Ensure text is visible */
-    border-radius: 5px; /* Add rounded corners */
-    font-size: 1.2rem; /* Slightly larger font size for description */
-}
-
-.attached-units-title {
-    margin-top: 5px; /* Further reduced margin for a smaller gap */
-    font-size: 1.2rem;
-    color: white; /* Ensure the title is visible */
-    margin-bottom: 0; /* Remove bottom margin to reduce space */
-}
-
-.call-details .attached-units {
-    margin-top: 3px; /* Further reduced margin for a smaller gap */
-    padding: 10px;
-    background-color: #003300; /* Green background for the units container */
-    border-radius: 10px; /* Rounded corners for the container */
-    color: white; /* Ensure text is visible */
-}
-
-#attached-units-container {
-    display: flex !important;
-    flex-wrap: wrap;
-    gap: 5px; /* Spacing between units for call details */
-    align-items: flex-start;
-    width: 100%;
-}
-
-/* For calls list attached units container */
-.attached-units > div {
-    display: flex !important;
-    flex-wrap: wrap;
-    gap: 2px; /* Further reduced spacing for calls list */
-    align-items: flex-start;
-    width: 100%;
-}
-
-.unit {
-    padding: 5px 10px;
-    border-radius: 5px;
-    margin-bottom: 5px;
-    font-weight: bold;
-    display: inline-block;
-}
-
-/* Styling for attached units in call details section */
-.attached-unit-detail {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.attached-unit-detail:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
-}
-
-/* Styling for attached units in calls list */
-.attached-unit {
-    transition: transform 0.2s ease;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.attached-unit:hover {
-    transform: scale(1.02);
-}
-
-.timestamp {
-    position: absolute; /* Dock the timestamp */
-    bottom: 2px; /* Make it lower spacing from the bottom */
-    left: 20px; /* Align it to the left with some padding */
-    font-size: 1.3rem; /* Slightly larger font size for timestamp */
-    font-weight: bold;
-    text-align: left;
-}
-
-.call-details .incident {
-    position: absolute;
-    top: 40px;
-    right: 20px;
-    max-width: 280px; /* Slightly reduced to prevent overlap */
-    font-size: 1.2rem; /* Slightly smaller to reduce space usage */
-    font-weight: bold;
-    text-align: right;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    line-height: 1.2; /* Tighter line height to reduce vertical space */
-}
-
-.call-details .location {
-    position: absolute;
-    top: 85px; /* Increased spacing to account for potential text wrapping */
-    right: 20px;
-    font-size: 1.3rem;
-    font-weight: bold;
-    max-width: 280px; /* Consistent with incident text */
-    word-wrap: break-word;    overflow-wrap: break-word;
-}
-
-/* Modal Styling */
-#setup-modal {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-    z-index: 1000;
-    width: 500px;
-    max-width: 90%; /* Ensure it fits on smaller screens */
-    box-sizing: border-box;
-}
-
-#setup-modal .modal-content {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-#setup-modal h2.modal-title {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: #333;
-    text-align: center;
-    margin-bottom: 10px;
-}
-
-.profile-picture-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-bottom: 20px;
-}
-
-.profile-picture-container img {
-    width: 120px;
-    height: 120px;
-    border-radius: 50%;
-    border: 2px solid #ccc;
-    object-fit: cover;
-}
-
-.slot-selection {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.slot-selection label {
-    font-weight: bold;
-    font-size: 14px;
-    color: #333;
-}
-
-.slot-controls {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-}
-
-.slot-controls select {
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 10px;
-    font-size: 14px;
-    cursor: pointer;
-    transition: border-color 0.3s ease;
-    flex: 1;
-}
-
-.slot-controls select:focus {
-    border-color: #4CAF50;
-    outline: none;
-    box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
-}
-
-.slot-controls button {
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    padding: 10px 15px;
-    border-radius: 10px;
-    font-size: 14px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-}
-
-.slot-controls button:hover {
-    background-color: #45a049;
-}
-
-.character-details {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
-.character-details .form-row {
-    display: flex;
-    gap: 15px;
-}
-
-.character-details .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    flex: 1;
-}
-
-.character-details .form-group label {
-    font-weight: bold;
-    font-size: 14px;
-    color: #333;
-}
-
-.character-details .form-group input {
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 10px;
-    font-size: 14px;
-    width: 100%;
-    box-sizing: border-box;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.character-details .form-group input:focus {
-    border-color: #4CAF50;
-    box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
-    outline: none;
-}
-
-.unit-details {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
-.unit-details .form-row {
-    display: flex;
-    gap: 15px;
-}
-
-.unit-details .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    flex: 1;
-}
-
-.unit-details .form-group label {
-    font-weight: bold;
-    font-size: 14px;
-    color: #333;
-}
-
-.unit-details .form-group input {
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 10px;
-    font-size: 14px;
-    width: 100%;
-    box-sizing: border-box;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.unit-details .form-group input:focus {
-    border-color: #4CAF50;
-    box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
-    outline: none;
-}
-
-.save-details-btn {
-    background-color: #4CAF50;
-    color: white;
-    padding: 10px;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: background-color 0.3s ease;
-    width: 100%;
-    text-align: center;
-}
-
-.save-details-btn:hover {
-    background-color: #45a049;
-}
-
-/* Modal overlay styles */
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black */
-    z-index: 999; /* Ensure it appears above other elements */
-    display: none; /* Hidden by default */
-}
-
-/* Modal styles */
-.modal {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    z-index: 1000; /* Above the overlay */
-    display: none; /* Hidden by default */
-}
-
-/* Prevent interaction with background when modal is open */
-body.modal-open {
-    overflow: hidden;
-}
-
-.modal-overlay.active {
-    display: block !important;
-    pointer-events: auto;
-}
-
-.modal.active {
-    display: flex !important;
-}
-
-/* Ensure overlay covers everything and blocks pointer events */
-.modal-overlay {
-    pointer-events: auto;
-}
-
-/* When overlay is not active, don't block pointer events */
-.modal-overlay:not(.active) {
-    pointer-events: none;
-}
-
-/* Notification System */
-.notification {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background-color: #333;
-    color: #fff;
-    padding: 10px 20px;
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-    z-index: 1000;
-    opacity: 0.9;
-    font-size: 14px;
-    animation: fadeInOut 3s ease-in-out;
-}
-
-.notification.success {
-    background-color: #4caf50;
-}
-
-.notification.error {
-    background-color: #f44336;
-}
-
-.notification.warning {
-    background-color: #ff9800;
-}
-
-@keyframes fadeInOut {
-    0% {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    10%, 90% {
-        opacity: 0.9;
-        transform: translateY(0);
-    }
-    100% {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-}
-
-/* Hospital Modal Styles */
-#hospital-modal.modal {
-    display: none;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: #fff;
-    border-radius: 14px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
-    z-index: 1100;
-    min-width: 320px;
-    max-width: 95vw;
-    padding: 0;
-    animation: fadeInModal 0.2s;
-}
-
-#hospital-modal .modal-content {
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    padding: 32px 28px 24px 28px;
-    align-items: stretch;
-}
-
-#hospital-modal h2 {
-    margin: 0 0 10px 0;
-    font-size: 1.5rem;
-    color: #004d00;
-    text-align: center;
-    font-weight: bold;
-}
-
-#hospital-modal label {
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 6px;
-    margin-top: 6px;
-    font-size: 1rem;
-}
-
-#hospital-modal select {
-    padding: 10px;
-    border-radius: 8px;
-    border: 1.5px solid #4caf50;
-    font-size: 1rem;
-    margin-bottom: 8px;
-    background: #f6fff6;
-    transition: border-color 0.2s;
-}
-
-#hospital-modal select:focus {
-    border-color: #388e3c;
-    outline: none;
-}
-
-#hospital-modal .modal-buttons {
-    display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    margin-top: 10px;
-}
-
-#hospital-modal .modal-buttons button {
-    flex: 1 1 0;
-    padding: 10px 0;
-    border-radius: 8px;
-    border: none;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s, color 0.2s;
-}
-
-#hospital-modal #confirm-hospital-btn {
-    background: #4caf50;
-    color: #fff;
-    margin-right: 6px;
-}
-
-#hospital-modal #confirm-hospital-btn:hover {
-    background: #388e3c;
-}
-
-#hospital-modal #cancel-hospital-btn {
-    background: #f44336;
-    color: #fff;
-    margin-left: 6px;
-}
-
-#hospital-modal #cancel-hospital-btn:hover {
-    background: #b71c1c;
-}
-
-@keyframes fadeInModal {
-    from { opacity: 0; transform: translate(-50%, -60%);}
-    to   { opacity: 1; transform: translate(-50%, -50%);}
-}
-
-.flashing {
-    animation: flash-green 1s infinite alternate;
-}
-@keyframes flash-green {
-    from { background: #4caf50; }   /* green */
-    to   { background: #256d27; }   /* darker green */
-}
-
-/* Base Modal Styles */
-#base-modal.modal {
-    display: none;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: #fff;
-    border-radius: 14px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
-    z-index: 1100;
-    min-width: 320px;
-    max-width: 95vw;
-    padding: 0;
-    animation: fadeInModal 0.2s;
-}
-
-#base-modal .modal-content {
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    padding: 32px 28px 24px 28px;
-    align-items: stretch;
-}
-
-#base-modal h2 {
-    margin: 0 0 10px 0;
-    font-size: 1.5rem;
-    color: #004d00;
-    text-align: center;
-    font-weight: bold;
-}
-
-#base-modal label {
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 6px;
-    margin-top: 6px;
-    font-size: 1rem;
-}
-
-#base-modal select {
-    padding: 10px;
-    border-radius: 8px;
-    border: 1.5px solid #4caf50;
-    font-size: 1rem;
-    margin-bottom: 8px;
-    background: #f6fff6;
-    transition: border-color 0.2s;
-}
-
-#base-modal select:focus {
-    border-color: #388e3c;
-    outline: none;
-}
-
-#base-modal .modal-buttons {
-    display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    margin-top: 10px;
-}
-
-#base-modal .modal-buttons button {
-    flex: 1 1 0;
-    padding: 10px 0;
-    border-radius: 8px;
-    border: none;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s, color 0.2s;
-}
-
-#base-modal #confirm-base-btn {
-    background: #4caf50;
-    color: #fff;
-    margin-right: 6px;
-}
-
-#base-modal #confirm-base-btn:hover {
-    background: #388e3c;
-}
-
-#base-modal #cancel-base-btn {
-    background: #f44336;
-    color: #fff;
-    margin-left: 6px;
-}
-
-#base-modal #cancel-base-btn:hover {
-    background: #b71c1c;
-}
-
-/* Standby Modal Styles */
-#standby-modal.modal {
-    display: none;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: #fff;
-    border-radius: 14px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
-    z-index: 1100;
-    min-width: 320px;
-    max-width: 95vw;
-    padding: 0;
-    animation: fadeInModal 0.2s;
-}
-
-#standby-modal .modal-content {
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    padding: 32px 28px 24px 28px;
-    align-items: stretch;
-    margin: 0 auto;
-}
-
-#standby-modal h2 {
-    margin: 0 0 10px 0;
-    font-size: 1.5rem;
-    color: #004d00;
-    text-align: center;
-    font-weight: bold;
-}
-
-#standby-modal label {
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 6px;
-    margin-top: 6px;
-    font-size: 1rem;
-}
-
-#standby-modal select {
-    padding: 10px;
-    border-radius: 8px;
-    border: 1.5px solid #4caf50;
-    font-size: 1rem;
-    margin-bottom: 8px;
-    background: #f6fff6;
-    transition: border-color 0.2s;
-}
-
-#standby-modal select:focus {
-    border-color: #388e3c;
-    outline: none;
-}
-
-#standby-modal .modal-buttons {
-    display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    margin-top: 10px;
-}
-
-#standby-modal .modal-buttons button {
-    flex: 1 1 0;
-    padding: 10px 0;
-    border-radius: 8px;
-    border: none;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s, color 0.2s;
-}
-
-#standby-modal #confirm-standby-btn {
-    background: #4caf50;
-    color: #fff;
-    margin-right: 6px;
-}
-
-#standby-modal #confirm-standby-btn:hover {
-    background: #388e3c;
-}
-
-#standby-modal #cancel-standby-btn {
-    background: #f44336;
-    color: #fff;
-    margin-left: 6px;
-}
-
-#standby-modal #cancel-standby-btn:hover {
-    background: #b71c1c;
-}
-
-/* Refuel Modal Styles */
-#refuel-modal.modal, #refuel-price-modal.modal {
-    display: none;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: #fff;
-    border-radius: 14px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
-    z-index: 1100;
-    min-width: 320px;
-    max-width: 95vw;
-    padding: 0;
-    animation: fadeInModal 0.2s;
-}
-
-#refuel-modal .modal-content,
-#refuel-price-modal .modal-content {
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    padding: 32px 28px 24px 28px;
-    align-items: stretch;
-    text-align: center;
-}
-
-#refuel-modal h2,
-#refuel-price-modal h2 {
-    margin: 0 0 10px 0;
-    font-size: 1.5rem;
-    color: #004d00;
-    text-align: center;
-    font-weight: bold;
-}
-
-#refuel-modal label,
-#refuel-price-modal label {
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 6px;
-    margin-top: 6px;
-    font-size: 1rem;
-}
-
-#refuel-modal select,
-#refuel-price-modal input[type="text"] {
-    padding: 10px;
-    border-radius: 8px;
-    border: 1.5px solid #4caf50;
-    font-size: 1rem;
-    margin-bottom: 8px;
-    background: #f6fff6;
-    transition: border-color 0.2s;
-    text-align: center;
-}
-
-#refuel-modal select:focus,
-#refuel-price-modal input[type="text"]:focus {
-    border-color: #388e3c;
-    outline: none;
-}
-
-#refuel-modal .modal-buttons,
-#refuel-price-modal .modal-buttons {
-    display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    margin-top: 10px;
-}
-
-#refuel-modal .modal-buttons button,
-#refuel-price-modal .modal-buttons button {
-    flex: 1 1 0;
-    padding: 10px 0;
-    border-radius: 8px;
-    border: none;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s, color 0.2s;
-}
-
-#refuel-modal #confirm-refuel-btn,
-#refuel-price-modal #confirm-refuel-price-btn {
-    background: #4caf50;
-    color: #fff;
-    margin-right: 6px;
-}
-
-#refuel-modal #confirm-refuel-btn:hover,
-#refuel-price-modal #confirm-refuel-price-btn:hover {
-    background: #388e3c;
-}
-
-#refuel-modal #cancel-refuel-btn {
-    background: #f44336;
-    color: #fff;
-    margin-left: 6px;
-}
-
-#refuel-modal #cancel-refuel-btn:hover {
-    background: #b71c1c;
-}
-
-#status-gradient-bar {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100px;
-    pointer-events: none;
-    z-index: 1;
-    background: linear-gradient(to bottom, transparent, transparent);
-    opacity: 1;
-    transition: opacity 0.7s;
-}
-#status-gradient-bar.flashing {
-    animation: status-gradient-flash 0.25s linear 0s 2;
-}
-@keyframes status-gradient-flash {
-    0%   { opacity: 1; }
-    40%  { opacity: 0.2; }
-    60%  { opacity: 1; }
-    100% { opacity: 1; }
-}
-
-#current-status-indicator {
-    display: inline-block;
-    margin: 8px auto 0 auto;
-    padding: 8px 28px;
-    border-radius: 24px;
-    background: #D32F2F;
-    color: #fff;
-    font-weight: bold;
-    font-size: 1.2rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    border: 2px solid #b71c1c;
-    transition: background 0.3s, color 0.3s;
-}
-
-/* Gradient bar at the top of the page */
-#status-gradient-bar {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100px;
-    pointer-events: none;
-    z-index: 1; /* gradient is behind header content */
-    background: linear-gradient(to bottom, transparent, transparent);
-    opacity: 1;
-    transition: opacity 1.5s;
-}
-#status-gradient-bar.flashing {
-    transition: none;
-}
-.header {
-    position: relative;
-    z-index: 1; /* header content is above gradient */
-}
-
-/* Second duplicate call-card styles removed */
-
-#calls-container {
-    flex: 1 1 0;
-    overflow-y: auto;
-    min-height: 0;
-    position: relative;
-    border-radius: 15px; /* Rounded corners for the container */
-}
-
-/* Remove the ::before and ::after fades from #calls-container */
-#calls-container::before,
-#calls-container::after {
-    display: none !important;
-}
-
-.call-details {
-    background-color: #004d00; /* Dark green background */
-    color: white;
-    padding: 20px;
-    border-radius: 20px; /* Rounded corners */
-    display: flex;
-    flex-direction: column;
-    gap: 15px; /* Space between elements */
-    position: relative; /* Ensure positioning for child elements */
-    flex: 0.5; /* Adjust width to take up half the page, same as calls-list */
-    height: 100%;
-    min-height: 100%;
-    box-sizing: border-box;
-}
-
-.call-details h2 {
-    font-size: 2.2rem; /* Slightly larger font size for the title */
-    margin: 0;
-}
-
-.call-details .description {
-    display: flex;
-    flex-direction: column;
-    gap: 5px; /* Add spacing between the title and the textbox */
-}
-
-.call-details .descriptionText {
-    white-space: pre-wrap; /* Ensures long descriptions wrap properly */
-    max-width: 400px; /* Limit the width of the description box */
-    margin: 0; /* Remove centering */
-    text-align: left; /* Align text to the left */
-    overflow-y: auto; /* Add vertical scrolling if content overflows */
-    padding: 10px; /* Add padding for better readability */
-    background-color: #003300; /* Dark green background for contrast */
-    color: white; /* Ensure text is visible */
-    border-radius: 5px; /* Add rounded corners */
-    font-size: 1.2rem; /* Slightly larger font size for description */
-}
-
-.attached-units-title {
-    margin-top: 5px; /* Further reduced margin for a smaller gap */
-    font-size: 1.2rem;
-    color: white; /* Ensure the title is visible */
-    margin-bottom: 0; /* Remove bottom margin to reduce space */
-}
-
-.call-details .attached-units {
-    margin-top: 3px; /* Further reduced margin for a smaller gap */
-    padding: 10px;
-    background-color: #003300; /* Green background for the units container */
-    border-radius: 10px; /* Rounded corners for the container */
-    color: white; /* Ensure text is visible */
-}
-
-#attached-units-container {
-    display: flex !important;
-    flex-wrap: wrap;
-    gap: 5px; /* Spacing between units for call details */
-    align-items: flex-start;
-    width: 100%;
-}
-
-/* For calls list attached units container */
-.attached-units > div {
-    display: flex !important;
-    flex-wrap: wrap;
-    gap: 2px; /* Further reduced spacing for calls list */
-    align-items: flex-start;
-    width: 100%;
-}
-
-.unit {
-    padding: 5px 10px;
-    border-radius: 5px;
-    margin-bottom: 5px;
-    font-weight: bold;
-    display: inline-block;
-}
-
-/* Styling for attached units in call details section */
-.attached-unit-detail {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.attached-unit-detail:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
-}
-
-/* Styling for attached units in calls list */
-.attached-unit {
-    transition: transform 0.2s ease;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.attached-unit:hover {
-    transform: scale(1.02);
-}
-
-.timestamp {
-    position: absolute; /* Dock the timestamp */
-    bottom: 2px; /* Make it lower spacing from the bottom */
-    left: 20px; /* Align it to the left with some padding */
-    font-size: 1.3rem; /* Slightly larger font size for timestamp */
-    font-weight: bold;
-    text-align: left;
-}
-
-.call-details .incident {
-    position: absolute;
-    top: 40px;
-    right: 20px;
-    max-width: 280px; /* Slightly reduced to prevent overlap */
-    font-size: 1.2rem; /* Slightly smaller to reduce space usage */
-    font-weight: bold;
-    text-align: right;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    line-height: 1.2; /* Tighter line height to reduce vertical space */
-}
-
-.call-details .location {
-    position: absolute;
-    top: 85px; /* Increased spacing to account for potential text wrapping */
-    right: 20px;
-    font-size: 1.3rem;
-    font-weight: bold;
-    max-width: 280px; /* Consistent with incident text */
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-}
-
-.calls-list {
-    background-color: #004d00;
-    color: white;
-    padding: 20px;
-    border-radius: 10px;
-    flex: 0.5; /* Adjust width to take up half the page */
-    height: 100%;
-    min-height: 100%;
-    display: flex;
-    flex-direction: column;
-    position: relative; /* Position relative for absolute children */
-}
-
-.details-container {
-    display: flex;
-    gap: 20px;    width: 100%; /* Ensures the combined width of both sections is 100% */
-}
-
-#dispatcher-counter-display {
-    font-weight: bold; 
-    color: white; /* Blue text for visibility */
-    margin: 0 auto;
-    background-color: #0288D1;
-    padding: 10px;
-    border: #012335 2px solid;
-    border-radius: 15px;
+/* Define a CSS variable for the calls list header height at the top of the file or in :root */
+:root {
+    --calls-list-header-height: 54px;
 }

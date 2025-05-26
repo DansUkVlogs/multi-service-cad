@@ -309,14 +309,17 @@ async function saveDetails() {
         // Update the displayed IDs
         displayCurrentIDs();
 
+        // hide the background fade
+        document.querySelector('.modal-overlay').style.display = 'none';
+
         // Display the saved callsign on the main page
         const callsignDisplay = document.getElementById("callsign-display");
-        callsignDisplay.textContent = `Saved Callsign: ${callsignInput}`;
+        callsignDisplay.textContent = callsignInput;
 
         showNotification("Details saved successfully!", "success");
-
         // Close the modal after saving details
         closeSetupModal();
+        document.body.classList.remove('modal-active'); // Ensure overlay is removed
     } catch (error) {
         showNotification("Cannot connect to the database. Please check your network or firewall settings.", "error");
         console.error("Error saving details:", error);
@@ -370,44 +373,6 @@ async function handleStatusChange(status) {
     }
 }
 
-// Utility to open/close modal and overlay, and prevent background interaction
-function openSetupModal() {
-    document.getElementById('setup-modal').classList.add('active');
-    document.getElementById('modal-overlay').classList.add('active');
-    document.body.classList.add('modal-open');
-}
-
-function closeSetupModal() {
-    document.getElementById('setup-modal').classList.remove('active');
-    document.getElementById('modal-overlay').classList.remove('active');
-    document.body.classList.remove('modal-open');
-}
-
-// Clean up any orphaned unit/civilian on page load
-window.addEventListener('load', async () => {
-    checkNetworkAndNotify();
-    // Use removeUnitandCharacter to remove any leftover unit/civilian from previous session
-    await removeUnitandCharacter();
-
-    // Modal setup
-    populateCharacterSlots();
-    openSetupModal();
-    document.getElementById('modal-overlay').addEventListener('click', closeSetupModal);
-    const modalBackBtn = document.getElementById('modal-back-home');
-    if (modalBackBtn) modalBackBtn.addEventListener('click', handleBackToHome);
-    const headerBackBtn = document.querySelector('.header .back-button');
-    if (headerBackBtn) headerBackBtn.addEventListener('click', handleBackToHome);
-});
-
-// Add this function before showHospitalModal to fix the error
-function loadHospitalLocations() {
-    // Returns a Promise that resolves to the hospital locations array
-    return fetch("../data/location.json")
-        .then(res => res.json())
-        .then(data => data.hospital || [])
-        .catch(() => []);
-}
-
 // --- Modal logic for Hospital ---
 function showHospitalModal(onConfirm, onCancel) {
     const modal = document.getElementById("hospital-modal");
@@ -433,12 +398,14 @@ function showHospitalModal(onConfirm, onCancel) {
     }
 
     modal.style.display = "block";
+    document.body.classList.add('modal-active');
 
     const confirmBtn = document.getElementById("confirm-hospital-btn");
     const cancelBtn = document.getElementById("cancel-hospital-btn");
 
     function cleanup() {
         modal.style.display = "none";
+        document.body.classList.remove('modal-active');
         confirmBtn.removeEventListener("click", confirmHandler);
         cancelBtn.removeEventListener("click", cancelHandler);
     }
@@ -488,12 +455,14 @@ function showBaseModal(onConfirm, onCancel) {
     });
 
     modal.style.display = "block";
+    document.body.classList.add('modal-active');
 
     const confirmBtn = document.getElementById("confirm-base-btn");
     const cancelBtn = document.getElementById("cancel-base-btn");
 
     function cleanup() {
         modal.style.display = "none";
+        document.body.classList.remove('modal-active');
         confirmBtn.removeEventListener("click", confirmHandler);
         cancelBtn.removeEventListener("click", cancelHandler);
     }
@@ -544,6 +513,7 @@ function showStandbyModal(onConfirm, onCancel) {
     // Show the modal (ensure both display and .active for compatibility)
     modal.style.display = "block";
     modal.classList.add("active");
+    document.body.classList.add('modal-active');
 
     const confirmBtn = document.getElementById("confirm-standby-btn");
     const cancelBtn = document.getElementById("cancel-standby-btn");
@@ -551,6 +521,7 @@ function showStandbyModal(onConfirm, onCancel) {
     function cleanup() {
         modal.style.display = "none";
         modal.classList.remove("active");
+        document.body.classList.remove('modal-active');
         confirmBtn.removeEventListener("click", confirmHandler);
         cancelBtn.removeEventListener("click", cancelHandler);
     }
@@ -599,6 +570,7 @@ function showRefuelModal(onConfirm, onCancel) {
 
     modal.style.display = "block";
     modal.classList.add("active");
+    document.body.classList.add('modal-active');
 
     const confirmBtn = document.getElementById("confirm-refuel-btn");
     const cancelBtn = document.getElementById("cancel-refuel-btn");
@@ -606,6 +578,7 @@ function showRefuelModal(onConfirm, onCancel) {
     function cleanup() {
         modal.style.display = "none";
         modal.classList.remove("active");
+        document.body.classList.remove('modal-active');
         confirmBtn.removeEventListener("click", confirmHandler);
         cancelBtn.removeEventListener("click", cancelHandler);
     }
@@ -633,9 +606,9 @@ function showRefuelPriceModal(onConfirm) {
     const modal = document.getElementById("refuel-price-modal");
     const priceInput = document.getElementById("refuel-price-input");
     priceInput.value = ""; // Reset
-
     modal.style.display = "block";
     modal.classList.add("active");
+    document.body.classList.add('modal-active');
 
     // Prevent closing by clicking outside
     function preventClose(e) {
@@ -652,6 +625,7 @@ function showRefuelPriceModal(onConfirm) {
     function cleanup() {
         modal.style.display = "none";
         modal.classList.remove("active");
+        document.body.classList.remove('modal-active');
         confirmBtn.removeEventListener("click", confirmHandler);
         document.removeEventListener("mousedown", preventClose, true);
     }
@@ -743,6 +717,44 @@ function showRefuelPriceModal(onConfirm) {
     });
 }
 
+// Utility to open/close modal and overlay, and prevent background interaction
+function openSetupModal() {
+    document.getElementById('setup-modal').classList.add('active');
+    document.getElementById('modal-overlay').classList.add('active');
+    document.body.classList.add('modal-active');
+}
+
+function closeSetupModal() {
+    document.getElementById('setup-modal').classList.remove('active');
+    document.getElementById('modal-overlay').classList.remove('active');
+    document.body.classList.remove('modal-active');
+}
+
+// Clean up any orphaned unit/civilian on page load
+window.addEventListener('load', async () => {
+    checkNetworkAndNotify();
+    // Use removeUnitandCharacter to remove any leftover unit/civilian from previous session
+    await removeUnitandCharacter();
+
+    // Modal setup
+    populateCharacterSlots();
+    openSetupModal();
+    document.getElementById('modal-overlay').addEventListener('click', closeSetupModal);
+    const modalBackBtn = document.getElementById('modal-back-home');
+    if (modalBackBtn) modalBackBtn.addEventListener('click', handleBackToHome);
+    const headerBackBtn = document.querySelector('.header .back-button');
+    if (headerBackBtn) headerBackBtn.addEventListener('click', handleBackToHome);
+});
+
+// Add this function before showHospitalModal to fix the error
+function loadHospitalLocations() {
+    // Returns a Promise that resolves to the hospital locations array
+    return fetch("../data/location.json")
+        .then(res => res.json())
+        .then(data => data.hospital || [])
+        .catch(() => []);
+}
+
 // Utility to update the status gradient bar color
 function updateStatusGradientBar(status, animate = true) {
     const bar = document.getElementById("status-gradient-bar");
@@ -803,6 +815,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (callsListDiv && !document.getElementById('dispatcher-counter-display')) {
         const counterDiv = document.createElement('div');
         counterDiv.id = 'dispatcher-counter-display';
+        counterDiv.style.textAlign = 'center';
+        counterDiv.style.backgroundColor = '#0088d1';
+        counterDiv.style.padding = '10px';
+        counterDiv.style.fontSize = '18px';
+        counterDiv.style.fontWeight = 'bold';
+        counterDiv.style.borderRadius = '5px';
+        counterDiv.style.color = "white";
         callsListDiv.insertBefore(counterDiv, callsListDiv.firstChild);    }
       // Function to refresh calls list from database
     async function refreshCallsList() {
@@ -1022,23 +1041,24 @@ document.addEventListener("DOMContentLoaded", () => {
     // Set up dynamic fade visibility based on scroll position
     function setupFadeScrollHandler() {
         const callsContainer = document.getElementById('calls-container');
-        const fadeTop = document.querySelector('.calls-fade-top');
-        const fadeBottom = document.querySelector('.calls-fade-bottom');
-        
-        if (!callsContainer || !fadeTop || !fadeBottom) return;
-        
+        if (!callsContainer) return;
+        // Select fade overlays as siblings of #calls-container
+        const fadeTop = callsContainer.previousElementSibling && callsContainer.previousElementSibling.classList.contains('calls-fade-top')
+            ? callsContainer.previousElementSibling : document.querySelector('.calls-fade-top');
+        const fadeBottom = callsContainer.nextElementSibling && callsContainer.nextElementSibling.classList.contains('calls-fade-bottom')
+            ? callsContainer.nextElementSibling : document.querySelector('.calls-fade-bottom');
+        if (!fadeTop || !fadeBottom) return;
+
         function updateFadeVisibility() {
             const { scrollTop, scrollHeight, clientHeight } = callsContainer;
-            const isAtTop = scrollTop <= 5; // Small threshold for precision
-            const isAtBottom = scrollTop >= scrollHeight - clientHeight - 5;
-            
+            const isAtTop = scrollTop <= 2; // Small threshold for precision
+            const isAtBottom = scrollTop >= scrollHeight - clientHeight - 2;
             // Hide top fade when at the top
             if (isAtTop) {
                 fadeTop.classList.add('hidden');
             } else {
                 fadeTop.classList.remove('hidden');
             }
-            
             // Hide bottom fade when at the bottom
             if (isAtBottom) {
                 fadeBottom.classList.add('hidden');
@@ -1046,13 +1066,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 fadeBottom.classList.remove('hidden');
             }
         }
-        
         // Initial check
         updateFadeVisibility();
-        
         // Listen for scroll events
         callsContainer.addEventListener('scroll', updateFadeVisibility);
-        
         // Listen for content changes that might affect scroll
         const observer = new MutationObserver(updateFadeVisibility);
         observer.observe(callsContainer, { childList: true, subtree: true });
@@ -1102,7 +1119,10 @@ async function displayCalls(calls) {
             const timestamp = call.timestamp.toDate ? call.timestamp.toDate() : new Date(call.timestamp);
             formattedTimestamp = timestamp.toLocaleTimeString('en-GB', { 
                 hour: '2-digit', 
-                minute: '2-digit' 
+                minute: '2-digit',
+                day: '2-digit',
+                month: '2-digit',
+                year: '2-digit' 
             });
         }
 
@@ -1197,7 +1217,7 @@ async function renderAttachedUnitsForCallCompact(callId, container) {
             const unitCardHTML = `
                 <div class="unit-card" style="background-color: ${statusColor}; color: ${textColor};" title="${tooltip}">
                     <div class="unit-callsign">${unitCallsign}</div>
-                    <div class="unit-service-type">${unitService}-${specificType}</div>
+                    <div class="unit-service-type">${unitType}-${specificType}</div>
                 </div>
             `;
             
@@ -1238,7 +1258,7 @@ async function renderAttachedUnitsForSelectedCall(callId, container) {
         const attachedUnitSnapshot = await getDocs(attachedUnitQuery);
 
         if (attachedUnitSnapshot.empty) {
-            container.innerHTML = '<p style="color: #ccc; font-style: italic; text-align: center; padding: 15px; margin: 0; background-color: rgba(255,255,255,0.05); border-radius: 8px;">No Attached Units</p>';
+            container.innerHTML = '<p style="color: #ccc; font-style: italic; text-align: center; padding: 15px; margin: 0; background-color: rgba(255,255,255,0.05); border-radius: 8px; width: 100%;">No Attached Units</p>';
             container.dataset.rendering = 'false';
             return;
         }
@@ -1274,17 +1294,20 @@ async function renderAttachedUnitsForSelectedCall(callId, container) {
             unitDiv.style.justifyContent = 'space-between';
             unitDiv.style.alignItems = 'center';
             unitDiv.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+            unitDiv.style.width = '100%';
             
             unitDiv.innerHTML = `
+            <div style="width: 100%; display: flex; align-items: center; justify-content: space-between;">
                 <div style="display: flex; flex-direction: column; gap: 2px;">
                     <span style="font-size: 16px; font-weight: bold;">${unitData.unitType || 'Unknown'}</span>
-                    <span style="font-size: 12px; opacity: 0.9;">${unitData.specificType || 'Unknown'}</span>
+                    <span style="font-size: 16px; opacity: 0.9;">${unitData.specificType || 'Unknown'}</span>
                 </div>
                 <div style="text-align: right; font-size: 16px; font-weight: bold; margin-left: 20px;">
                     ${unitData.callsign || 'N/A'}
                 </div>
+            </div>
             `;
-            
+
             container.appendChild(unitDiv);
             renderedUnitIds.add(unitID); // Mark this unit as rendered
         }
@@ -1302,59 +1325,50 @@ async function renderAttachedUnitsForSelectedCall(callId, container) {
 
 // Function to handle call selection and update call details display
 async function selectCall(call) {
-    try {        // Update call details in the UI
+    try {
+        // Update call details in the UI
         const callerNameElement = document.querySelector('.callerName');
         const descriptionElement = document.querySelector('.descriptionText');
         const locationElement = document.querySelector('.location');
         const incidentElement = document.querySelector('.incident');
         const timestampElement = document.querySelector('.timestamp');
-        
+
         if (callerNameElement) {
             callerNameElement.textContent = call.callerName || 'Unknown';
         }
-        
         if (descriptionElement) {
             descriptionElement.textContent = call.description || 'No description provided';
         }
-        
         if (locationElement) {
-            locationElement.textContent = `Location: ${call.location || 'Location not provided'}`;
+            locationElement.textContent = call.location || 'Location not provided';
         }
-          // Update incident field with call status
         if (incidentElement) {
-            incidentElement.textContent = `Incident: ${call.status || 'Unknown'}`;
+            incidentElement.textContent = call.status || 'Unknown';
         }
-        
         if (timestampElement && call.timestamp) {
             const timestamp = call.timestamp.toDate ? call.timestamp.toDate() : new Date(call.timestamp);
-            timestampElement.textContent = `Time Stamp: ${timestamp.toLocaleTimeString('en-GB')} ${timestamp.toLocaleDateString('en-GB')}`;
-        }        // Store selected call data for potential self-attach functionality
+            timestampElement.textContent = `${timestamp.toLocaleTimeString('en-GB')} ${timestamp.toLocaleDateString('en-GB')}`;
+        }
+        // Store selected call data for potential self-attach functionality
         window.selectedCall = call;
-        
-        console.log('Call selected:', call);
-        
         // Set up real-time listener for the selected call
         if (window.setupSelectedCallListener) {
             window.setupSelectedCallListener(call.id);
         }
-        
         // Render attached units for the selected call in call details section
         const attachedUnitsContainer = document.getElementById('attached-units-container');
         if (attachedUnitsContainer) {
             await renderAttachedUnitsForSelectedCall(call.id, attachedUnitsContainer);
         }
-        
         // Visual feedback - highlight selected call
         document.querySelectorAll('.call-card').forEach(card => {
             card.classList.remove('selected');
         });
-        
         // Find and highlight the clicked call card
         const selectedCard = document.querySelector(`[data-call-id="${call.id}"]`);
         if (selectedCard) {
             selectedCard.classList.add('selected');
         }
-        
     } catch (error) {
         console.error('Error selecting call:', error);
         showNotification('Error selecting call', 'error');
@@ -1393,16 +1407,16 @@ async function refreshSelectedCallDetails() {
         }
         
         if (locationElement) {
-            locationElement.textContent = `Location: ${updatedCall.location || 'Location not provided'}`;
+            locationElement.textContent = updatedCall.location || 'Location not provided';
         }
           // Update incident field with call status
         if (incidentElement) {
-            incidentElement.textContent = `Incident: ${updatedCall.status || 'Unknown'}`;
+            incidentElement.textContent = updatedCall.status || 'Unknown';
         }
         
         if (timestampElement && updatedCall.timestamp) {
             const timestamp = updatedCall.timestamp.toDate ? updatedCall.timestamp.toDate() : new Date(updatedCall.timestamp);
-            timestampElement.textContent = `Time Stamp: ${timestamp.toLocaleTimeString('en-GB')} ${timestamp.toLocaleDateString('en-GB')}`;
+            timestampElement.textContent = `${timestamp.toLocaleTimeString('en-GB')} ${timestamp.toLocaleDateString('en-GB')}`;
         }
         
         // Refresh attached units for the selected call
@@ -1415,6 +1429,40 @@ async function refreshSelectedCallDetails() {
         console.error('Error refreshing selected call details:', error);
     }
 }
+
+// Function to save call details for the selected call
+async function saveSelectedCallDetails() {
+    if (!window.selectedCall || !window.selectedCall.id) {
+        showNotification("No call selected to save.", "error");
+        return;
+    }
+    const callId = window.selectedCall.id;
+    const description = document.querySelector(".descriptionText")?.value.trim();
+    if (!description) {
+        showNotification("Description cannot be empty.", "error");
+        return;
+    }
+    try {
+        await updateDoc(doc(db, "calls", callId), { description });
+        showNotification("Call details saved!", "success");
+        await refreshSelectedCallDetails();
+    } catch (error) {
+        showNotification("Failed to save call details.", "error");
+        console.error("Error saving call details:", error);
+    }
+}
+
+// Attach event listener to the Save Details button in call details section
+function setupCallDetailsSaveButton() {
+    const btn = document.querySelector(".save-details-btn");
+    if (btn) {
+        btn.addEventListener("click", saveSelectedCallDetails);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    setupCallDetailsSaveButton();
+});
 
 // Attach event listeners
 document.addEventListener("DOMContentLoaded", () => {
