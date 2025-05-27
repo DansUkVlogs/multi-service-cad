@@ -50,8 +50,13 @@ function showNotification(message, type = "info") {
 // --- Audio Playback Handling for Autoplay Restrictions ---
 let userHasInteracted = false;
 let soundQueue = [];
+let isStartupModalActive = true;
 
 function playSound(audioUrl) {
+    if (isStartupModalActive) {
+        console.log('[AUDIO] Muted due to startup modal:', audioUrl);
+        return;
+    }
     console.log('[AUDIO] playSound called with url:', audioUrl, 'userHasInteracted:', userHasInteracted);
     if (!audioUrl) return;
     if (!userHasInteracted) {
@@ -805,6 +810,8 @@ function closeSetupModal() {
     document.getElementById('setup-modal').classList.remove('active');
     document.getElementById('modal-overlay').classList.remove('active');
     document.body.classList.remove('modal-active');
+    isStartupModalActive = false;
+    flushSoundQueue(); // Play any queued sounds after modal closes
 }
 
 // Clean up any orphaned unit/civilian on page load
@@ -1415,6 +1422,10 @@ async function renderAttachedUnitsForSelectedCall(callId, container) {
 // Function to handle call selection and update call details display
 async function selectCall(call) {
     try {
+        // Always fetch the latest call data from Firestore
+        const callDoc = await getDoc(doc(db, "calls", call.id));
+        const latestCall = callDoc.exists() ? { id: callDoc.id, ...callDoc.data() } : call;
+
         // Update call details in the UI
         const callerNameElement = document.querySelector('.callerName');
         const descriptionElement = document.querySelector('.descriptionText');
@@ -1423,38 +1434,38 @@ async function selectCall(call) {
         const timestampElement = document.querySelector('.timestamp');
 
         if (callerNameElement) {
-            callerNameElement.textContent = call.callerName || 'Unknown';
+            callerNameElement.textContent = latestCall.callerName || 'Unknown';
         }
         if (descriptionElement) {
-            descriptionElement.textContent = call.description || 'No description provided';
+            descriptionElement.textContent = latestCall.description || 'No description provided';
         }
         if (locationElement) {
-            locationElement.textContent = call.location || 'Location not provided';
+            locationElement.textContent = latestCall.location || 'Location not provided';
         }
         if (incidentElement) {
-            incidentElement.textContent = call.status || 'Unknown';
+            incidentElement.textContent = latestCall.status || 'Unknown';
         }
-        if (timestampElement && call.timestamp) {
-            const timestamp = call.timestamp.toDate ? call.timestamp.toDate() : new Date(call.timestamp);
+        if (timestampElement && latestCall.timestamp) {
+            const timestamp = latestCall.timestamp.toDate ? latestCall.timestamp.toDate() : new Date(latestCall.timestamp);
             timestampElement.textContent = `${timestamp.toLocaleTimeString('en-GB')} ${timestamp.toLocaleDateString('en-GB')}`;
         }
         // Store selected call data for potential self-attach functionality
-        window.selectedCall = call;
+        window.selectedCall = latestCall;
         // Set up real-time listener for the selected call
         if (window.setupSelectedCallListener) {
-            window.setupSelectedCallListener(call.id);
+            window.setupSelectedCallListener(latestCall.id);
         }
         // Render attached units for the selected call in call details section
         const attachedUnitsContainer = document.getElementById('attached-units-container');
         if (attachedUnitsContainer) {
-            await renderAttachedUnitsForSelectedCall(call.id, attachedUnitsContainer);
+            await renderAttachedUnitsForSelectedCall(latestCall.id, attachedUnitsContainer);
         }
         // Visual feedback - highlight selected call
         document.querySelectorAll('.call-card').forEach(card => {
             card.classList.remove('selected');
         });
         // Find and highlight the clicked call card
-        const selectedCard = document.querySelector(`[data-call-id="${call.id}"]`);
+        const selectedCard = document.querySelector(`[data-call-id="${latestCall.id}"]`);
         if (selectedCard) {
             selectedCard.classList.add('selected');
         }
@@ -1864,6 +1875,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             showNotification("Failed to update status.", "error");
                         }
                     },
+                   
                     () => {}
                 );
                 return;
