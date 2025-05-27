@@ -5,5 +5,6 @@
     "newnote": "https://s3.sonoransoftware.com/cad/default/notification1.mp3",
     "tones": "https://s3.sonoransoftware.com/cad/default/signal_100.mp3",
     "panictones": "https://s3.sonoransoftware.com/cad/default/tone_panic.mp3",
-    "statuschange": "https://s3.sonoransoftware.com/cad/default/tone_ack.mp3"
+    "statuschange": "https://s3.sonoransoftware.com/cad/default/tone_ack.mp3",
+    "newambulancecall": "../audio/ambulance-new-call.mp3"
   }
