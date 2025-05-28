@@ -141,6 +141,7 @@ body {
     flex: 1; /* Take remaining space after header and status buttons */
     min-height: 0; /* Allow shrinking */
     box-sizing: border-box;
+    overflow: hidden; /* Prevent any overflow */
 }
 
 .details-container {
@@ -179,13 +180,16 @@ body {
 #calls-container {
     flex: 1 1 0;
     overflow-y: auto;
+    overflow-x: hidden; /* Prevent horizontal scrolling */
     min-height: 0;
     position: relative;
     border-radius: 15px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .calls-fade-top {
-    top: 26%;
+    top: 23%;
 }
 
 .calls-fade-top, .calls-fade-bottom {
@@ -454,150 +458,154 @@ body {
     overflow: hidden;
 }
 
-/* Style for call cards - Enhanced Compact version */
+/* Style for call cards - Compact horizontal layout matching original design */
 .call-card {
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    padding: 6px 8px;
-    margin-bottom: 4px;
-    background-color: #fdfdfd;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    transition: background-color 0.1s ease;
-    font-size: 35px;
-    line-height: 1.2;
+    width: 100%;
     height: 80px;
-    overflow: hidden;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin: 10px 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    font-size: 35px; /* Main container font size as per original */
     cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    position: relative;
+    align-items: stretch;
+    overflow: hidden;
+    box-sizing: border-box; /* Ensure borders/padding don't add to width */
 }
 
 .call-card:hover {
-    background-color: #f5f5f5;
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
+/* Create the main sections for the new layout */
+.call-card .call-info {
+    display: flex;
+    width: calc(100% - 300px); /* Increased space for the end section to prevent overflow */
+    height: 100%;
+    align-items: stretch;
+}
+
+/* Service section (leftmost) - show first 3 letters only */
 .call-card .call-service-section {
+    width: 45px;
+    min-width: 45px;
     display: flex;
     flex-direction: column;
+    justify-content: center;
     align-items: center;
-    min-width: 55px;
-    max-width: 55px;
-    width: 55px;
-    flex-shrink: 0;
-    gap: 2px;
-    overflow: hidden;
-}
-
-.call-card .call-service {
-    width: 100%;
-    padding: 3px 5px;
-    border-radius: 3px;
-    font-weight: bold;
-    font-size: 15px;
-    text-align: center;
+    background-color: #4CAF50;
     color: white;
-    text-transform: uppercase;
-    white-space: nowrap;
-    overflow: visible;
-}
-
-.call-card .call-location-under-service {
-    width: 100%;
-    font-size: 15px;
+    font-size: 11px;
     font-weight: bold;
-    color: #333;
     text-align: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    line-height: 1.2;
+    border-radius: 8px 0 0 8px;
+    text-transform: uppercase;
 }
 
-.call-card .call-status-caller-container {
+/* Status section - expanded to show full call type */
+.call-card .call-status-section {
+    width: 240px;
+    min-width: 240px;
     display: flex;
     flex-direction: column;
-    min-width: 160px;
-    max-width: 160px;
-    width: 160px;
-    flex-shrink: 0;
-    gap: 3px;
-    margin-left: 10px;
-}
-
-.call-card .call-status {
-    font-weight: bold;
-    font-size: 15px;
-    color: #333;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    line-height: 1.2;
-}
-
-.call-card .caller-name {
-    font-size: 15px;
-    color: #666;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    line-height: 1.2;
-}
-
-.call-card .call-timestamp {
-    min-width: 90px;
-    max-width: 90px;
-    width: 90px;
-    flex-shrink: 0;
-    font-size: 12px;
-    color: #888;
-    text-align: right;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    line-height: 1.2;
-}
-
-.call-card .attached-units-compact {
-    min-width: 180px;
-    max-width: 180px;
-    width: 180px;
-    max-height: 70px;
-    flex-shrink: 0;
-    font-size: 10px;
-    color: #555;
-    overflow-y: auto;
-    overflow-x: hidden;
-    border: 1px solid #ddd;
-    border-radius: 3px;
-    padding: 3px;
+    justify-content: center;
+    padding: 4px 8px;
     background-color: #f9f9f9;
 }
 
-.call-card .attached-units-compact::-webkit-scrollbar {
-    width: 3px;
+.call-card .call-status-section .call-status {
+    font-size: 13px;
+    font-weight: bold;
+    color: #333;
+    margin: 0 0 3px 0;
+    line-height: 1.1;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    max-height: 32px;
+    overflow: hidden;
 }
 
-.call-card .attached-units-compact::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 2px;
+.call-card .call-status-section .caller-name {
+    font-size: 11px;
+    color: #666;
+    margin: 0 0 2px 0;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.call-card .attached-units-compact::-webkit-scrollbar-thumb {
-    background: #ccc;
-    border-radius: 2px;
+.call-card .call-status-section .call-location {
+    font-size: 10px;
+    color: #888;
+    margin: 0;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.call-card .attached-units-compact::-webkit-scrollbar-thumb:hover {
-    background: #999;
+/* Call end section - contains attached units and timestamp side by side */
+.call-card .call-end-section {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
+/* Attached units section with grey background - positioned at end */
+.call-card .attached-units-section {
+    min-width: 150px;
+    max-width: 220px;
+    padding: 3px;
+    background-color: #e8e8e8;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.call-card .attached-units-compact {
+    max-height: 100px;
+    overflow-y: auto;
+    font-size: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+/* Timestamp positioned next to attached units */
+.call-card .call-timestamp {
+    font-size: 9px;
+    color: #666;
+    text-align: right;
+    margin: 0;
+    line-height: 1.2;
+    font-weight: 500;
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 3px 6px;
+    border-radius: 3px;
+    border: 1px solid #ddd;
+    white-space: nowrap;
+}
+
+/* Unit cards within attached units compact section */
 .call-card .attached-units-compact .unit-card {
     display: block;
     margin-bottom: 2px;
-    padding: 3px 5px;
+    padding: 4px 6px;
     border-radius: 3px;
     font-size: 9px;
     font-weight: bold;
@@ -605,13 +613,12 @@ body {
     text-align: left;
     white-space: nowrap;
     line-height: 1.2;
-    min-height: 35px;
-    max-height: 35px;
+    min-height: 18px;
     overflow: hidden;
 }
 
 .call-card .attached-units-compact .unit-card .unit-callsign {
-    font-size: 15px;
+    font-size: 11px;
     font-weight: bold;
     margin-bottom: 1px;
     white-space: nowrap;
@@ -620,7 +627,7 @@ body {
 }
 
 .call-card .attached-units-compact .unit-card .unit-service-type {
-    font-size: 12px;
+    font-size: 9px;
     opacity: 0.9;
     white-space: nowrap;
     overflow: hidden;
@@ -635,10 +642,20 @@ body {
 .call-card.selected {
     border: 2px solid #4CAF50;
     background-color: #e8f5e8;
-    padding: 3px 5px; /* Adjust padding to compensate for thicker border */
-    height: 80px; /* Maintain consistent height */
-    max-height: 80px;
-    overflow: hidden;
+    box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+}
+
+.call-card.call-disabled {
+    filter: grayscale(0.7);
+    opacity: 0.5 !important;
+    pointer-events: none !important;
+    transition: opacity 0.2s;
+}
+
+.call-card.selected-call-locked {
+    outline: 2.5px solid #4caf50;
+    box-shadow: 0 0 0 3px #b2f7c1;
+    z-index: 2;
 }
 
 .call-details p {
@@ -846,6 +863,18 @@ body {
     width: 100%;
     align-items: flex-start;
     margin-bottom: 0;
+}
+
+.dispatcher-counter-display {
+    display: block;
+    align-items: center;
+    background-color: rgb(0, 72, 255);
+    border: 1px solid darkblue;
+    border-radius: 15px;
+    margin: 0 auto;
+    padding: 10px;
+    color: white;
+    margin-bottom: 5px;
 }
 
 @media (max-width: 900px) {
@@ -1122,6 +1151,33 @@ body.modal-active .modal-overlay {
     to   { opacity: 1; transform: translate(-50%, -50%);}
 }
 
+#self-attach-btn {
+    width: 100%;
+}
+#self-attach-btn.self-attach-btn {
+    background: linear-gradient(90deg, #2e8b57 0%, #4caf50 100%);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 4px 18px;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    margin-left: 8px;
+}
+#self-attach-btn.self-attach-btn:hover:not(:disabled) {
+    background: linear-gradient(90deg, #388e3c 0%, #66bb6a 100%);
+    box-shadow: 0 4px 12px rgba(76,175,80,0.12);
+}
+#self-attach-btn.self-attach-btn:disabled {
+    background: #bbb;
+    color: #eee;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
 /* Add new style for the saved callsign box next to the status indicator */
 #callsign-display {
     display: inline-block;
@@ -1152,7 +1208,7 @@ body.modal-active .modal-overlay {
     position: absolute;
     left: 0;
     width: 100%;
-    height: 36px;
+    height: 30px;
     min-height: 24px;
     max-height: 48px;
     pointer-events: none;
@@ -1182,4 +1238,55 @@ body.modal-active .modal-overlay {
 /* Define a CSS variable for the calls list header height at the top of the file or in :root */
 :root {
     --calls-list-header-height: 54px;
+}
+
+/* Scrollbar styling for attached units */
+.call-card .attached-units-compact::-webkit-scrollbar {
+    width: 4px;
+}
+
+.call-card .attached-units-compact::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 2px;
+}
+
+.call-card .attached-units-compact::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 2px;
+}
+
+.call-card .attached-units-compact::-webkit-scrollbar-thumb:hover {
+    background: #999;
+}
+
+/* Improve text hierarchy and spacing */
+.call-card .call-service strong,
+.call-card .call-status strong,
+.call-card .call-timestamp strong {
+    font-weight: 600;
+    margin-right: 4px;
+}
+
+/* Make location text stand out more */
+.call-card .call-location {
+    font-weight: 500;
+    color: #2c5282;
+}
+
+/* Ensure proper text wrapping for long descriptions */
+.call-card p {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* Panic button flash animation */
+@keyframes flash {
+    0%, 50% {
+        background-color: #ff0000 !important;
+        box-shadow: 0 0 10px #ff0000;
+    }
+    25%, 75% {
+        background-color: #cc0000 !important;
+        box-shadow: 0 0 20px #ff0000;
+    }
 }

@@ -46,7 +46,7 @@ let allUnits = []; // Declare and initialize allUnits to store all units for fil
 
 // Firestore collections
 const availableUnitsRef = collection(db, 'availableUnits');
-const attachedUnitsRef = collection(db, 'attachedUnits');
+const attachedUnitsRef = collection(db, 'attachedUnit');
 
 // Fetch dropdown options from the JSON file
 async function fetchDropdownOptions() {
@@ -201,7 +201,7 @@ async function renderAttachedUnitsForCall(callId) {
 
     try {
         const attachedUnitQuery = query(
-            collection(db, "attachedUnits"),
+            collection(db, "attachedUnit"),
             where("callID", "==", callId) // Fetch units attached to the specific call
         );
         const attachedUnitSnapshot = await getDocs(attachedUnitQuery);
@@ -438,7 +438,7 @@ async function renderAttachedUnits(callId) {
 
     try {
         const attachedUnitQuery = query(
-            collection(db, "attachedUnits"),
+            collection(db, "attachedUnit"),
             where("callID", "==", callId) // Fetch units attached to the specific call
         );
         const attachedUnitSnapshot = await getDocs(attachedUnitQuery);

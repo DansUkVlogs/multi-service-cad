@@ -433,11 +433,7 @@ async function handleStatusChange(status) {
         // Update the unit's status in the database
         const unitRef = doc(db, "units", unitId);
         await getDoc(unitRef); // Ensure the unit exists
-        await updateDoc(unitRef, { status });
-        // Play the status change sound
-        console.log('[AUDIO] Status change sound should play (statuschange)');
-        playSoundByKey('statuschange');
-        // Show a notification
+        await updateDoc(unitRef, { status });        // Show a notification
         showNotification(`Status changed to: ${status}`, "success");
         // Update the button styles
         document.querySelectorAll(".status-buttons button").forEach((button) => {
@@ -447,7 +443,7 @@ async function handleStatusChange(status) {
         if (selectedButton) {
             selectedButton.classList.add("selected-status");
         }
-        // Update the status indicator
+        // Update the status indicator (this will play the sound)
         updateStatusIndicator(status);
     } catch (error) {
         showNotification("Cannot connect to the database. Please check your network or firewall settings.", "error");
@@ -770,14 +766,19 @@ function showRefuelPriceModal(onConfirm) {
                 "unit-callsign": unitCallsign,
                 Price: price.startsWith("£") ? price : "£" + price,
                 timestamp: new Date()
-            });
-
-            // --- Set status to Available after logging ---
+            });            // --- Set status to Available after logging ---
             if (unitId) {
                 await updateDoc(doc(db, "units", unitId), { status: "Available" });
                 document.querySelectorAll(".status-buttons button").forEach(b => b.classList.remove("selected-status"));
                 const availableBtn = document.querySelector('button[data-status="Available"]');
                 if (availableBtn) availableBtn.classList.add("selected-status");
+                
+                // Update the status indicator at the top
+                updateStatusIndicator("Available");
+                
+                // Play status change sound
+                playSoundByKey('statuschange');
+                
                 showNotification("Status changed to: Available", "success");
             }
         } catch (err) {
@@ -945,308 +946,38 @@ onSnapshot(q, (snapshot) => {
     }
 });
 
-// Smart dispatcher state management - track previous state to only clear UI on capability transitions
-let previousDispatcherState = null; // null = unknown, true = self-dispatch capable, false = not self-dispatch capable
-
-// Function to update dispatcher count and manage calls list visibility with smart state transitions
-function updateDispatcherCount(snapshot) {
+// Utility: Debug log all attachedUnit docs for a call
+async function debugLogAttachedUnitsForCall(callId) {
     try {
-        let count = snapshot ? snapshot.size : 0;
-        if (count > 0) count = count - 1;
-        const counterDiv = document.getElementById('dispatcher-counter-display');
-        const callsContainer = document.getElementById('calls-container');
-
-        if (counterDiv) {
-            counterDiv.textContent = `Active Dispatchers: ${count}`;
+        const attachedUnitQuery = query(
+            collection(db, "attachedUnit"),
+            where("callID", "==", callId)
+        );
+        const attachedUnitSnapshot = await getDocs(attachedUnitQuery);
+        if (attachedUnitSnapshot.empty) {
+            console.warn(`[DEBUG] [ALL attachedUnit docs for call ${callId}] None found.`);
+            return;
         }
-
-        // Determine current dispatcher capability state
-        const currentSelfDispatchCapable = count < 1; // True when no dispatchers (self-dispatch), false when dispatchers online (managed)
-
-        // Update incident field for currently selected call based on dispatcher status
-        const incidentElement = document.querySelector('.incident');
-        if (incidentElement && window.selectedCall) {
-            // Always show call status in incident field (consistent with requirement)
-            incidentElement.textContent = `Incident: ${window.selectedCall.status || 'Unknown'}`;
-        }
-
-        // Only clear UI and transition states when switching between self-dispatch capabilities
-        if (previousDispatcherState !== null && previousDispatcherState !== currentSelfDispatchCapable) {
-            console.log(`Smart state transition: Self-dispatch capable changed from ${previousDispatcherState} to ${currentSelfDispatchCapable}`);
-
-            // Clear call details only on capability transition
-            if (window.selectedCall) {
-                window.selectedCall = null;
-
-                // Clear call details display
-                const callerNameElement = document.querySelector('.callerName');
-                const descriptionElement = document.querySelector('.descriptionText');
-                const locationElement = document.querySelector('.location');
-                const timestampElement = document.querySelector('.timestamp');
-                const attachedUnitsContainer = document.getElementById('attached-units-container');
-
-                if (callerNameElement) callerNameElement.textContent = '';
-                if (descriptionElement) descriptionElement.textContent = '';
-                if (locationElement) locationElement.textContent = '';
-                if (incidentElement) incidentElement.textContent = 'Incident: ';
-                if (timestampElement) timestampElement.textContent = '';
-                if (attachedUnitsContainer) attachedUnitsContainer.innerHTML = '';
-
-                // Remove selection highlighting
-                document.querySelectorAll('.call-card').forEach(card => {
-                    card.classList.remove('selected');
-                });
+        for (const docSnap of attachedUnitSnapshot.docs) {
+            const data = docSnap.data();
+            const unitID = data.unitID;
+            if (!unitID) {
+                console.warn(`[DEBUG] [attachedUnit] Missing unitID in doc`, docSnap.id, data);
+                continue;
             }
-        }
-
-        // Update calls container based on current state
-        if (currentSelfDispatchCapable) {
-            // Self-dispatch capable: Show calls list
-            const wasShowingDispatcherMessage = callsContainer && callsContainer.innerHTML.includes('There is an active dispatcher');
-
-            if (wasShowingDispatcherMessage || callsContainer.innerHTML === '') {
-                console.log('Transitioning to self-dispatch mode, loading calls list');
-                refreshCallsList();
-            }
-        } else {
-            // Not self-dispatch capable: Show dispatcher management message
-            if (callsContainer) {
-                callsContainer.innerHTML = '<div style="text-align: center; padding: 20px; font-size: 18px; color: #0288D1; font-weight: bold;">There is an active dispatcher online. Calls are being managed by dispatch.</div>';
-            }
-        }
-
-        // Update previous state for next comparison
-        previousDispatcherState = currentSelfDispatchCapable;
-
-    } catch (e) {
-        console.error('Error in updateDispatcherCount:', e);
-        // Fallback: show unknown
-        const counterDiv = document.getElementById('dispatcher-counter-display');
-        if (counterDiv) counterDiv.textContent = 'Active Dispatchers: ?';
-    }
-}
-
-// Real-time update with initial load
-const dispatchersRef2 = collection(db, 'dispatchers');
-onSnapshot(dispatchersRef2, (snapshot) => {
-    console.log('Dispatcher snapshot updated, count:', snapshot.size); // Debug log
-    updateDispatcherCount(snapshot);
-}, (error) => {
-    console.error('Error with dispatcher listener:', error);
-    const counterDiv = document.getElementById('dispatcher-counter-display');
-    if (counterDiv) counterDiv.textContent = 'Active Dispatchers: ?';
-});
-
-// Initial population of calls and setup real-time listener
-try {
-    const callsRef = collection(db, 'calls');
-    const q = query(callsRef, where('service', 'in', ['Ambulance', 'Multiple']));
-
-    // Set up real-time listener for calls (this will also handle initial load)
-    onSnapshot(q, (snapshot) => {
-        console.log('Calls snapshot received:', snapshot.docs.map(doc => doc.data()));
-
-        const calls = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-        if (calls.length === 0) {
-            console.warn('No calls available in snapshot.');
-        }
-
-        displayCalls(calls);
-    }, (error) => {
-        console.error('Error with calls listener:', error);
-        const callsContainer = document.getElementById('calls-container');
-        if (callsContainer) {
-            callsContainer.innerHTML = '<p style="color: red;">Error loading calls. Please try again later.</p>';
-        }
-    });
-} catch (error) {
-    console.error('Error setting up calls listener:', error);
-}
-
-// Add real-time listeners for attached units updates
-document.addEventListener("DOMContentLoaded", () => {
-    console.log('Initializing real-time listeners for attached units and unit status updates');
-
-    // Listen for changes in the "attachedUnits" collection
-    const attachedUnitsRef = collection(db, "attachedUnits");
-    onSnapshot(attachedUnitsRef, async () => {
-        try {
-            console.log('AttachedUnits collection updated, refreshing attached units display');
-
-            // Refresh attached units for all calls in the calls list
-            const callsContainer = document.getElementById('calls-container');
-            if (!callsContainer) return;
-
-            const callCards = callsContainer.querySelectorAll('.call-card');
-            for (const callCard of callCards) {
-                const callId = callCard.dataset.callId;
-                const attachedUnitsContainer = callCard.querySelector('.attached-units div');
-                if (callId && attachedUnitsContainer) {
-                    await renderAttachedUnitsForCall(callId, attachedUnitsContainer);
-                }
-            }
-
-            // Also refresh the selected call's attached units if one is selected
-            if (window.selectedCall) {
-                const attachedUnitsDetailsContainer = document.getElementById('attached-units-container');
-                if (attachedUnitsDetailsContainer) {
-                    await renderAttachedUnitsForSelectedCall(window.selectedCall.id, attachedUnitsDetailsContainer);
-                }
-            }
-        } catch (error) {
-            console.error("Error handling attachedUnits updates:", error);
-        }
-    }, (error) => {
-        console.error("Error listening for attachedUnits updates:", error);
-    });
-
-    // Listen for changes in the "units" collection to update unit status in real-time
-    const unitsRef = collection(db, "units");
-    onSnapshot(unitsRef, async () => {
-        try {
-            console.log('Units collection updated, refreshing attached units status display');
-
-            // Refresh attached units for all calls to show updated unit statuses
-            const callsContainer = document.getElementById('calls-container');
-            if (!callsContainer) return;
-
-            const callCards = callsContainer.querySelectorAll('.call-card');
-            for (const callCard of callCards) {
-                const callId = callCard.dataset.callId;
-                const attachedUnitsContainer = callCard.querySelector('.attached-units div');
-                if (callId && attachedUnitsContainer) {
-                    await renderAttachedUnitsForCall(callId, attachedUnitsContainer);
-                }
-            }
-
-            // Also refresh the selected call's attached units to show updated statuses
-            if (window.selectedCall) {
-                const attachedUnitsDetailsContainer = document.getElementById('attached-units-container');
-                if (attachedUnitsDetailsContainer) {
-                    await renderAttachedUnitsForSelectedCall(window.selectedCall.id, attachedUnitsDetailsContainer);
-                }
-            }
-        } catch (error) {
-            console.error("Error handling units status updates:", error);
-        }
-    }, (error) => {
-        console.error("Error listening for units updates:", error);
-    });
-
-    // Set up dynamic fade visibility based on scroll position
-    function setupFadeScrollHandler() {
-        const callsContainer = document.getElementById('calls-container');
-        if (!callsContainer) return;
-        // Select fade overlays as siblings of #calls-container
-        const fadeTop = callsContainer.previousElementSibling && callsContainer.previousElementSibling.classList.contains('calls-fade-top')
-            ? callsContainer.previousElementSibling : document.querySelector('.calls-fade-top');
-        const fadeBottom = callsContainer.nextElementSibling && callsContainer.nextElementSibling.classList.contains('calls-fade-bottom')
-            ? callsContainer.nextElementSibling : document.querySelector('.calls-fade-bottom');
-        if (!fadeTop || !fadeBottom) return;
-
-        function updateFadeVisibility() {
-            const { scrollTop, scrollHeight, clientHeight } = callsContainer;
-            const isAtTop = scrollTop <= 2; // Small threshold for precision
-            const isAtBottom = scrollTop >= scrollHeight - clientHeight - 2;
-            // Hide top fade when at the top
-            if (isAtTop) {
-                fadeTop.classList.add('hidden');
+            const unitRef = doc(db, "units", unitID);
+            const unitSnap = await getDoc(unitRef);
+            if (!unitSnap.exists()) {
+                console.warn(`[DEBUG] [attachedUnit] unitID ${unitID} does not exist in units collection.`);
             } else {
-                fadeTop.classList.remove('hidden');
-            }
-            // Hide bottom fade when at the bottom
-            if (isAtBottom) {
-                fadeBottom.classList.add('hidden');
-            } else {
-                fadeBottom.classList.remove('hidden');
+                console.log(`[DEBUG] [attachedUnit] unitID ${unitID} found. Unit data:`, unitSnap.data());
             }
         }
-        // Initial check
-        updateFadeVisibility();
-        // Listen for scroll events
-        callsContainer.addEventListener('scroll', updateFadeVisibility);
-        // Listen for content changes that might affect scroll
-        const observer = new MutationObserver(updateFadeVisibility);
-        observer.observe(callsContainer, { childList: true, subtree: true });
+    } catch (err) {
+        console.error(`[DEBUG] Error in debugLogAttachedUnitsForCall for callId ${callId}:`, err);
     }
-
-    // Initialize fade handler
-    setupFadeScrollHandler();
-});
-
-async function displayCalls(calls) {
-    const callsContainer = document.getElementById('calls-container');
-    if (!callsContainer) return;
-
-    callsContainer.innerHTML = ''; // Clear existing calls
-
-    if (calls.length === 0) {
-        console.log('No calls available to display.');
-        callsContainer.innerHTML = '<p>No calls available.</p>'; // Show a message if no calls are available
-        return;
-    }
-
-    console.log('Displaying calls:', calls); // Log the calls being displayed
-
-    // Sort calls by timestamp (newest first)
-    calls.sort((a, b) => {
-        const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
-        const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
-        return dateB - dateA; // Newest first
-    });
-
-    calls.forEach((call) => {
-        const callCard = document.createElement('div');
-        callCard.classList.add('call-card');
-        callCard.dataset.callId = call.id;
-
-        // Add comprehensive tooltip for the entire call card
-        const fullTimestamp = call.timestamp ? 
-            (call.timestamp.toDate ? call.timestamp.toDate() : new Date(call.timestamp)).toLocaleString('en-GB') : 'N/A';
-        const callCardTooltip = `Call ID: ${call.id} | Service: ${call.service || 'Unknown'} | Status: ${call.status || 'Unknown'} | Location: ${call.location || 'Unknown'} | Caller: ${call.callerName || 'Unknown'} | Time: ${fullTimestamp}`;
-        callCard.title = callCardTooltip;
-
-        const serviceColor = getUnitTypeColor(call.service);
-
-        // Format the timestamp for compact display
-        let formattedTimestamp = 'N/A';
-        if (call.timestamp) {
-            const timestamp = call.timestamp.toDate ? call.timestamp.toDate() : new Date(call.timestamp);
-            formattedTimestamp = timestamp.toLocaleTimeString('en-GB', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                day: '2-digit',
-                month: '2-digit',
-                year: '2-digit' 
-            });
-        }
-
-        callCard.innerHTML = `
-            <div class="call-service-section" title="Service: ${call.service || 'Unknown'} | Location: ${call.location || 'Location not provided'}">
-                <div class="call-service" style="background-color: ${serviceColor};">${(call.service || 'UNK').substring(0, 3).toUpperCase()}</div>
-                <div class="call-location-under-service">${call.location || 'Location not provided'}</div>
-            </div>
-            <div class="call-status-caller-container" title="Status: ${call.status || 'Unknown'} | Caller: ${call.callerName || 'Unknown'}">
-                <div class="call-status">${call.status || 'Unknown'}</div>
-                <div class="caller-name">${call.callerName || 'Unknown'}</div>
-            </div>
-            <div class="attached-units-compact" title="Attached Units"></div>
-            <div class="call-timestamp" title="Call Time: ${formattedTimestamp}">${formattedTimestamp}</div>
-        `;        // Attach click event listener to select the call
-        callCard.addEventListener('click', () => selectCall(call));
-
-        callsContainer.appendChild(callCard);
-
-        // Render attached units for this call in compact format
-        const attachedUnitsContainer = callCard.querySelector('.attached-units-compact');
-        if (attachedUnitsContainer) {
-            renderAttachedUnitsForCallCompact(call.id, attachedUnitsContainer);
-        }
-    });
 }
 
-// Function to render attached units for a specific call in compact format with unit cards
 async function renderAttachedUnitsForCallCompact(callId, container) {
     if (!container) return;
 
@@ -1256,8 +987,7 @@ async function renderAttachedUnitsForCallCompact(callId, container) {
     }
     container.dataset.rendering = 'true';
 
-    container.innerHTML = ''; // Clear existing content
-
+    container.innerHTML = ''; // Clear existing content    
     try {
         const attachedUnitQuery = query(
             collection(db, "attachedUnits"),
@@ -1285,7 +1015,7 @@ async function renderAttachedUnitsForCallCompact(callId, container) {
             const unitSnap = await getDoc(unitRef);
 
             if (!unitSnap.exists()) {
-                console.warn(`Unit with ID ${unitID} not found.`);
+                console.warn(`Unit with ID ${unitID} not found in units collection.`);
                 continue;
             }
 
@@ -1419,7 +1149,83 @@ async function renderAttachedUnitsForSelectedCall(callId, container) {
     }
 }
 
-// Function to handle call selection and update call details display
+// Function to display calls in the ambulance interface
+async function displayCalls(calls) {
+    console.log('[DEBUG] displayCalls called with', calls.length, 'calls');
+    
+    const callsContainer = document.getElementById('calls-container');
+    if (!callsContainer) {
+        console.error('Calls container not found');
+        return;
+    }
+
+    callsContainer.innerHTML = ''; // Clear existing calls
+
+    if (calls.length === 0) {
+        callsContainer.innerHTML = '<p>No calls available.</p>'; // Show a message if no calls are available
+        return;
+    }    // Sort calls by timestamp (newest first)
+    calls.sort((a, b) => {
+        const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
+        const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
+        return dateB - dateA; // Newest first
+    });
+
+    calls.forEach((call) => {
+        const callCard = document.createElement('div');
+        callCard.classList.add('call-card');
+        callCard.dataset.callId = call.id;        const serviceColor = getUnitTypeColor(call.service);
+        
+        // Get first 3 letters of service for display
+        const serviceAbbrev = (call.service || 'SVC').substring(0, 3).toUpperCase();
+        
+        // Format the timestamp for compact display (time on one line, date on another)
+        let formattedTimestamp = 'Unknown';
+        if (call.timestamp) {
+            const timestamp = call.timestamp.toDate ? call.timestamp.toDate() : new Date(call.timestamp);
+            const timeStr = timestamp.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+            const dateStr = timestamp.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' });
+            formattedTimestamp = `${timeStr}<br>${dateStr}`;
+        }        callCard.innerHTML = `
+            <div class="call-info">
+                <div class="call-service-section" style="background-color: ${serviceColor};" 
+                     title="Service: ${call.service || 'Service not provided'}">
+                    ${serviceAbbrev}
+                </div>
+                <div class="call-status-section">
+                    <div class="call-status" title="Call Type: ${call.status || 'Awaiting Dispatch'}">${call.status || 'Awaiting Dispatch'}</div>
+                    <div class="caller-name" title="Caller: ${call.callerName || 'Unknown'}">${call.callerName || 'Unknown'}</div>
+                    <div class="call-location" title="Location: ${call.location || 'Location not provided'}">${call.location || 'Location not provided'}</div>
+                </div>
+            </div>
+            <div class="call-end-section">
+                <div class="attached-units-section">
+                    <div class="attached-units-compact" id="attached-units-${call.id}">
+                        <!-- Placeholder for attached units -->
+                    </div>
+                </div>
+                <div class="call-timestamp" title="Call Time: ${call.timestamp ? (call.timestamp.toDate ? call.timestamp.toDate() : new Date(call.timestamp)).toLocaleString('en-GB') : 'Unknown'}">${formattedTimestamp}</div>
+            </div>
+        `;
+
+        // Attach click event listener to select the call
+        callCard.addEventListener('click', () => selectCall(call));
+
+        callsContainer.appendChild(callCard);
+
+        // Render attached units for this call using the compact version (async operation)
+        const attachedUnitsContainer = document.getElementById(`attached-units-${call.id}`);
+        if (attachedUnitsContainer) {
+            renderAttachedUnitsForCallCompact(call.id, attachedUnitsContainer).catch(error => {
+                console.error(`Error rendering attached units for call ${call.id}:`, error);
+            });
+        }
+    });
+
+    console.log('[DEBUG] displayCalls completed, rendered', calls.length, 'call cards');
+}
+
+// Function to select a call and update the call details panel
 async function selectCall(call) {
     try {
         // Always fetch the latest call data from Firestore
@@ -1449,533 +1255,731 @@ async function selectCall(call) {
             const timestamp = latestCall.timestamp.toDate ? latestCall.timestamp.toDate() : new Date(latestCall.timestamp);
             timestampElement.textContent = `${timestamp.toLocaleTimeString('en-GB')} ${timestamp.toLocaleDateString('en-GB')}`;
         }
+        
         // Store selected call data for potential self-attach functionality
         window.selectedCall = latestCall;
+        
         // Set up real-time listener for the selected call
         if (window.setupSelectedCallListener) {
             window.setupSelectedCallListener(latestCall.id);
         }
+        
         // Render attached units for the selected call in call details section
         const attachedUnitsContainer = document.getElementById('attached-units-container');
         if (attachedUnitsContainer) {
-            await renderAttachedUnitsForSelectedCall(latestCall.id, attachedUnitsContainer);
+            await renderAttachedUnitsForSelectedCall(latestCall.id, attachedUnitsContainer).catch(e => console.error('Error rendering attached units for selected call', latestCall.id, e));
+        } else {
+            console.error('No attached-units-container found for selected call', latestCall.id);
         }
+        
         // Visual feedback - highlight selected call
         document.querySelectorAll('.call-card').forEach(card => {
             card.classList.remove('selected');
         });
+        
         // Find and highlight the clicked call card
         const selectedCard = document.querySelector(`[data-call-id="${latestCall.id}"]`);
         if (selectedCard) {
             selectedCard.classList.add('selected');
         }
+
+        // Dispatch custom event to notify that call details have changed
+        document.dispatchEvent(new CustomEvent('callDetailsChanged'));
+        
     } catch (error) {
         console.error('Error selecting call:', error);
         showNotification('Error selecting call', 'error');
     }
 }
 
-// Function to refresh call details for the currently selected call
-async function refreshSelectedCallDetails() {
-    if (!window.selectedCall) return;
+// Smart dispatcher state management - track previous state to only clear UI on capability transitions
+let previousDispatcherState = null; // null = unknown, true = self-dispatch capable, false = not self-dispatch capable
 
-    try {
-        // Get the latest call data from the database
-        const callDoc = await getDoc(doc(db, "calls", window.selectedCall.id));
-        if (!callDoc.exists()) {
-            console.log("Selected call no longer exists");
-            return;
-        }
-
-        // Update the stored selected call with latest data
-        const updatedCall = { id: callDoc.id, ...callDoc.data() };
-        window.selectedCall = updatedCall;
-
-        // Update call details in the UI
-        const callerNameElement = document.querySelector('.callerName');
-        const descriptionElement = document.querySelector('.descriptionText');
-        const locationElement = document.querySelector('.location');
-        const incidentElement = document.querySelector('.incident');
-        const timestampElement = document.querySelector('.timestamp');
-
-        if (callerNameElement) {
-            callerNameElement.textContent = updatedCall.callerName || 'Unknown';
-        }
-
-        if (descriptionElement) {
-            descriptionElement.textContent = updatedCall.description || 'No description provided';
-        }
-
-        if (locationElement) {
-            locationElement.textContent = updatedCall.location || 'Location not provided';
-        }
-          // Update incident field with call status
-        if (incidentElement) {
-            incidentElement.textContent = updatedCall.status || 'Unknown';
-        }
-
-        if (timestampElement && updatedCall.timestamp) {
-            const timestamp = updatedCall.timestamp.toDate ? updatedCall.timestamp.toDate() : new Date(updatedCall.timestamp);
-            timestampElement.textContent = `${timestamp.toLocaleTimeString('en-GB')} ${timestamp.toLocaleDateString('en-GB')}`;
-        }
-
-        // Refresh attached units for the selected call
-        const attachedUnitsContainer = document.getElementById('attached-units-container');
-        if (attachedUnitsContainer) {
-            await renderAttachedUnitsForSelectedCall(updatedCall.id, attachedUnitsContainer);
-        }
-
-    } catch (error) {
-        console.error('Error refreshing selected call details:', error);
-    }
-}
-
-// Function to save call details for the selected call
-async function saveSelectedCallDetails() {
-    if (!window.selectedCall || !window.selectedCall.id) {
-        showNotification("No call selected to save.", "error");
-        return;
-    }
-    const callId = window.selectedCall.id;
-    const description = document.querySelector(".descriptionText")?.value.trim();
-    if (!description) {
-        showNotification("Description cannot be empty.", "error");
-        return;
-    }
-    try {
-        await updateDoc(doc(db, "calls", callId), { description });
-        showNotification("Call details saved!", "success");
-        await refreshSelectedCallDetails();
-    } catch (error) {
-        showNotification("Failed to save call details.", "error");
-        console.error("Error saving call details:", error);
-    }
-}
-
-// Attach event listener to the Save Details button in call details section
-function setupCallDetailsSaveButton() {
-    const btn = document.querySelector(".save-details-btn");
-    if (btn) {
-        btn.addEventListener("click", saveSelectedCallDetails);
-    }
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-    setupCallDetailsSaveButton();
+// Real-time update with initial load
+const dispatchersRef2 = collection(db, 'dispatchers');
+onSnapshot(dispatchersRef2, (snapshot) => {
+    console.log('Dispatcher snapshot updated, count:', snapshot.size); // Debug log
+    updateDispatcherCount(snapshot);
+}, (error) => {
+    console.error('Error with dispatcher listener:', error);
+    const counterDiv = document.getElementById('dispatcher-counter-display');
+    if (counterDiv) counterDiv.textContent = 'Active Dispatchers: ?';
 });
 
-// Attach event listeners
+// Initial population of calls and setup real-time listener
+try {
+    const callsRef = collection(db, 'calls');
+    const q = query(callsRef, where('service', 'in', ['Ambulance', 'Multiple']));
+
+    // Set up real-time listener for calls (this will also handle initial load)
+    onSnapshot(q, (snapshot) => {
+        console.log('Calls snapshot received:', snapshot.docs.map(doc => doc.data()));
+
+        const calls = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        if (calls.length === 0) {
+            console.warn('No calls available in snapshot.');
+        }
+
+        displayCalls(calls);
+    }, (error) => {
+        console.error('Error with calls listener:', error);
+        const callsContainer = document.getElementById('calls-container');
+        if (callsContainer) {
+            callsContainer.innerHTML = '<p style="color: red;">Error loading calls. Please try again later.</p>';
+        }
+    });
+} catch (error) {
+    console.error('Error setting up calls listener:', error);
+}
+
+// Add real-time listeners for attached units updates
 document.addEventListener("DOMContentLoaded", () => {
-    // Instead, use openSetupModal to show the modal on page load if needed:
-    openSetupModal();
-
-    // Populate character slots
-    populateCharacterSlots();
-
-    // Attach event listener to the "Load Saved Character" button
-    const loadCharacterBtn = document.getElementById("load-character-btn");
-    if (loadCharacterBtn) {
-        loadCharacterBtn.addEventListener("click", loadCharacterFromSlot);
-    } else {
-        console.error("Load Character button not found.");
-    }
-
-    // Attach event listener to the "Save Details" button
-    const saveDetailsBtn = document.getElementById("save-details-btn");
-    if (saveDetailsBtn) {
-        saveDetailsBtn.addEventListener("click", saveDetails);
-    } else {
-        console.error("Save Details button not found.");
-    }
-
-    // Display current IDs
-    displayCurrentIDs();
-
-    const statusButtons = [
-        "Available",
-        "En Route",
-        "On Scene",
-        "Unavailable",
-        "Busy",
-        "Meal Break",
-        "On Duty",
-        "Transporting To Hospital",
-        "Going To Base",
-        "Go To Standby"
-    ];
-
-    document.querySelectorAll(".status-buttons button").forEach((btn) => {
-        btn.addEventListener("click", async (event) => {
-            const status = btn.getAttribute("data-status");
-            const unitId = sessionStorage.getItem("unitId");
-            if (!unitId || unitId === "None") {
-                showNotification("No valid UnitID found. Cannot change status.", "error");
-                return;
-            }
-
-            // --- Check if unit is in availableUnits or attachedUnit, add to availableUnits if not ---
-            try {
-                // Check attachedUnit (unitID)
-                let isAttached = false;
-                const attachedUnitsSnap = await getDocs(collection(db, "attachedUnit"));
-                for (const docSnap of attachedUnitsSnap.docs) {
-                    const data = docSnap.data();
-                    if (data.unitID === unitId) {
-                        isAttached = true;
-                        break;
+    console.log('Initializing real-time listeners for attached units and unit status updates');    // Listen for changes in the "attachedUnit" collection (singular)
+    const attachedUnitRef = collection(db, "attachedUnit");
+    onSnapshot(attachedUnitRef, async (snapshot) => {
+        try {
+            console.log('AttachedUnit collection updated, refreshing attached units display');
+            
+            // Check if current user's unit is involved in any changes for sound logic
+            const currentUnitId = sessionStorage.getItem('unitId');
+            let currentUserInvolved = false;
+            
+            if (currentUnitId && snapshot.docChanges) {
+                snapshot.docChanges().forEach(change => {
+                    const data = change.doc.data();
+                    if (data.unitID === currentUnitId) {
+                        currentUserInvolved = true;
+                        // Only play sound if this is not the user's own action (they already heard it)
+                        if (change.type === 'added' || change.type === 'removed') {
+                            // Don't play sound here - it's handled by the Self Attach button
+                        }
                     }
-                }
-                // Check availableUnits (unitId)
-                let isAvailable = false;
-                const availableUnitsSnap = await getDocs(collection(db, "availableUnits"));
-                for (const docSnap of availableUnitsSnap.docs) {
-                    const data = docSnap.data();
-                    if (data.unitId === unitId) {
-                        isAvailable = true;
-                        break;
-                    }
-                }
-                // If not attached and not available, add to availableUnits
-                if (!isAttached && !isAvailable) {
-                    await addDoc(collection(db, "availableUnits"), { unitId });
-                }
-            } catch (e) {
-                // Optionally log or notify error, but don't block status change
-                console.warn("Error checking/adding to availableUnits:", e);
+                });
             }
 
-            // --- At Hospital button logic (must come BEFORE Transporting To Hospital logic) ---
-            if (status === "At Hospital") {
-                // Use stored hospital info from button dataset
-                const location = btn.dataset.hospitalLocation || "Unknown";
-                const transportType = btn.dataset.hospitalType || "Transport";
-                let newStatus = `At Hospital - ${location}`;
-                if (transportType === "Transport") {
-                    newStatus += " (Cleaning)";
-                } else if (transportType === "Standby") {
-                    newStatus += " (Standby)";
+            // Refresh attached units for all calls in the calls list
+            const callsContainer = document.getElementById('calls-container');
+            if (!callsContainer) return;
+
+            const callCards = callsContainer.querySelectorAll('.call-card');
+            for (const callCard of callCards) {
+                const callId = callCard.dataset.callId;
+                const attachedUnitsContainer = callCard.querySelector('.attached-units-compact');
+                if (callId && attachedUnitsContainer) {
+                    await renderAttachedUnitsForCallCompact(callId, attachedUnitsContainer);
                 }
-                try {
-                    await updateDoc(doc(db, "units", unitId), { status: newStatus });
-                    updateStatusGradientBar(newStatus);
-                    document.querySelectorAll(".status-buttons button").forEach(b => b.classList.remove("selected-status"));
-                    btn.classList.add("selected-status");
-                    showNotification(`Status changed to: ${newStatus}`, "success");
-                    // Reset button text and status for next use
-                    btn.textContent = "Transporting To Hospital";
-                    btn.setAttribute("data-status", "Transporting To Hospital");
-                    delete btn.dataset.hospitalLocation;
-                    delete btn.dataset.hospitalType;
-                    // Remove flashing from all buttons
-                    document.querySelectorAll(".status-buttons button").forEach(b => b.classList.remove("flashing"));
-                    // Update the status indicator
-                    updateStatusIndicator(newStatus);
-                    return;
-                } catch (e) {
-                    showNotification("Failed to update status.", "error");
+            }
+
+            // Also refresh the selected call's attached units if one is selected
+            if (window.selectedCall) {
+                const attachedUnitsDetailsContainer = document.getElementById('attached-units-container');
+                if (attachedUnitsDetailsContainer) {
+                    await renderAttachedUnitsForSelectedCall(window.selectedCall.id, attachedUnitsDetailsContainer);
                 }
-                return;
             }
-
-            // --- Transporting To Hospital button logic ---
-            if (status === "Transporting To Hospital") {
-                // Only open modal if we are not already in At Hospital mode
-                // (If At Hospital, the above block will handle it and return)
-                showHospitalModal(
-                    async (location, transportType) => {
-                        let newStatus;
-                        if (transportType === "Transport") {
-                            newStatus = `Transporting To Hospital - ${location}`;
-                        } else if (transportType === "Standby") {
-                            newStatus = `Going To Hospital - ${location}`;
-                        } else {
-                            showNotification("Invalid transport type selected.", "error");
-                            return;
-                        }
-                        try {
-                            await updateDoc(doc(db, "units", unitId), { status: newStatus });
-                            updateStatusGradientBar(newStatus);
-                            document.querySelectorAll(".status-buttons button").forEach(b => b.classList.remove("selected-status"));
-                            btn.classList.add("selected-status");
-                            // Save hospital info to button dataset for later
-                            btn.textContent = "At Hospital";
-                            btn.setAttribute("data-status", "At Hospital");
-                            btn.dataset.hospitalLocation = location;
-                            btn.dataset.hospitalType = transportType;
-                            // Remove flashing from all buttons before adding
-                            document.querySelectorAll(".status-buttons button").forEach(b => b.classList.remove("flashing"));
-                            // Flash the button
-                            btn.classList.add("flashing");
-                            showNotification(`Status changed to: ${newStatus}`, "success");
-                            // Update the status indicator
-                            updateStatusIndicator(newStatus);
-                        } catch (e) {
-                            showNotification("Failed to update status.", "error");
-                        }
-                    },
-                    () => {}
-                );
-                return;
-            }
-
-            // --- At Base button logic (must come BEFORE Going To Base logic) ---
-            if (status === "At Base") {
-                const baseLocation = btn.dataset.baseLocation || "Unknown";
-                const baseType = btn.dataset.baseType || "Standby";
-                let newStatus;
-                if (baseType === "Replenishing") {
-                    newStatus = `At Base - Replenishing at ${baseLocation}`;
-                } else {
-                    newStatus = `At Base - ${baseLocation}`;
-                }
-                try {
-                    await updateDoc(doc(db, "units", unitId), { status: newStatus });
-                    updateStatusGradientBar(newStatus);
-                    document.querySelectorAll(".status-buttons button").forEach(b => b.classList.remove("selected-status"));
-                    btn.classList.add("selected-status");
-                    showNotification(`Status changed to: ${newStatus}`, "success");
-                    // Reset button text and status for next use
-                    btn.textContent = "Going To Base";
-                    btn.setAttribute("data-status", "Going To Base");
-                    delete btn.dataset.baseLocation;
-                    delete btn.dataset.baseType;
-                    // Remove flashing from all buttons
-                    document.querySelectorAll(".status-buttons button").forEach(b => b.classList.remove("flashing"));
-                    // Update the status indicator
-                    updateStatusIndicator(newStatus);
-                    return;
-                } catch (e) {
-                    showNotification("Failed to update status.", "error");
-                }
-                return;
-            }
-
-            // --- Going To Base button logic ---
-            if (status === "Going To Base") {
-                showBaseModal(
-                    async (location, baseType) => {
-                        let newStatus;
-                        if (baseType === "Replenishing") {
-                            newStatus = `Going to Replenish at base - ${location}`;
-                        } else {
-                            newStatus = `Going To Base - ${location}`;
-                        }
-                        try {
-                            await updateDoc(doc(db, "units", unitId), { status: newStatus });
-                            updateStatusGradientBar(newStatus);
-                            document.querySelectorAll(".status-buttons button").forEach(b => b.classList.remove("selected-status"));
-                            // Remove flashing from all buttons before adding
-                            document.querySelectorAll(".status-buttons button").forEach(b => b.classList.remove("flashing"));
-                            btn.classList.add("selected-status");
-                            btn.textContent = "At Base";
-                            btn.setAttribute("data-status", "At Base");
-                            btn.dataset.baseLocation = location;
-                            btn.dataset.baseType = baseType;
-                            // Flash the button
-                            btn.classList.add("flashing");
-                            showNotification(`Status changed to: ${newStatus}`, "success");
-                            // Update the status indicator
-                            updateStatusIndicator(newStatus);
-                        } catch (e) {
-                            showNotification("Failed to update status.", "error");
-                        }
-                    },
-                    () => {}
-                );
-                return;
-            }
-
-            // --- At Standby button logic (must come BEFORE Go To Standby logic) ---
-            if (status === "At Standby") {
-                const standbyLocation = btn.dataset.standbyLocation || "Unknown";
-                let newStatus = `At Standby - ${standbyLocation}`;
-                try {
-                    await updateDoc(doc(db, "units", unitId), { status: newStatus });
-                    updateStatusGradientBar(newStatus);
-                    document.querySelectorAll(".status-buttons button").forEach(b => b.classList.remove("selected-status"));
-                    btn.classList.add("selected-status");
-                    showNotification(`Status changed to: ${newStatus}`, "success");
-                    // Reset button text and status for next use
-                    btn.textContent = "Go To Standby";
-                    btn.setAttribute("data-status", "Go To Standby");
-                    delete btn.dataset.standbyLocation;
-                    // Remove flashing from all buttons
-                    document.querySelectorAll(".status-buttons button").forEach(b => b.classList.remove("flashing"));
-                    // Update the status indicator
-                    updateStatusIndicator(newStatus);
-                    return;
-                } catch (e) {
-                    showNotification("Failed to update status.", "error");
-                }
-                return;
-            }
-
-            // --- Go To Standby button logic ---
-            if (status === "Go To Standby") {
-                showStandbyModal(
-                    async (location) => {
-                        let newStatus = `Going To Standby - ${location}`;
-                        try {
-                            await updateDoc(doc(db, "units", unitId), { status: newStatus });
-                            updateStatusGradientBar(newStatus);
-                            document.querySelectorAll(".status-buttons button").forEach(b => b.classList.remove("selected-status"));
-                            // Remove flashing from all buttons before adding
-                            document.querySelectorAll(".status-buttons button").forEach(b => b.classList.remove("flashing"));
-                            btn.classList.add("selected-status");
-                            btn.textContent = "At Standby";
-                            btn.setAttribute("data-status", "At Standby");
-                            btn.dataset.standbyLocation = location;
-                            // Flash the button
-                            btn.classList.add("flashing");
-                            showNotification(`Status changed to: ${newStatus}`, "success");
-                            // Update the status indicator
-                            updateStatusIndicator(newStatus);
-                        } catch (e) {
-                            showNotification("Failed to update status.", "error");
-                        }
-                    },
-                    () => {}
-                );
-                return;
-            }
-
-            // --- Refueling button logic ---
-            if (status === "Refueling") {
-                showRefuelModal(
-                    async (location) => {
-                        let newStatus = `Refueling - ${location}`;
-                        try {
-                            await updateDoc(doc(db, "units", unitId), { status: newStatus });
-                            updateStatusGradientBar(newStatus);
-                            document.querySelectorAll(".status-buttons button").forEach(b => b.classList.remove("selected-status"));
-                            document.querySelectorAll(".status-buttons button").forEach(b => b.classList.remove("flashing"));
-                            btn.classList.add("selected-status");
-                            btn.textContent = "Refueling";
-                            btn.setAttribute("data-status", "Refueling");
-                            btn.dataset.refuelLocation = location;
-                            // Show price modal (cannot be closed except by Save)
-                            showRefuelPriceModal(async (price) => {
-                                // Optionally, you could save the price somewhere (not specified)
-                                // After price is saved, set status to Available
-                                try {
-                                    await updateDoc(doc(db, "units", unitId), { status: "Available" });
-                                    updateStatusGradientBar("Available");
-                                    // Reset button text/status if needed
-                                    btn.textContent = "Refueling";
-                                    btn.setAttribute("data-status", "Refueling");
-                                    delete btn.dataset.refuelLocation;
-                                    document.querySelectorAll(".status-buttons button").forEach(b => b.classList.remove("selected-status"));
-                                    document.querySelector('button[data-status="Available"]').classList.add("selected-status");
-                                    showNotification("Status changed to: Available", "success");
-                                } catch (e) {
-                                    showNotification("Failed to update status.", "error");
-                                }
-                            });
-                        } catch (e) {
-                            showNotification("Failed to update status.", "error");
-                        }
-                    },
-                   
-                    () => {}
-                );
-                return;
-            }
-
-            // --- Handle En Route, On Scene, Unavailable, Busy, Meal Break, Available, etc. ---
-            if (
-                status === "En Route" ||
-                status === "On Scene" ||
-                status === "Unavailable" ||
-                status === "Busy" ||
-                status === "Meal Break" ||
-                status === "Available"
-                // ...add other statuses as needed
-            ) {
-                try {
-                    await updateDoc(doc(db, "units", unitId), { status });
-                    updateStatusGradientBar(status);
-                    document.querySelectorAll(".status-buttons button").forEach(b => {
-                        // If button was At Hospital, reset text/status
-                        if (b.getAttribute("data-status") === "At Hospital") {
-                            b.textContent = "Transporting To Hospital";
-                            b.setAttribute("data-status", "Transporting To Hospital");
-                            delete b.dataset.hospitalLocation;
-                            delete b.dataset.hospitalType;
-                        }
-                        // If button was At Base, reset text/status
-                        if (b.getAttribute("data-status") === "At Base") {
-                            b.textContent = "Going To Base";
-                            b.setAttribute("data-status", "Going To Base");
-                            delete b.dataset.baseLocation;
-                        }
-                        b.classList.remove("selected-status");
-                        // Remove flashing from all buttons
-                        b.classList.remove("flashing");
-                    });
-                    btn.classList.add("selected-status");
-                    showNotification(`Status changed to: ${status}`, "success");
-                    // Update the status indicator
-                    updateStatusIndicator(status);
-                } catch (e) {
-                    showNotification("Failed to update status.", "error");
-                }
-                return;
-            }
-
-            // ...existing code for other statuses...
-        });
+        } catch (error) {
+            console.error("Error handling attachedUnit updates:", error);
+        }
+    }, (error) => {
+        console.error("Error listening for attachedUnit updates:", error);
     });
 
-    // Close modal when overlay is clicked
-    document.getElementById('modal-overlay').addEventListener('click', closeSetupModal);
+    // Listen for changes in the "units" collection to update unit status in real-time
+    const unitsRef = collection(db, "units");
+    onSnapshot(unitsRef, async () => {
+        try {
+            console.log('Units collection updated, refreshing attached units status display');
 
-    // Attach event listener to the "Back to Home" button (main page)
-    const backHomeBtn = document.getElementById("back-home-btn");
-    if (backHomeBtn) {
-        backHomeBtn.addEventListener("click", handleBackToHome);
+            // Refresh attached units for all calls to show updated unit statuses
+            const callsContainer = document.getElementById('calls-container');
+            if (!callsContainer) return;            const callCards = callsContainer.querySelectorAll('.call-card');
+            for (const callCard of callCards) {
+                const callId = callCard.dataset.callId;
+                const attachedUnitsContainer = callCard.querySelector('.attached-units-compact');
+                if (callId && attachedUnitsContainer) {
+                    await renderAttachedUnitsForCallCompact(callId, attachedUnitsContainer);
+                }
+            }
+
+            // Also refresh the selected call's attached units to show updated statuses
+            if (window.selectedCall) {
+                const attachedUnitsDetailsContainer = document.getElementById('attached-units-container');
+                if (attachedUnitsDetailsContainer) {
+                    await renderAttachedUnitsForSelectedCall(window.selectedCall.id, attachedUnitsDetailsContainer);
+                }
+            }
+        } catch (error) {
+            console.error("Error handling units status updates:", error);
+        }
+    }, (error) => {
+        console.error("Error listening for units updates:", error);
+    });
+
+    // Set up dynamic fade visibility based on scroll position
+    function setupFadeScrollHandler() {
+        const callsContainer = document.getElementById('calls-container');
+        if (!callsContainer) return;
+        // Select fade overlays as siblings of #calls-container
+        const fadeTop = callsContainer.previousElementSibling && callsContainer.previousElementSibling.classList.contains('calls-fade-top')
+            ? callsContainer.previousElementSibling : document.querySelector('.calls-fade-top');
+        const fadeBottom = callsContainer.nextElementSibling && callsContainer.nextElementSibling.classList.contains('calls-fade-bottom')
+            ? callsContainer.nextElementSibling : document.querySelector('.calls-fade-bottom');
+        if (!fadeTop || !fadeBottom) return;
+
+        function updateFadeVisibility() {
+            const { scrollTop, scrollHeight, clientHeight } = callsContainer;
+            const isAtTop = scrollTop <= 2; // Small threshold for precision
+            const isAtBottom = scrollTop >= scrollHeight - clientHeight - 2;
+            // Hide top fade when at the top
+            if (isAtTop) {
+                fadeTop.classList.add('hidden');
+            } else {
+                fadeTop.classList.remove('hidden');
+            }
+            // Hide bottom fade when at the bottom
+            if (isAtBottom) {
+                fadeBottom.classList.add('hidden');
+            } else {
+                fadeBottom.classList.remove('hidden');
+            }
+        }
+        // Initial check
+        updateFadeVisibility();
+        // Listen for scroll events
+        callsContainer.addEventListener('scroll', updateFadeVisibility);        // Listen for content changes that might affect scroll
+        const observer = new MutationObserver(updateFadeVisibility);
+        observer.observe(callsContainer, { childList: true, subtree: true });
     }
-
-    // Set initial gradient bar color to match initial status (Unavailable/red by default, no animation)
-    const initialBtn = document.querySelector(".status-buttons button.selected-status");
-    if (initialBtn) {
-        updateStatusGradientBar(initialBtn.getAttribute("data-status"), false);
-    } else {
-        updateStatusGradientBar("Unavailable", false);
-    }
-
-    // Set initial status indicator to Unavailable (deep red)
-    const indicator = document.getElementById("current-status-indicator");
-    if (indicator) {
-        indicator.textContent = "Unavailable";
-        indicator.style.background = "#D32F2F";
-        indicator.style.color = "#fff";
-    }
-});
-
-window.addEventListener("unload", () => {
-    removeUnitandCharacter();
-});
-
-window.addEventListener("beforeunload", (event) => {
-    // Call removeUnitandCharacter without await (browser will not wait for async)
-    removeUnitandCharacter();
-});
-
-// Log all click events at the document level for robust debugging
-window.addEventListener('click', function(e) {
-    console.log('[DEBUG] Document click event:', e.target, 'tag:', e.target.tagName, 'data-status:', e.target.getAttribute && e.target.getAttribute('data-status'));
-});
-
-document.addEventListener('DOMContentLoaded', () => {
-    // Log the structure of status-buttons and its children
-    const statusButtonsContainer = document.querySelector('.status-buttons');
-    if (statusButtonsContainer) {
-        console.log('[DEBUG] .status-buttons container found:', statusButtonsContainer);
-        const buttons = statusButtonsContainer.querySelectorAll('button');
-        buttons.forEach(btn => {
-            console.log('[DEBUG] Status button:', btn, 'data-status:', btn.getAttribute('data-status'), 'id:', btn.id, 'class:', btn.className);
+    
+    // Initialize fade handler
+    setupFadeScrollHandler();
+    
+    // Initialize self attach/detach button
+    setupSelfAttachButton();
+    
+    // Set up Load Saved Character button event listener
+    const loadCharacterBtn = document.getElementById('load-character-btn');
+    if (loadCharacterBtn) {
+        loadCharacterBtn.addEventListener('click', function() {
+            loadCharacterFromSlot();
         });
-    } else {
-        console.warn('[DEBUG] .status-buttons container NOT found');
     }
+    
+    // Set up Save Details button event listener (in modal)
+    const saveDetailsBtn = document.getElementById('save-details-btn');
+    if (saveDetailsBtn) {
+        saveDetailsBtn.addEventListener('click', function() {
+            saveDetails();
+        });
+    }
+      // Populate character slots on page load
+    populateCharacterSlots();
+      // Set up status button event listeners
+    setupStatusButtons();
+    
+    // Set up panic button event listener
+    setupPanicButton();
 });
+
+// Function to set up status button event listeners
+function setupStatusButtons() {
+    const statusButtons = document.querySelectorAll('.status-buttons button[data-status]');
+    
+    statusButtons.forEach(button => {
+        button.addEventListener('click', async () => {
+            const status = button.getAttribute('data-status');
+            const currentStatus = await getCurrentUnitStatus();
+              // Handle dynamic button clicks
+            if (button.textContent === 'At Hospital') {
+                await handleAtHospitalClick(currentStatus);
+                return;
+            }
+            
+            if (button.textContent === 'At Base') {
+                await handleAtBaseClick();
+                return;
+            }
+            
+            if (button.textContent === 'At Standby') {
+                await handleAtStandbyClick();
+                return;
+            }
+            
+            // Handle special cases that require modals
+            if (status === 'Transporting To Hospital') {
+                showHospitalModal(
+                    (hospitalLocation, transportType) => {
+                        // Update status and show success message
+                        const fullStatus = `${status} - ${hospitalLocation} (${transportType})`;
+                        handleStatusChange(fullStatus);
+                        
+                        // Store hospital context for later use
+                        sessionStorage.setItem('currentHospital', hospitalLocation);
+                        sessionStorage.setItem('transportType', transportType);
+                        
+                        // Change the button to "At Hospital"
+                        updateTransportingButton();
+                    },
+                    () => {
+                        // User cancelled, do nothing
+                        console.log('Hospital selection cancelled');
+                    }
+                );
+                return;
+            }
+              if (status === 'Going To Base') {
+                showBaseModal(
+                    (baseLocation, baseType) => {
+                        const fullStatus = `${status} - ${baseLocation} (${baseType})`;
+                        handleStatusChange(fullStatus);
+                        
+                        // Store base context for later use
+                        sessionStorage.setItem('currentBase', baseLocation);
+                        sessionStorage.setItem('baseType', baseType);
+                        
+                        // Change the button to "At Base"
+                        updateBaseButton();
+                    },
+                    () => {
+                        console.log('Base selection cancelled');
+                    }
+                );
+                return;
+            }
+            
+            if (status === 'Go To Standby') {
+                showStandbyModal(
+                    (standbyLocation) => {
+                        const fullStatus = `${status} - ${standbyLocation}`;
+                        handleStatusChange(fullStatus);
+                        
+                        // Store standby context for later use
+                        sessionStorage.setItem('currentStandbyLocation', standbyLocation);
+                        
+                        // Change the button to "At Standby"
+                        updateStandbyButton();
+                    },
+                    () => {
+                        console.log('Standby selection cancelled');
+                    }
+                );
+                return;
+            }
+            
+            if (status === 'Refueling') {
+                showRefuelModal(
+                    (fuelLocation) => {
+                        handleStatusChange(`${status} - ${fuelLocation}`);
+                        showRefuelPriceModal((price) => {
+                            showNotification(`Refueling logged: ${price} at ${fuelLocation}`, "success");
+                        });
+                    },
+                    () => {
+                        console.log('Refuel location selection cancelled');
+                    }
+                );
+                return;
+            }
+            
+            // For all other statuses, update directly and reset any button modifications
+            await handleStatusChange(status);
+            resetButtonStates();
+        });
+    });
+}
+
+// Function to get current unit status from database
+async function getCurrentUnitStatus() {
+    const unitId = sessionStorage.getItem("unitId");
+    if (!unitId || unitId === "None") return null;
+    
+    try {
+        const unitRef = doc(db, "units", unitId);
+        const unitSnap = await getDoc(unitRef);
+        if (unitSnap.exists()) {
+            return unitSnap.data().status;
+        }
+    } catch (error) {
+        console.error("Error getting current status:", error);
+    }
+    return null;
+}
+
+// Function to handle "At Hospital" button click
+async function handleAtHospitalClick(currentStatus) {
+    const hospitalName = sessionStorage.getItem('currentHospital');
+    const transportType = sessionStorage.getItem('transportType');
+    
+    if (!hospitalName) {
+        showNotification("No hospital information found. Please select transport to hospital first.", "error");
+        return;
+    }
+    
+    let newStatus;
+    if (transportType === 'Transporting') {
+        newStatus = `At Hospital Cleaning - ${hospitalName}`;
+    } else if (transportType === 'Standby') {
+        newStatus = `At Hospital Standby - ${hospitalName}`;
+    } else {
+        // Default case if transport type is unclear
+        newStatus = `At Hospital Cleaning - ${hospitalName}`;
+    }
+    
+    await handleStatusChange(newStatus);
+    
+    // Reset the button back to "Transporting To Hospital"
+    resetTransportingButton();
+    
+    // Clear hospital context
+    sessionStorage.removeItem('currentHospital');
+    sessionStorage.removeItem('transportType');
+}
+
+// Function to update the transporting button to "At Hospital"
+function updateTransportingButton() {
+    const transportButton = document.querySelector('button[data-status="Transporting To Hospital"]');
+    if (transportButton) {
+        transportButton.textContent = 'At Hospital';
+        transportButton.style.backgroundColor = '#ff9800'; // Orange color to indicate different state
+        transportButton.classList.add('selected-status');
+    }
+}
+
+// Function to reset the transporting button back to original state
+function resetTransportingButton() {
+    const transportButton = document.querySelector('button[data-status="Transporting To Hospital"]');
+    if (transportButton) {
+        transportButton.textContent = 'Transporting To Hospital';
+        transportButton.style.backgroundColor = ''; // Reset to default
+        transportButton.classList.remove('selected-status');
+    }
+}
+
+// Function to handle "At Base" button click
+async function handleAtBaseClick() {
+    const baseName = sessionStorage.getItem('currentBase');
+    const baseType = sessionStorage.getItem('baseType');
+    
+    if (!baseName) {
+        showNotification("No base information found. Please select going to base first.", "error");
+        return;
+    }
+    
+    let newStatus;
+    if (baseType === 'Standby') {
+        newStatus = `At Base Standby - ${baseName}`;
+    } else if (baseType === 'Replenishing') {
+        newStatus = `At Base Replenishing - ${baseName}`;
+    } else {
+        newStatus = `At Base Standby - ${baseName}`;
+    }
+    
+    await handleStatusChange(newStatus);
+    
+    // Reset the button back to "Going To Base"
+    resetBaseButton();
+    
+    // Clear base context
+    sessionStorage.removeItem('currentBase');
+    sessionStorage.removeItem('baseType');
+}
+
+// Function to handle "At Standby" button click
+async function handleAtStandbyClick() {
+    const standbyLocation = sessionStorage.getItem('currentStandbyLocation');
+    
+    if (!standbyLocation) {
+        showNotification("No standby location found. Please select go to standby first.", "error");
+        return;
+    }
+    
+    const newStatus = `At Standby - ${standbyLocation}`;
+    await handleStatusChange(newStatus);
+    
+    // Reset the button back to "Go To Standby"
+    resetStandbyButton();
+    
+    // Clear standby context
+    sessionStorage.removeItem('currentStandbyLocation');
+}
+
+// Function to update the base button to "At Base"
+function updateBaseButton() {
+    const baseButton = document.querySelector('button[data-status="Going To Base"]');
+    if (baseButton) {
+        baseButton.textContent = 'At Base';
+        baseButton.style.backgroundColor = '#ff9800'; // Orange color to indicate different state
+        baseButton.classList.add('selected-status');
+    }
+}
+
+// Function to reset the base button back to original state
+function resetBaseButton() {
+    const baseButton = document.querySelector('button[data-status="Going To Base"]');
+    if (baseButton) {
+        baseButton.textContent = 'Going To Base';
+        baseButton.style.backgroundColor = ''; // Reset to default
+        baseButton.classList.remove('selected-status');
+    }
+}
+
+// Function to update the standby button to "At Standby"
+function updateStandbyButton() {
+    const standbyButton = document.querySelector('button[data-status="Go To Standby"]');
+    if (standbyButton) {
+        standbyButton.textContent = 'At Standby';
+        standbyButton.style.backgroundColor = '#ff9800'; // Orange color to indicate different state
+        standbyButton.classList.add('selected-status');
+    }
+}
+
+// Function to reset the standby button back to original state
+function resetStandbyButton() {
+    const standbyButton = document.querySelector('button[data-status="Go To Standby"]');
+    if (standbyButton) {
+        standbyButton.textContent = 'Go To Standby';
+        standbyButton.style.backgroundColor = ''; // Reset to default
+        standbyButton.classList.remove('selected-status');
+    }
+}
+
+// Function to reset all button states to default
+function resetButtonStates() {
+    resetTransportingButton();
+    resetBaseButton();
+    resetStandbyButton();
+    // Add other button resets here as needed
+}
+
+// Function to debug log all attached units
+async function debugLogAllAttachedUnits() {
+    try {
+        console.log('=== DEBUG: All Attached Units ===');
+        const attachedUnitsRef = collection(db, "attachedUnit");
+        const attachedUnitsSnapshot = await getDocs(attachedUnitsRef);
+        
+        if (attachedUnitsSnapshot.empty) {
+            console.log('No attached units found in database');
+            return;
+        }
+        
+        for (const docSnap of attachedUnitsSnapshot.docs) {
+            const data = docSnap.data();
+            console.log(`Attached Unit Doc ID: ${docSnap.id}`, data);
+            
+            // Also get the unit details for context
+            if (data.unitID) {
+                const unitRef = doc(db, "units", data.unitID);
+                const unitSnap = await getDoc(unitRef);
+                if (unitSnap.exists()) {
+                    console.log(`  -> Unit Details:`, unitSnap.data());
+                } else {
+                    console.warn(`  -> Unit ID ${data.unitID} not found in units collection`);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error in debugLogAllAttachedUnits:', error);
+    }
+}
+
+// Function to set up self attach button functionality
+function setupSelfAttachButton() {
+    const selfAttachBtn = document.getElementById('self-attach-btn');
+    if (!selfAttachBtn) {
+        console.warn('Self attach button not found');
+        return;
+    }
+    
+    selfAttachBtn.addEventListener('click', async function() {
+        const unitId = sessionStorage.getItem('unitId');
+        if (!unitId || unitId === 'None') {
+            showNotification('No valid Unit ID found. Cannot attach to call.', 'error');
+            return;
+        }
+        
+        if (!window.selectedCall) {
+            showNotification('No call selected. Please select a call first.', 'error');
+            return;
+        }
+        
+        try {
+            // Check if unit is already attached to this call
+            const attachedUnitQuery = query(
+                collection(db, "attachedUnit"),
+                where("unitID", "==", unitId),
+                where("callID", "==", window.selectedCall.id)
+            );
+            const existingAttachment = await getDocs(attachedUnitQuery);
+            
+            if (!existingAttachment.empty) {
+                showNotification('You are already attached to this call.', 'warning');
+                return;
+            }
+            
+            // Attach the unit to the selected call
+            await addDoc(collection(db, "attachedUnit"), {
+                unitID: unitId,
+                callID: window.selectedCall.id
+            });
+            
+            // Play sound for attachment
+            playSoundByKey('callupdate');
+            showNotification('Successfully attached to call!', 'success');
+            
+            // Refresh the attached units display
+            const attachedUnitsContainer = document.getElementById('attached-units-container');
+            if (attachedUnitsContainer) {
+                await renderAttachedUnitsForSelectedCall(window.selectedCall.id, attachedUnitsContainer);
+            }
+            
+        } catch (error) {
+            console.error('Error attaching to call:', error);
+            showNotification('Failed to attach to call. Please try again.', 'error');
+        }
+    });
+}
+
+// Function to update dispatcher count display
+function updateDispatcherCount(snapshot) {
+    const counterDiv = document.getElementById('dispatcher-counter-display');
+    
+    // Create the counter display if it doesn't exist
+    if (!counterDiv) {
+        const newCounterDiv = document.createElement('div');
+        newCounterDiv.id = 'dispatcher-counter-display';
+        newCounterDiv.style.position = 'fixed';
+        newCounterDiv.style.bottom = '20px';
+        newCounterDiv.style.right = '20px';
+        newCounterDiv.style.background = '#0288D1';
+        newCounterDiv.style.color = '#fff';
+        newCounterDiv.style.padding = '10px 20px';
+        newCounterDiv.style.borderRadius = '12px';
+        newCounterDiv.style.fontWeight = 'bold';
+        newCounterDiv.style.fontSize = '1em';
+        newCounterDiv.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
+        newCounterDiv.style.zIndex = '9998';
+        document.body.appendChild(newCounterDiv);
+    }
+    
+    const displayElement = document.getElementById('dispatcher-counter-display');
+    if (displayElement) {
+        if (snapshot && snapshot.size !== undefined) {
+            // Subtract 1 to exclude placeholder or self-count
+            const count = Math.max(0, snapshot.size - 1);
+            displayElement.textContent = `Active Dispatchers: ${count}`;
+        } else {
+            displayElement.textContent = 'Active Dispatchers: ?';
+        }
+    }
+}
+
+// Function to set up panic button event listener
+function setupPanicButton() {
+    const panicButton = document.querySelector('.panic-button');
+    
+    if (panicButton) {
+        panicButton.addEventListener('click', async () => {
+            const unitId = sessionStorage.getItem("unitId");
+            const civilianId = sessionStorage.getItem("civilianId");
+            
+            if (!unitId || unitId === "None") {
+                showNotification("No valid UnitID found. Cannot trigger panic.", "error");
+                return;
+            }
+            
+            try {
+                // Create panic alert in database
+                await addDoc(collection(db, "panicAlerts"), {
+                    unitId: unitId,
+                    civilianId: civilianId || "Unknown",
+                    timestamp: new Date(),
+                    status: "Active",
+                    location: "Unknown" // Could be enhanced to get GPS location
+                });
+                
+                // Update unit status to indicate panic
+                const unitRef = doc(db, "units", unitId);
+                await updateDoc(unitRef, { 
+                    status: "PANIC - Emergency Assistance Required",
+                    lastPanicTime: new Date()
+                });
+                
+                // Update UI
+                updateStatusIndicator("PANIC - Emergency Assistance Required");
+                
+                // Visual feedback - flash the button red
+                panicButton.style.backgroundColor = "#ff0000";
+                panicButton.style.color = "#ffffff";
+                panicButton.style.animation = "flash 1s infinite";
+                
+                // Play panic sound
+                playSoundByKey('panic');
+                
+                showNotification("PANIC ALERT ACTIVATED - Emergency services notified!", "error");
+                
+                // Reset button appearance after 5 seconds
+                setTimeout(() => {
+                    panicButton.style.backgroundColor = "";
+                    panicButton.style.color = "";
+                    panicButton.style.animation = "";
+                }, 5000);
+                
+            } catch (error) {
+                showNotification("Failed to send panic alert. Please try again.", "error");
+                console.error("Error sending panic alert:", error);
+            }
+        });
+    }
+}
+
+// Call this at startup for troubleshooting
+window.debugLogAllAttachedUnits = debugLogAllAttachedUnits;
+
+// Add global debug functions for browser console testing
+window.testAttachedUnits = async function() {
+    console.log('=== TESTING ALL ATTACHED UNITS ===');
+    await debugLogAllAttachedUnits();
+};
+
+window.testCallsData = async function() {
+    console.log('=== TESTING ALL CALLS DATA ===');
+    try {
+        const callsRef = collection(db, 'calls');
+        const snapshot = await getDocs(callsRef);
+        console.log('Total calls in database:', snapshot.size);
+        snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            console.log(`Call ID: ${doc.id}`, data);
+        });
+    } catch (err) {
+        console.error('Error fetching calls:', err);
+    }
+};
+
+window.testSpecificCallAttachedUnits = async function(callId) {
+    console.log(`=== TESTING ATTACHED UNITS FOR CALL ${callId} ===`);
+    await debugLogAttachedUnitsForCall(callId);
+};
+
+window.forceRenderAttachedUnits = async function() {
+    console.log('=== FORCE RENDERING ATTACHED UNITS FOR ALL CALLS ===');
+    const callsContainer = document.getElementById('calls-container');
+    if (!callsContainer) {
+        console.log('No calls container found');
+        return;
+    }
+    
+    const callCards = callsContainer.querySelectorAll('.call-card');
+    console.log('Found', callCards.length, 'call cards');
+    
+    for (const callCard of callCards) {
+        const callId = callCard.dataset.callId;
+        const attachedUnitsContainer = callCard.querySelector('.attached-units-compact');
+        if (callId && attachedUnitsContainer) {
+            console.log(`Force rendering for call ${callId}`);
+            await renderAttachedUnitsForCallCompact(callId, attachedUnitsContainer);
+        }
+    }
+};
