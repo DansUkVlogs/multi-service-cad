@@ -988,9 +988,8 @@ async function renderAttachedUnitsForCallCompact(callId, container) {
     container.dataset.rendering = 'true';
 
     container.innerHTML = ''; // Clear existing content    
-    try {
-        const attachedUnitQuery = query(
-            collection(db, "attachedUnits"),
+    try {        const attachedUnitQuery = query(
+            collection(db, "attachedUnit"),
             where("callID", "==", callId)
         );
         const attachedUnitSnapshot = await getDocs(attachedUnitQuery);
@@ -1076,9 +1075,8 @@ async function renderAttachedUnitsForSelectedCall(callId, container) {
 
     container.innerHTML = ''; // Clear existing content
 
-    try {
-        const attachedUnitQuery = query(
-            collection(db, "attachedUnits"),
+    try {        const attachedUnitQuery = query(
+            collection(db, "attachedUnit"),
             where("callID", "==", callId) // Fetch units attached to the specific call
         );
         const attachedUnitSnapshot = await getDocs(attachedUnitQuery);
@@ -1799,46 +1797,262 @@ function setupSelfAttachButton() {
             return;
         }
         
-        if (!window.selectedCall) {
-            showNotification('No call selected. Please select a call first.', 'error');
+        // Check current attachment state
+        const currentAttachment = await getCurrentAttachment(unitId);
+        
+        if (currentAttachment) {
+            // Unit is attached, so detach
+            await handleSelfDetach(unitId, currentAttachment.callID);
+        } else {
+            // Unit is not attached, so attach
+            await handleSelfAttach(unitId);
+        }
+    });
+    
+    // Initialize button state on setup
+    updateSelfAttachButtonState();
+}
+
+// Function to get current attachment for a unit
+async function getCurrentAttachment(unitId) {
+    try {
+        const attachedUnitQuery = query(
+            collection(db, "attachedUnit"),
+            where("unitID", "==", unitId)
+        );
+        const attachedUnitSnapshot = await getDocs(attachedUnitQuery);
+        
+        if (!attachedUnitSnapshot.empty) {
+            // Return the first attachment found
+            const doc = attachedUnitSnapshot.docs[0];
+            return {
+                docId: doc.id,
+                callID: doc.data().callID,
+                unitID: doc.data().unitID
+            };
+        }
+        return null;
+    } catch (error) {
+        console.error('Error checking current attachment:', error);
+        return null;
+    }
+}
+
+// Function to handle self attach
+async function handleSelfAttach(unitId) {
+    if (!window.selectedCall) {
+        showNotification('No call selected. Please select a call first.', 'error');
+        return;
+    }
+    
+    try {
+        // Check if unit is already attached to this specific call
+        const attachedUnitQuery = query(
+            collection(db, "attachedUnit"),
+            where("unitID", "==", unitId),
+            where("callID", "==", window.selectedCall.id)
+        );
+        const existingAttachment = await getDocs(attachedUnitQuery);
+        
+        if (!existingAttachment.empty) {
+            showNotification('You are already attached to this call.', 'warning');
             return;
         }
         
-        try {
-            // Check if unit is already attached to this call
-            const attachedUnitQuery = query(
-                collection(db, "attachedUnit"),
-                where("unitID", "==", unitId),
-                where("callID", "==", window.selectedCall.id)
-            );
-            const existingAttachment = await getDocs(attachedUnitQuery);
-            
-            if (!existingAttachment.empty) {
-                showNotification('You are already attached to this call.', 'warning');
-                return;
-            }
-            
-            // Attach the unit to the selected call
-            await addDoc(collection(db, "attachedUnit"), {
-                unitID: unitId,
-                callID: window.selectedCall.id
-            });
-            
-            // Play sound for attachment
-            playSoundByKey('callupdate');
-            showNotification('Successfully attached to call!', 'success');
-            
-            // Refresh the attached units display
+        // Check if unit is attached to any other call
+        const anyAttachment = await getCurrentAttachment(unitId);
+        if (anyAttachment) {
+            showNotification('You are already attached to another call. Please detach first.', 'warning');
+            return;
+        }
+        
+        // Attach the unit to the selected call
+        await addDoc(collection(db, "attachedUnit"), {
+            unitID: unitId,
+            callID: window.selectedCall.id
+        });
+        
+        // Store attachment info in session storage for quick access
+        sessionStorage.setItem('attachedCallId', window.selectedCall.id);
+        
+        // Play sound for attachment
+        playSoundByKey('callupdate');
+        showNotification('Successfully attached to call!', 'success');
+        
+        // Update button state
+        updateSelfAttachButtonState();
+        
+        // Lock call selection
+        lockCallSelection(true);
+        
+        // Refresh the attached units display
+        const attachedUnitsContainer = document.getElementById('attached-units-container');
+        if (attachedUnitsContainer) {
+            await renderAttachedUnitsForSelectedCall(window.selectedCall.id, attachedUnitsContainer);
+        }
+        
+    } catch (error) {
+        console.error('Error attaching to call:', error);
+        showNotification('Failed to attach to call. Please try again.', 'error');
+    }
+}
+
+// Function to handle self detach
+async function handleSelfDetach(unitId, callId) {
+    try {
+        // Find and remove the attachment document
+        const attachedUnitQuery = query(
+            collection(db, "attachedUnit"),
+            where("unitID", "==", unitId),
+            where("callID", "==", callId)
+        );
+        const attachedUnitSnapshot = await getDocs(attachedUnitQuery);
+        
+        if (attachedUnitSnapshot.empty) {
+            showNotification('No attachment found to remove.', 'warning');
+            return;
+        }
+        
+        // Delete the attachment document
+        for (const doc of attachedUnitSnapshot.docs) {
+            await deleteDoc(doc.ref);
+        }
+        
+        // Clear attachment info from session storage
+        sessionStorage.removeItem('attachedCallId');
+        
+        // Play sound for detachment
+        playSoundByKey('callupdate');
+        showNotification('Successfully detached from call!', 'success');
+        
+        // Update button state
+        updateSelfAttachButtonState();
+        
+        // Unlock call selection
+        lockCallSelection(false);
+        
+        // Refresh the attached units display if the call is still selected
+        if (window.selectedCall && window.selectedCall.id === callId) {
             const attachedUnitsContainer = document.getElementById('attached-units-container');
             if (attachedUnitsContainer) {
-                await renderAttachedUnitsForSelectedCall(window.selectedCall.id, attachedUnitsContainer);
+                await renderAttachedUnitsForSelectedCall(callId, attachedUnitsContainer);
             }
+        }
+        
+    } catch (error) {
+        console.error('Error detaching from call:', error);
+        showNotification('Failed to detach from call. Please try again.', 'error');
+    }
+}
+
+// Function to update self attach button state
+async function updateSelfAttachButtonState() {
+    const selfAttachBtn = document.getElementById('self-attach-btn');
+    if (!selfAttachBtn) return;
+    
+    const unitId = sessionStorage.getItem('unitId');
+    if (!unitId || unitId === 'None') {
+        selfAttachBtn.textContent = 'Self Attach';
+        selfAttachBtn.style.backgroundColor = '#4CAF50';
+        selfAttachBtn.style.color = 'white';
+        selfAttachBtn.disabled = true;
+        return;
+    }
+    
+    const currentAttachment = await getCurrentAttachment(unitId);
+    
+    if (currentAttachment) {
+        // Unit is attached
+        selfAttachBtn.textContent = 'Self Detach';
+        selfAttachBtn.style.backgroundColor = '#f44336';
+        selfAttachBtn.style.color = 'white';
+        selfAttachBtn.disabled = false;
+        
+        // Store for quick access
+        sessionStorage.setItem('attachedCallId', currentAttachment.callID);
+    } else {
+        // Unit is not attached
+        selfAttachBtn.textContent = 'Self Attach';
+        selfAttachBtn.style.backgroundColor = '#4CAF50';
+        selfAttachBtn.style.color = 'white';
+        selfAttachBtn.disabled = false;
+        
+        // Clear stored attachment
+        sessionStorage.removeItem('attachedCallId');
+    }
+}
+
+// Function to lock/unlock call selection
+function lockCallSelection(locked) {
+    const callCards = document.querySelectorAll('.call-card');
+    
+    callCards.forEach(card => {
+        if (locked) {
+            card.style.pointerEvents = 'none';
+            card.style.opacity = '0.6';
+            card.style.cursor = 'not-allowed';
             
-        } catch (error) {
-            console.error('Error attaching to call:', error);
-            showNotification('Failed to attach to call. Please try again.', 'error');
+            // Add locked indicator if not already present
+            if (!card.querySelector('.locked-indicator')) {
+                const lockedIndicator = document.createElement('div');
+                lockedIndicator.className = 'locked-indicator';
+                lockedIndicator.innerHTML = '🔒 Attached to Call';
+                lockedIndicator.style.cssText = `
+                    position: absolute;
+                    top: 5px;
+                    right: 5px;
+                    background: rgba(244, 67, 54, 0.9);
+                    color: white;
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    font-size: 10px;
+                    font-weight: bold;
+                    z-index: 10;
+                `;
+                card.style.position = 'relative';
+                card.appendChild(lockedIndicator);
+            }
+        } else {
+            card.style.pointerEvents = '';
+            card.style.opacity = '';
+            card.style.cursor = '';
+            
+            // Remove locked indicator
+            const lockedIndicator = card.querySelector('.locked-indicator');
+            if (lockedIndicator) {
+                lockedIndicator.remove();
+            }
         }
     });
+    
+    // Update calls container message
+    const callsContainer = document.getElementById('calls-container');
+    if (!callsContainer) return;
+    
+    let lockMessage = callsContainer.querySelector('.call-lock-message');
+    
+    if (locked) {
+        if (!lockMessage) {
+            lockMessage = document.createElement('div');
+            lockMessage.className = 'call-lock-message';
+            lockMessage.innerHTML = '⚠️ You are attached to a call. Call selection is locked. Use "Self Detach" to unlock.';
+            lockMessage.style.cssText = `
+                background: rgba(255, 193, 7, 0.9);
+                color: #856404;
+                padding: 10px;
+                margin: 10px 0;
+                border-radius: 8px;
+                font-weight: bold;
+                text-align: center;
+                border: 1px solid #ffc107;
+            `;
+            callsContainer.insertBefore(lockMessage, callsContainer.firstChild);
+        }
+    } else {
+        if (lockMessage) {
+            lockMessage.remove();
+        }
+    }
 }
 
 // Function to update dispatcher count display
@@ -1981,5 +2195,77 @@ window.forceRenderAttachedUnits = async function() {
             console.log(`Force rendering for call ${callId}`);
             await renderAttachedUnitsForCallCompact(callId, attachedUnitsContainer);
         }
+    }
+};
+
+// Collection name verification function for debugging
+window.verifyCollectionNames = function() {
+    console.log('=== COLLECTION NAME VERIFICATION ===');
+    console.log('Checking which collection name is being used in the ambulance interface...');
+    
+    // Test both collection names to see which one has data
+    Promise.all([
+        getDocs(collection(db, "attachedUnit")),
+        getDocs(collection(db, "attachedUnits"))
+    ]).then(([attachedUnitSnap, attachedUnitsSnap]) => {
+        console.log(`"attachedUnit" (singular) collection has ${attachedUnitSnap.size} documents`);
+        console.log(`"attachedUnits" (plural) collection has ${attachedUnitsSnap.size} documents`);
+        
+        if (attachedUnitSnap.size > 0) {
+            console.log('✅ The correct collection is "attachedUnit" (singular)');
+            console.log('Sample document from attachedUnit:', attachedUnitSnap.docs[0].data());
+        }
+        
+        if (attachedUnitsSnap.size > 0) {
+            console.log('⚠️ Found data in "attachedUnits" (plural) - this might be the wrong collection');
+            console.log('Sample document from attachedUnits:', attachedUnitsSnap.docs[0].data());
+        }
+        
+        if (attachedUnitSnap.size === 0 && attachedUnitsSnap.size === 0) {
+            console.log('ℹ️ No attached units found in either collection');
+        }
+    }).catch(console.error);
+};
+
+// Enhanced test function that checks rendering for a specific call
+window.testCallAttachedUnitsRendering = async function(callId) {
+    if (!callId) {
+        console.log('Please provide a callId. Usage: testCallAttachedUnitsRendering("your-call-id")');
+        return;
+    }
+    
+    console.log(`=== TESTING ATTACHED UNITS RENDERING FOR CALL ${callId} ===`);
+    
+    // Check if call exists
+    const callDoc = await getDoc(doc(db, "calls", callId));
+    if (!callDoc.exists()) {
+        console.error(`Call with ID ${callId} does not exist`);
+        return;
+    }
+    
+    console.log('Call exists:', callDoc.data());
+    
+    // Check attached units for this call
+    await debugLogAttachedUnitsForCall(callId);
+    
+    // Test rendering functions
+    const testContainer = document.createElement('div');
+    testContainer.id = 'test-container';
+    document.body.appendChild(testContainer);
+    
+    try {
+        console.log('Testing renderAttachedUnitsForCallCompact...');
+        await renderAttachedUnitsForCallCompact(callId, testContainer);
+        console.log('Compact rendering result:', testContainer.innerHTML);
+        
+        testContainer.innerHTML = '';
+        
+        console.log('Testing renderAttachedUnitsForSelectedCall...');
+        await renderAttachedUnitsForSelectedCall(callId, testContainer);
+        console.log('Selected call rendering result:', testContainer.innerHTML);
+    } catch (error) {
+        console.error('Error in rendering functions:', error);
+    } finally {
+        document.body.removeChild(testContainer);
     }
 };

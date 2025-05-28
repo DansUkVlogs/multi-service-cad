@@ -812,9 +812,9 @@ function listenForAvailableUnitsUpdates() {
 }
 
 function listenForAttachedUnitsUpdates() {
-    const attachedUnitsRef = collection(db, "attachedUnits");
+    const attachedUnitsRef = collection(db, "attachedUnit");
 
-    // Listen for changes in the "attachedUnits" collection
+    // Listen for changes in the "attachedUnit" collection
     onSnapshot(attachedUnitsRef, async () => {
         try {
             // Refresh attached units for all calls in the "All Calls" section
