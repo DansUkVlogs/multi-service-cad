@@ -3,11 +3,12 @@ body {
     font-family: Arial, sans-serif;
     margin: 0; 
     padding: 0;
-    background-color: #f4f4f4;
+    background: linear-gradient(135deg, #fef3c7 0%, #fbbf24 25%, #eab308 50%, #fbbf24 75%, #fef3c7 100%);
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
     align-items: center;
-    color: #555; /* Body text color */
+    color: #333; /* Darker body text color for better readability */
 }
 
 /* Header */
@@ -15,12 +16,39 @@ h1 {
     text-align: center;
     margin: 20px 0;
     font-size: 2.5em;
-    color: #000; /* Header color */
+    color: #92400e;
+    text-shadow: 2px 2px 4px rgba(146, 64, 14, 0.3);
+    background: rgba(255, 255, 255, 0.9);
+    padding: 15px 30px;
+    border-radius: 12px;
+    border: 2px solid #eab308;
+    box-shadow: 0 6px 20px rgba(234, 179, 8, 0.2);
 }
 
-/* Ensure the header is positioned relative for the button */
+/* Header improvements */
 header {
     position: relative;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+header img {
+    transition: all 0.3s ease;
+}
+
+header img:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(234, 179, 8, 0.3);
+}
+
+/* Ensure the back-to-home button is properly positioned */
+.back-to-home {
+    position: absolute !important;
+    top: 50% !important;
+    right: 20px !important;
+    transform: translateY(-50%) !important;
+    margin: 0 !important;
 }
 
 /* Back to Home Button */
@@ -28,50 +56,140 @@ header {
     position: fixed; /* Position relative to the viewport */
     top: 20px; /* Distance from the top of the page */
     right: 20px; /* Distance from the right of the page */
-    padding: 10px 20px;
-    font-size: 1em;
+    padding: 12px 20px;
+    font-size: 1.1em;
     color: #fff;
-    background-color: #007bff;
+    background: linear-gradient(135deg, #92400e, #b45309);
     border: none;
-    border-radius: 4px;
+    border-radius: 10px;
     cursor: pointer;
     text-decoration: none;
     text-align: center;
-    transition: background-color 0.3s ease;
+    transition: all 0.3s ease;
     z-index: 1000; /* Ensure it stays above other elements */
+    box-shadow: 0 6px 20px rgba(146, 64, 14, 0.4);
+    font-weight: bold;
+    border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .back-to-home:hover {
-    background-color: #0056b3;
+    background: linear-gradient(135deg, #b45309, #92400e);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(146, 64, 14, 0.5);
+    border-color: rgba(255, 255, 255, 0.5);
 }
 
 /* Filter Section */
 .filters {
     margin: 20px 0;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 15px 25px;
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(234, 179, 8, 0.2);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .filters label {
     font-weight: bold;
+    color: #92400e;
+    text-shadow: 1px 1px 2px rgba(146, 64, 14, 0.2);
 }
 
 .filters select {
     margin-left: 10px;
-    padding: 5px;
+    padding: 8px 12px;
+    border: 2px solid #eab308;
+    border-radius: 8px;
+    background: white;
+    color: #333;
+    font-weight: bold;
+    transition: all 0.3s ease;
 }
 
-/* Calls List Container */
+.filters select:focus {
+    border-color: #fbbf24;
+    box-shadow: 0 0 15px rgba(234, 179, 8, 0.3);
+    outline: none;
+}
+
+/* Calls List Container - Enhanced for better horizontal scrollbar visibility */
 #callsListContainer {
     width: 100%;
     max-width: 1200px;
     margin-bottom: 20px;
+    height: 340px;
     overflow-x: auto; /* Enable horizontal scrolling */
-    white-space: nowrap; /* Prevent items from wrapping to the next line */
+    overflow-y: hidden; /* Hide vertical overflow */
+    border: 2px solid rgba(234, 179, 8, 0.3);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 6px 20px rgba(234, 179, 8, 0.2);
+    backdrop-filter: blur(10px);
+    padding: 8px 8px 20px 8px; /* Extra bottom padding for horizontal scrollbar */
+    position: relative;
+}
+
+/* Additional styling to make horizontal scrolling more obvious */
+#callsListContainer::before,
+#callsListContainer::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 40px;
+    background: linear-gradient(90deg, transparent, rgba(234, 179, 8, 0.3));
+    pointer-events: none;
+    z-index: 1;
+    transition: opacity 0.3s ease;
+}
+
+#callsListContainer::before {
+    left: 0;
+    background: linear-gradient(90deg, rgba(234, 179, 8, 0.3), transparent);
+}
+
+#callsListContainer::after {
+    right: 0;
+    background: linear-gradient(90deg, transparent, rgba(234, 179, 8, 0.3));
+}
+
+/* Hide indicators when not needed */
+#callsListContainer:not(.scrollable-left)::before,
+#callsListContainer:not(.scrollable-right)::after {
+    opacity: 0;
+}
+
+/* Pulse animation for scrollbar to draw attention */
+@keyframes scrollbar-pulse {
+    0%, 100% { 
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        transform: scaleY(1);
+    }
+    50% { 
+        box-shadow: 0 6px 16px rgba(234, 179, 8, 0.4);
+        transform: scaleY(1.1);
+    }
+}
+
+#callsListContainer ::-webkit-scrollbar-thumb {
+    /* ...existing code... */
+    animation: scrollbar-pulse 3s ease-in-out infinite;
 }
 
 .scrollable {
-    display: inline-flex; /* Align the items in a row */
-    gap: 20px;
-    padding: 20px 0;
+    display: flex; /* Horizontal flex layout */
+    flex-direction: row; /* Arrange call cards horizontally */
+    gap: 20px; /* Space between call cards */
+    padding: 12px;
+    min-width: max-content; /* Ensure content extends beyond container when needed */
+    background: transparent; /* Remove background since container has it */
+    border-radius: 0; /* Remove border radius since container has it */
+    border: none; /* Remove border since container has it */
+    box-shadow: none; /* Remove shadow since container has it */
+    backdrop-filter: none; /* Remove filter since container has it */
+    white-space: normal; /* Allow normal text wrapping */
 }
 
 /* Dispatch Container */
@@ -88,10 +206,12 @@ header {
 /* Call Details Section */
 .call-details {
     flex: 2;
-    background-color: #fff;
+    background: rgba(255, 255, 255, 0.95);
     padding: 20px;
-    border-radius: 12px; /* Rounded corners */
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 15px;
+    box-shadow: 0 8px 32px rgba(234, 179, 8, 0.3);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     width: 100%;
     margin-top: 20px;
     margin-bottom: 50px; /* Generous margin at the bottom */
@@ -99,19 +219,31 @@ header {
     overflow: visible; /* Allow the container to grow dynamically */
 }
 
+.call-details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #eab308;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
 .call-details h2 {
     margin-top: 0;
+    color: #eab308;
+    text-shadow: 1px 1px 3px rgba(234, 179, 8, 0.2);
 }
 
 .call-details h3 {
     margin-top: 15px;
     font-size: 1.2em;
-    color: #333;
+    color: #eab308;
 }
 
 .call-details p {
     font-size: 1.2em;
     margin: 5px 0;
+    color: #333;
 }
 
 .call-description {
@@ -119,38 +251,83 @@ header {
     height: 80px;
     margin-top: 5px;
     margin-bottom: 15px;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    padding: 12px;
+    border: 2px solid #eab308;
+    border-radius: 8px;
     font-size: 1em;
     resize: vertical;
+    transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.call-description:focus {
+    border-color: #fbbf24;
+    box-shadow: 0 0 15px rgba(234, 179, 8, 0.3);
+    outline: none;
+    background: white;
 }
 
 .call-type-dropdown {
     width: 100%;
     margin-top: 5px;
     margin-bottom: 15px;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    padding: 12px;
+    border: 2px solid #eab308;
+    border-radius: 8px;
     font-size: 1em;
-    background-color: #fff;
+    background: white;
+    transition: all 0.3s ease;
+}
+
+.call-type-dropdown:focus {
+    border-color: #fbbf24;
+    box-shadow: 0 0 15px rgba(234, 179, 8, 0.3);
+    outline: none;
+}
+
+/* Service dropdown styling - colors set by JavaScript using getUnitTypeColor */
+.service-card-dropdown {
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+}
+
+.service-card-dropdown:focus {
+  border-color: #eab308;
+  box-shadow: 0 0 15px rgba(234, 179, 8, 0.4);
+  outline: none;
 }
 
 #saveCallDetails {
     display: inline-block;
-    padding: 10px 20px;
+    padding: 12px 25px;
     font-size: 1em;
     color: #fff;
-    background-color: #007bff;
+    background: linear-gradient(135deg, #eab308, #fbbf24);
     border: none;
-    border-radius: 4px;
+    border-radius: 8px;
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    transition: all 0.3s ease;
+    font-weight: bold;
+    box-shadow: 0 4px 15px rgba(234, 179, 8, 0.3);
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 #saveCallDetails:hover {
-    background-color: #0056b3;
+    background: linear-gradient(135deg, #fbbf24, #eab308);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(234, 179, 8, 0.4);
+}
+
+/* Call status styling */
+#callStatus {
+  font-weight: bold;
+  color: #eab308;
+  text-shadow: 1px 1px 2px rgba(234, 179, 8, 0.2);
 }
 
 /* Attached Units in Call Details Section */
@@ -176,16 +353,19 @@ header {
     width: auto; /* Adjust width to fit content */
     max-width: 300px; /* Prevent units from being too wide */
     box-sizing: border-box; /* Include padding and border in width */
-    background-color: unset; /* Ensure no default background color is applied */
-    color: var(--text-color); /* Dynamically set text color */
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); /* Add a subtle shadow */
+    /* Background and color will be set by JavaScript based on status */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); /* Neutral shadow */
     cursor: pointer; /* Ensure cards are clickable */
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
 }
 
-/* Remove conflicting rules */
-.attached-unit {
-    background-color: unset; /* Reset any inherited or conflicting background color */
+.attached-unit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(234, 179, 8, 0.5);
 }
+
+/* Remove conflicting rules - allow JavaScript to control colors */
 
 /* Status Box for Attached Unit Cards */
 .attached-unit .unit-status {
@@ -196,7 +376,10 @@ header {
     font-weight: bold;
     text-align: center;
     margin-bottom: 10px;
-    color: white; /* Default text color */
+    /* Color will be inherited from parent or set by JavaScript */
+    background: rgba(255, 255, 255, 0.2); /* Semi-transparent white background */
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 /* Dispatch Actions */
@@ -205,35 +388,67 @@ header {
     display: flex;
     flex-direction: column;
     justify-content: top;
-    align-items: top;
+    align-items: center;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    box-shadow: 0 8px 32px rgba(234, 179, 8, 0.3);
+    backdrop-filter: blur(10px);
+    border: 2px solid #eab308;
+    margin: 0 10px;
+    min-height: 300px;
 }
 
 .dispatch-actions button {
-    background-color: #4CAF50;
+    background: linear-gradient(135deg, #eab308, #fbbf24);
     color: white;
-    padding: 10px;
+    padding: 15px 25px;
     border: none;
-    border-radius: 12px; /* Rounded corners */
-    margin: 10px 0;
+    border-radius: 12px;
+    margin: 15px 0;
     cursor: pointer;
-    font-size: 1.1em;
+    font-size: 1.2em;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    box-shadow: 0 6px 20px rgba(234, 179, 8, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    width: 200px;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .dispatch-actions button:hover {
-    background-color: #45a049;
+    background: linear-gradient(135deg, #fbbf24, #eab308);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(234, 179, 8, 0.5);
+    border-color: rgba(255, 255, 255, 0.5);
 }
 
 /* Close Call Button */
 .close-call-btn {
     display: none; /* Hide the button by default */
-    background-color: #f44336; /* Red background */
+    background: linear-gradient(135deg, #dc2626, #ef4444);
     color: white; /* White text */
     border: none;
     padding: 10px 15px;
     font-size: 14px;
     cursor: pointer;
-    border-radius: 5px;
+    border-radius: 8px;
     margin-left: auto; /* Align to the right */
+    font-weight: bold;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3);
+}
+
+.close-call-btn.show {
+    display: block; /* Show the button when the "show" class is added */
+}
+
+.close-call-btn:hover {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(220, 38, 38, 0.4);
 }
 
 .close-call-btn.show {
@@ -247,344 +462,148 @@ header {
 /* Available Units Section */
 .unit-browser {
     flex: 2;
-    background-color: #fff;
+    background: rgba(255, 255, 255, 0.95);
     padding: 20px;
-    border-radius: 12px; /* Rounded corners */
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 15px;
+    box-shadow: 0 8px 32px rgba(234, 179, 8, 0.3);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     width: 100%;
 }
 
 .unit-browser h2 {
     margin-top: 0;
+    color: #eab308;
+    text-shadow: 1px 1px 3px rgba(234, 179, 8, 0.2);
 }
 
 .unit-browser input,
 .unit-browser select {
-    padding: 8px;
+    padding: 10px 12px;
     margin-bottom: 20px;
     width: 100%;
     max-width: 300px;
-    border: 1px solid #ccc;
-    border-radius: 12px; /* Rounded corners */
+    border: 2px solid #eab308;
+    border-radius: 8px;
+    background: white;
+    transition: all 0.3s ease;
+    font-weight: bold;
 }
 
 .unit-browser input:focus,
 .unit-browser select:focus {
-    border-color: #4CAF50;
+    border-color: #fbbf24;
+    box-shadow: 0 0 15px rgba(234, 179, 8, 0.3);
     outline: none;
 }  
 
-/* Unit Cards */
+/* --- Slim, horizontal, organized unit card redesign (finalized for requirements) --- */
 .unit-card {
     display: flex;
-    flex-direction: column;
-    align-items: center; /* Center the text */
-    padding: 15px;
-    border-radius: 12px; /* Rounded corners */
-    font-size: 1em;
-    font-weight: bold;
-    text-align: center;
-    word-wrap: break-word; /* Wrap long text */
-    width: 100%; /* Ensure consistent width */
-    max-width: 300px; /* Prevent units from being too wide */
-    box-sizing: border-box; /* Include padding and border in width */
-    background-color: var(--unit-type-color); /* Dynamically set background color */
-    color: var(--text-color); /* Dynamically set text color */
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); /* Add a subtle shadow */
-    cursor: pointer; /* Ensure cards are clickable */
-    margin: 0 auto;
-}
-
-.unit-card:hover {
-    transform: scale(1.05);
-}
-
-.unit-card .status {
-    font-size: 16px;
-    font-weight: bold;
-    padding: 5px 0;
-    text-align: center;
-    border-radius: 5px;
-    margin-bottom: 10px;
-}
-
-.unit-card .unit-details {
-    font-size: 14px;
-    color: #555;
-    padding: 0;
-    margin-bottom: 5px;
-}
-
-.unit-card .unit-details span {
-    font-weight: bold;
-}
-
-.unit-card.available {
-    background-color: #d4edda;
-}
-
-.unit-card.unavailable {
-    background-color: #f8d7da;
-}
-
-.unit-card .status.available {
-    background-color: #28a745;
-    color: white;
-}
-
-.unit-card .status.unavailable {
-    background-color: #dc3545;
-    color: white;
-}
-
-.unit-card .status.off-duty {
-    background-color: #ffc107;
-    color: white;
-}
-
-/* Available Units List */
-#availableUnitsList {
-    display: flex;
-    flex-direction: column; /* Stack cards vertically */
-    align-items: center; /* Center the cards */
-    gap: 15px; /* Add spacing between cards */
-    width: 100%;
-}
-
-/* Unit Search */
-#unitSearch {
-    padding: 8px;
-    margin-bottom: 20px;
-    width: 100%;
-    max-width: 300px;
-    border: 1px solid #ccc;
-    border-radius: 12px; /* Rounded corners */
-}
-
-/* Status Container */
-.status-container {
-    padding: 5px;
-    border-radius: 4px;
-    margin-bottom: 10px;
-    text-align: center;
-    font-weight: bold;
-    color: white;
-  }
-
-.status-container.available {
-    background-color: #28a745;
-    color: white;
-}
-
-.status-container.unavailable {
-    background-color: #dc3545;
-    color: white;
-}
-
-.status-container.off-duty {
-    background-color: #ffc107;
-    color: white;
-}
-
-/* Call Type Box */
-.call-type-box {
-    background-color: #fff;
-    padding: 15px;
-    border-radius: 12px; /* Rounded corners */
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-    width: 100%;
-    margin-bottom: 20px;
-}
-
-.call-type-box h3 {
-    margin: 0;
-    font-size: 1.5em;
-    color: #000;
-}
-
-/* Date Issue Fix (Invalid Date) */
-.call-timestamp {
-    font-size: 1.1em;
-    color: #888;
-}
-
-/* Service Type Box - Added as per request */
-.service-type-box {
-    background-color: #fff;
-    padding: 15px;
-    border-radius: 12px; /* Rounded corners */
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-    width: 100%;
-    margin-bottom: 20px;
-}
-
-.service-type-box h3 {
-    margin: 0;
-    font-size: 1.5em;
-    color: #000;
-}
-
-.service-type-box p {
-    font-size: 1.1em;
-    margin: 5px 0;
-}
-
-/* Call Card - Service Box */
-.call-card {
-    display: inline-block; /* Makes each call card inline */
-    width: 300px; /* Set a fixed width for each card */
-    margin: 10px;
-    background-color: #fff;
-    border-radius: 12px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-    padding: 15px;
-    text-align: center;
-    transition: all 0.3s ease;
-}
-
-.call-card:hover {
-    transform: scale(1.05);
-}
-
-.call-info {
-    margin-top: 10px;
-}
-
-/* Service Box (inside the call card) */
-.call-service {
-    font-weight: bold;
-    padding: 5px;
-    text-align: center;
+    flex-direction: row;
+    align-items: center;
+    min-height: 38px;
+    padding: 6px 10px;
     border-radius: 8px;
-}
-
-/* Highlight selected call */
-.selected-call {
-    background-color: #f1f1f1;
-    border: 2px solid #4CAF50;
-}
-
-/* Fix Overflow in All Calls List */
-.call-card .call-status {
-    white-space: normal; /* Allow text wrapping */
-    overflow: hidden; /* Hide overflowing content */
-    text-overflow: ellipsis; /* Add ellipsis for long text */
-    word-wrap: break-word; /* Wrap long words */
-}
-
-/* Available Units Section */
-.unit-browser {
-    flex: 2;
-    background-color: #fff;
-    padding: 20px;
-    border-radius: 12px; /* Rounded corners */
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    font-size: 0.98em;
+    font-weight: 500;
+    text-align: left;
     width: 100%;
-}
-
-.unit-browser h2 {
-    margin-top: 0;
-}
-
-/* Unit Cards */
-.unit-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center; /* Center the text */
-    padding: 15px;
-    border-radius: 12px; /* Rounded corners */
-    font-size: 1em;
-    font-weight: bold;
-    text-align: center;
-    word-wrap: break-word; /* Wrap long text */
-    width: 100%; /* Ensure consistent width */
-    max-width: 300px; /* Prevent units from being too wide */
-    box-sizing: border-box; /* Include padding and border in width */
-    background-color: var(--unit-type-color); /* Dynamically set background color */
-    color: var(--text-color); /* Dynamically set text color */
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); /* Add a subtle shadow */
-    cursor: pointer; /* Ensure cards are clickable */
+    max-width: 420px;
+    box-sizing: border-box;
+    background-color: var(--unit-type-color, #f5f5f5);
+    color: var(--text-color, #222);
+    box-shadow: 0 1.5px 6px rgba(0,0,0,0.07);
+    margin: 4px 0;
+    gap: 12px;
+    cursor: pointer;
+    transition: box-shadow 0.2s, background 0.2s;
 }
 
 .unit-card:hover {
-    transform: scale(1.05);
+    box-shadow: 0 4px 16px rgba(234,179,8,0.18);
+    background: #fffbe7;
 }
 
-.unit-card .unit-status {
-    font-size: 16px;
-    font-weight: bold;
-    padding: 10px;
-    text-align: center;
-    border-radius: 5px;
-    margin-bottom: 10px;
-}
-
-.unit-card .unit-details {
-    font-size: 14px;
-    color: #555;
-    padding: 0;
-    margin-bottom: 5px;
-}
-
-.unit-card .unit-details span {
-    font-weight: bold;
-}
-
-/* Unit Status Styles */
-.unit-card.available {
-    background-color: #d4edda;
-}
-
-.unit-card.on-scene {
-    background-color: #d4edda;
-}
-
-.unit-card.unavailable {
-    background-color: #f8d7da;
-}
-
-.unit-card .unit-status.available {
-    background-color: #28a745;
-    color: white;
-}
-
-.unit-card .unit-status.unavailable {
-    background-color: #dc3545;
-    color: white;
-}
-
-.unit-card .unit-status.off-duty {
-    background-color: #ffc107;
-    color: white;
-}
-
-.attached-units-container {
-    display: flex;
-    overflow-x: auto;
-    padding: 10px 0;
-  }
-  
-  .attached-unit {
-    flex: 0 0 auto;
-    margin-right: 10px;
-    padding: 8px 12px;
-    border-radius: 4px;
-    color: white;
-    font-weight: bold;
-    background-color: grey;
-  }
-
-  #attachedUnits {
+.unit-card .unit-main {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 20px; 
-    }
+    gap: 0px;
+    min-width: 0;
+    flex: 0 0 auto;
+    margin-right: 10px;
+}
 
-    .selected-unit {
-        border: 5px solid darkgreen; /* Green border for selected unit */
-        background-color: #f1f1f1; /* Light background for selected unit */
-      }
+.unit-card .unit-service-abbr {
+    display: block;
+    font-weight: 800;
+    font-size: 1.18em;
+    padding: 2px 10px 2px 0;
+    border-radius: 6px;
+    letter-spacing: 1px;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.08);
+    min-width: 44px;
+    text-align: left;
+    color: #b45309;
+}
+
+.unit-card .unit-specific-type {
+    font-size: 1.18em;
+    color: #333; /* Changed from red to a neutral, readable color */
+    font-weight: 800;
+    margin-top: 8px;
+    margin-bottom: 0px;
+    white-space: nowrap;
+    text-align: left;
+    padding: 0 0 0 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    min-width: 90px;
+    align-self: flex-start;
+}
+
+.unit-card .unit-callsign-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fffbe7;
+    color: #b45309;
+    border: 2px solid #eab308;
+    border-radius: 8px;
+    font-weight: 900;
+    font-size: 1.12em;
+    padding: 4px 16px;
+    margin-bottom: 6px;
+    margin-top: 0;
+    letter-spacing: 1px;
+    box-shadow: 0 1px 4px rgba(234,179,8,0.10);
+    min-width: 90px;
+    align-self: center;
+}
+
+.unit-card .unit-status-label {
+    flex: 1 1 auto;
+    background: none;
+    color: #b45309;
+    border: 2.5px solid #b45309; /* Default border, will be overridden by status */
+    padding: 8px 0 8px 12px;
+    font-size: 0.85em; /* Decreased font size for status label */
+    font-weight: 800;
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(234,179,8,0.10);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    text-align: center;
+    min-width: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Remove the old .unit-type and .unit-details styles for unit cards */
+.unit-card .unit-type, .unit-card .unit-details { display: none !important; }
 
 /* Service Card */
 .service-card {
@@ -615,40 +634,169 @@ header {
 /* Service Dropdown Styled as a Card */
 .service-card-dropdown {
   display: inline-block;
-  padding: 6px 12px; /* Reduced padding for smaller size */
-  border-radius: 10px; /* Slightly smaller rounded corners */
-  font-size: 0.9em; /* Reduced font size */
+  padding: 8px 16px; /* Adjusted padding for better visibility */
+  border-radius: 10px;
+  font-size: 1em; /* Increased font size */
   font-weight: bold;
-  color: white;
   text-align: center;
-  background-color: gold; /* Default color for "Multiple" */
-  border: none;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  /* Background and color will be set by JavaScript using getUnitTypeColor */
+  border: 2px solid #ccc;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
   appearance: none; /* Remove default dropdown styling */
   cursor: pointer;
   width: auto;
+  transition: all 0.3s ease;
 }
 
-/* Service Dropdown Options */
-.service-card-dropdown option {
-  color: black; /* Ensure dropdown options are readable */
+.service-card-dropdown:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
 }
 
-/* Adjust dropdown color dynamically */
-.service-card-dropdown[data-service="Police"] {
-  background-color: #64B5F6; /* Light blue for Police */
+/* Service dropdown options will inherit colors from JavaScript */
+
+/* Empty state styling */
+#attachedUnits p,
+#availableUnitsList p {
+    color: #92400e;
+    font-style: italic;
+    text-align: center;
+    padding: 20px;
+    background: rgba(234, 179, 8, 0.1);
+    border-radius: 8px;
+    border: 2px dashed #eab308;
+    margin: 10px 0;
 }
 
-.service-card-dropdown[data-service="Fire"] {
-  background-color: #FF7043; /* Light red-orange for Fire */
+/* Improve general text readability */
+p, span, div {
+    color: inherit;
 }
 
-.service-card-dropdown[data-service="Ambulance"] {
-  background-color: #81C784; /* Light green for Ambulance */
+/* Ensure all headings are properly styled */
+h1, h2, h3, h4, h5, h6 {
+    color: #92400e;
 }
 
-.service-card-dropdown[data-service="Multiple"] {
-  background-color: gold; /* Gold for Multiple */
+/* Status indicators improvements */
+.unit-status, .status-container {
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+    font-weight: bold;
+}
+
+/* Call details text improvements */
+.call-details p strong {
+    color: #92400e;
+    font-weight: bold;
+}
+
+.call-details p span {
+    color: #333;
+    font-weight: 500;
+}
+
+/* --- All Calls List: Call Card Styles --- */
+.call-card {
+    display: inline-block;
+    vertical-align: top;
+    width: 300px;
+    min-height: 220px;
+    margin: 0 10px 0 0;
+    background: rgba(255,255,255,0.97);
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(234,179,8,0.18);
+    border: 2px solid #eab308;
+    padding: 18px 16px 16px 16px;
+    text-align: left;
+    transition: all 0.2s;
+    color: #333;
+    position: relative;
+    overflow: hidden;
+}
+
+.call-card:last-child {
+    margin-right: 0;
+}
+
+.call-card:hover {
+    box-shadow: 0 10px 32px rgba(234,179,8,0.28);
+    border-color: #fbbf24;
+    background: #fffbe7;
+    transform: translateY(-2px) scale(1.03);
+}
+
+.selected-call {
+    background: rgba(251,191,36,0.18) !important;
+    border: 3px solid #eab308 !important;
+    box-shadow: 0 8px 25px rgba(234,179,8,0.25) !important;
+    transform: scale(1.02);
+}
+
+.call-card .call-info {
+    margin-top: 0;
+    color: #333;
+    font-weight: 500;
+    font-size: 1em;
+}
+
+.call-card .call-service {
+    font-weight: bold;
+    padding: 8px 12px;
+    text-align: center;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    background: #eab308;
+    color: #fff;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.18);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+    font-size: 1.08em;
+    letter-spacing: 1px;
+}
+
+.call-card .caller-name,
+.call-card .call-location {
+    font-size: 1em;
+    margin: 2px 0;
+    color: #333;
+    font-weight: 500;
+}
+
+.call-card .call-status {
+    font-size: 1em;
+    font-weight: 600;
+    color: #b45309;
+    background: rgba(234,179,8,0.08);
+    padding: 6px 8px;
+    border-radius: 6px;
+    margin-top: 8px;
+    border-left: 4px solid #eab308;
+}
+
+.call-card .call-timestamp {
+    font-size: 0.98em;
+    color: #92400e;
+    margin-top: 6px;
+    margin-bottom: 0;
+}
+
+.call-card .attached-units-container {
+    margin-top: 10px;
+    padding: 6px 0 0 0;
+    border-top: 1px solid #eee;
+}
+
+/* Ensure horizontal scroll for calls list */
+#callsListContainer .scrollable {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    min-width: max-content;
+    padding: 12px 0 12px 8px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    white-space: normal;
 }
 
 /* Responsive adjustments */
@@ -671,6 +819,47 @@ header {
   #attachedUnits {
     align-items: center; /* Ensure cards are centered on smaller screens */
   }
+
+  .filters {
+    margin: 10px;
+    padding: 15px;
+  }
+  
+  .dispatch-container {
+    flex-direction: column;
+    gap: 15px;
+    margin: 10px;
+  }
+  
+  .call-details,
+  .unit-browser {
+    width: 100%;
+    margin: 0;
+  }
+  
+  .modal-content {
+    width: 90%;
+    margin: 5% auto;
+    padding: 20px;
+  }
+  
+  h1 {
+    font-size: 2em;
+  }
+}
+
+/* Smooth animations for all interactive elements */
+* {
+  transition: all 0.3s ease;
+}
+
+/* Enhanced focus states for accessibility */
+button:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.3);
+  outline: none;
 }
 
 /* Modal Styles */
@@ -683,21 +872,25 @@ header {
   width: 100%;
   height: 100%;
   overflow: auto;
-  background-color: rgba(0, 0, 0, 0.4); /* Black background with opacity */
+  background-color: rgba(234, 179, 8, 0.2); /* Yellow tinted background */
 }
 
 .modal-content {
-  background-color: #fff;
+  background: rgba(255, 255, 255, 0.95);
   margin: 10% auto; /* Center the modal */
-  padding: 20px;
-  border: 1px solid #888;
-  border-radius: 8px;
+  padding: 25px;
+  border: 2px solid #eab308;
+  border-radius: 15px;
   width: 50%; /* Adjust width as needed */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 15px 35px rgba(234, 179, 8, 0.3);
+  backdrop-filter: blur(10px);
 }
 
 .modal-content h2 {
   margin-top: 0;
+  color: #eab308;
+  text-align: center;
+  text-shadow: 1px 1px 3px rgba(234, 179, 8, 0.2);
 }
 
 .modal-content .form-group {
@@ -708,42 +901,180 @@ header {
   display: block;
   font-weight: bold;
   margin-bottom: 5px;
+  color: #eab308;
 }
 
 .modal-content .form-group input,
 .modal-content .form-group textarea,
 .modal-content .form-group select {
   width: 100%;
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  padding: 10px 12px;
+  border: 2px solid #eab308;
+  border-radius: 8px;
   font-size: 1em;
+  background: white;
+  transition: all 0.3s ease;
+}
+
+.modal-content .form-group input:focus,
+.modal-content .form-group textarea:focus,
+.modal-content .form-group select:focus {
+  border-color: #fbbf24;
+  box-shadow: 0 0 15px rgba(234, 179, 8, 0.3);
+  outline: none;
 }
 
 .modal-content .submit-call {
-  background-color: #007bff;
+  background: linear-gradient(135deg, #eab308, #fbbf24);
   color: white;
-  padding: 10px 20px;
+  padding: 12px 25px;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 1em;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(234, 179, 8, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  width: 100%;
+  margin-top: 10px;
 }
 
 .modal-content .submit-call:hover {
-  background-color: #0056b3;
+  background: linear-gradient(135deg, #fbbf24, #eab308);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(234, 179, 8, 0.4);
 }
 
 .modal-content .close {
-  color: #aaa;
+  color: #eab308;
   float: right;
   font-size: 28px;
   font-weight: bold;
   cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 .modal-content .close:hover,
 .modal-content .close:focus {
-  color: black;
+  color: #dc2626;
   text-decoration: none;
+  transform: scale(1.2);
+}
+
+/* Custom scrollbar for webkit browsers - Enhanced visibility */
+::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(234, 179, 8, 0.2);
+  border-radius: 8px;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #eab308, #fbbf24);
+  border-radius: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #fbbf24, #d97706);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+  transform: scale(1.05);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Enhanced horizontal scrollbar specifically for calls list */
+#callsListContainer ::-webkit-scrollbar {
+  width: 20px; /* Vertical scrollbar width (not used but good to have) */
+  height: 20px; /* Horizontal scrollbar height - made larger */
+}
+
+#callsListContainer ::-webkit-scrollbar-track {
+  background: rgba(234, 179, 8, 0.2);
+  border-radius: 12px;
+  border: 3px solid rgba(234, 179, 8, 0.1);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.15);
+  margin: 4px; /* Add margin for better visual separation */
+}
+
+#callsListContainer ::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, #eab308, #fbbf24, #eab308);
+  border-radius: 12px;
+  border: 3px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transition: all 0.3s ease;
+  min-width: 60px; /* Ensure thumb is wide enough to grab easily */
+  animation: scrollbar-pulse 3s ease-in-out infinite;
+}
+
+#callsListContainer ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, #fbbf24, #d97706, #fbbf24);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  transform: scaleY(1.2); /* Make it taller on hover for easier clicking */
+  border-color: rgba(255, 255, 255, 0.6);
+  cursor: grab;
+}
+
+#callsListContainer ::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(90deg, #d97706, #b45309, #d97706);
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
+  transform: scaleY(1.1);
+  cursor: grabbing;
+}
+
+/* Add corner styling for when both scrollbars might appear */
+#callsListContainer ::-webkit-scrollbar-corner {
+  background: rgba(234, 179, 8, 0.1);
+  border-radius: 12px;
+}
+
+.unit-card.selected-unit {
+    outline: 3px solid #eab308;
+    box-shadow: 0 0 0 4px rgba(234,179,8,0.18);
+    background: #fffbe7 !important;
+    z-index: 2;
+    transition: outline 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+/* Force attached units in the All Calls list to display horizontally */
+.attached-units-container {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 8px;
+    min-height: 0;
+    max-height: 44px; /* Force horizontal layout and prevent vertical stacking */
+    align-items: center;
+    padding: 4px 0 4px 0;
+    scrollbar-width: thin;
+}
+
+.attached-unit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 80px;
+    max-height: 36px;
+    margin: 0 2px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 1em;
+    white-space: nowrap;
+    box-sizing: border-box;
+    transition: background 0.2s, color 0.2s;
 }

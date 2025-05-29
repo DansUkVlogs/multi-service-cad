@@ -207,7 +207,17 @@ async function renderAttachedUnitsForCall(callId) {
         const attachedUnitSnapshot = await getDocs(attachedUnitQuery);
 
         if (attachedUnitSnapshot.empty) {
-            attachedUnitsContainer.innerHTML = '<p>No Attached Units</p>';
+            const unitDiv = document.createElement('div');
+            unitDiv.innerHTML = `No Attached Units`;
+            unitDiv.style.background = `rgba(190, 190, 190, 0.47)`;
+            unitDiv.style.color = 'black';
+            unitDiv.style.padding = '6px 14px';
+            unitDiv.style.border = '1px solid black';
+            unitDiv.style.borderRadius = '8px';
+            unitDiv.style.fontWeight = 'bold';
+            unitDiv.style.fontSize = '1em';
+            unitDiv.style.whiteSpace = 'nowrap';
+            attachedUnitsContainer.appendChild(unitDiv);
             return;
         }
 
@@ -229,11 +239,25 @@ async function renderAttachedUnitsForCall(callId) {
             }
 
             const unitData = unitSnap.data();
+            const callsign = unitData.callsign || 'N/A';
+            const unitType = unitData.unitType || 'Unknown';
+            const status = unitData.status || 'Unknown';
+            const statusColor = getStatusColor(status);
+            // Render horizontally, color by status
             const unitDiv = document.createElement('div');
             unitDiv.classList.add('attached-unit');
-            unitDiv.style.backgroundColor = getStatusColor(unitData.status);
-            unitDiv.style.color = getContrastingTextColor(getStatusColor(unitData.status));
-            unitDiv.innerHTML = `<strong>${unitData.callsign || 'N/A'}</strong> (${unitData.unitType || 'Unknown'})`;
+            unitDiv.innerHTML = `${callsign} (${unitType})`;
+            unitDiv.style.background = statusColor;
+            unitDiv.style.color = getContrastingTextColor(statusColor);
+            unitDiv.style.padding = '6px 14px';
+            unitDiv.style.borderRadius = '8px';
+            unitDiv.style.fontWeight = 'bold';
+            unitDiv.style.fontSize = '1em';
+            unitDiv.style.whiteSpace = 'nowrap';
+            unitDiv.style.overflow = 'hidden';
+            unitDiv.style.textOverflow = 'ellipsis';
+            unitDiv.style.maxWidth = '200px'; // Increased width to fit more text
+            unitDiv.style.flex = '0 0 auto'; // Prevent shrinking
             attachedUnitsContainer.appendChild(unitDiv);
             renderedUnitIds.add(unitID); // Mark this unit as rendered
         }
@@ -269,6 +293,7 @@ async function displayCalls(calls) {
         callCard.dataset.callId = call.id;
 
         const serviceColor = getUnitTypeColor(call.service);
+        const serviceTextColor = getContrastingTextColor(serviceColor);
 
         // Format the timestamp
         let formattedTimestamp = 'Timestamp not available';
@@ -279,9 +304,9 @@ async function displayCalls(calls) {
 
         callCard.innerHTML = `
             <div class="call-info">
-                <p class="call-service" style="background-color: ${serviceColor};"><strong>Service:</strong> ${call.service || 'Service not provided'}</p>
-                <p class="caller-name">${call.callerName || 'Unknown'}</p>
-                <p class="call-location">${call.location || 'Location not provided'}</p>
+                <p class="call-service" style="background-color: ${serviceColor}; color: ${serviceTextColor};">${call.service || 'Service not provided'}</p>
+                <p class="caller-name">Caller Name: ${call.callerName || 'Unknown'}</p>
+                <p class="call-location"><strong>Location: ${call.location || 'Location not provided'}</strong></p>
                 <p class="call-status"><strong>Status:</strong> ${call.status || 'Awaiting Dispatch'}</p>
                 <p class="call-timestamp"><strong>Time:</strong> ${formattedTimestamp}</p>
                 <div class="attached-units-container" id="attached-units-${call.id}">
@@ -466,23 +491,34 @@ async function renderAttachedUnits(callId) {
             }
 
             const unitData = unitSnap.data();
+            const callsign = unitData.callsign || 'N/A';
+            const unitType = unitData.unitType || 'Unknown';
+            const status = unitData.status || 'Unknown';
+            const statusColor = getStatusColor(status);
             const unitDiv = document.createElement('div');
             unitDiv.classList.add('unit-card');
             unitDiv.dataset.unitId = unitID;
-            unitDiv.style.backgroundColor = getUnitTypeColor(unitData.unitType);
-            unitDiv.style.color = getContrastingTextColor(getUnitTypeColor(unitData.unitType));
-
+            unitDiv.style.backgroundColor = statusColor;
+            unitDiv.style.color = getContrastingTextColor(statusColor);
+            unitDiv.style.setProperty('--unit-type-color', getUnitTypeColor(unitType));
+            unitDiv.style.setProperty('--text-color', getContrastingTextColor(statusColor));
             unitDiv.innerHTML = `
-                <div class="unit-status" style="background-color: ${getStatusColor(unitData.status)}; color: ${getContrastingTextColor(getStatusColor(unitData.status))};">
-                    ${unitData.status || 'Unknown'}
-                </div>
-                <div class="unit-details">
-                    <p><strong>Callsign:</strong> ${unitData.callsign}</p>
-                    <p><strong>Type:</strong> ${unitData.unitType}</p>
-                    <p><strong>Specific Type:</strong> ${unitData.specificType || ''}</p>
-                </div>
+                <span class="unit-main">
+                    <span class="unit-service-abbr" style="background:${getUnitTypeColor(unitType)};color:${getContrastingTextColor(getUnitTypeColor(unitType))};">${(unitType.substring(0, 4) || 'UNKN').toUpperCase()}</span>
+                    <span class="unit-specific-type">${unitType}</span>
+                </span>
+                <span class="unit-callsign-box">${callsign}</span>
+                <span class="unit-status-label ${status.toLowerCase().replace(/\s/g, '-')}" style="background:${statusColor};color:${getContrastingTextColor(statusColor)};">${status}</span>
             `;
-
+            // Ensure the whole card is clickable, not just the text
+            unitDiv.style.cursor = 'pointer';
+            unitDiv.tabIndex = 0; // Make it keyboard accessible
+            unitDiv.addEventListener('click', () => selectUnit(unitDiv, 'attached'));
+            unitDiv.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    selectUnit(unitDiv, 'attached');
+                }
+            });
             attachedUnitsContainer.appendChild(unitDiv);
             renderedUnitIds.add(unitID); // Mark this unit as rendered
         }
@@ -533,11 +569,12 @@ async function attachUnit(unitId, callId) {
 // Fix `detachUnit` to update the `callDetails` section without duplicates
 async function detachUnit(unitId, callId) {
     try {
-        const unitDocRef = doc(db, "attachedUnits", `${unitId}_${callId}`);
+        // The correct collection is 'attachedUnit', not 'attachedUnits'
+        const unitDocRef = doc(db, "attachedUnit", `${unitId}_${callId}`);
         const unitSnap = await getDoc(unitDocRef);
 
         if (!unitSnap.exists()) {
-            console.warn(`Unit with ID ${unitId} not found in attachedUnits for call ${callId}.`);
+            console.warn(`Unit with ID ${unitId} not found in attachedUnit for call ${callId}.`);
             return;
         }
 
@@ -627,36 +664,37 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // Add the renderUnitCards function
 function renderUnitCards(units) {
-    availableUnitsList.innerHTML = ''; // Clear existing units
-
+    availableUnitsList.innerHTML = '';
     if (units.length === 0) {
-        availableUnitsList.innerHTML = '<p>No available units to display.</p>'; // Show a message if no units are available
+        availableUnitsList.innerHTML = '<p>No available units to display.</p>';
         return;
     }
-
     units.forEach(unit => {
-        // Ensure unit data is valid before rendering
         const callsign = unit.callsign || 'N/A';
         const unitType = unit.unitType || 'Unknown';
         const status = unit.status || 'Unknown';
-
+        const specificType = unit.specificType || '';
+        const statusColor = getStatusColor(status);
+        const unitTypeColor = getUnitTypeColor(unitType);
+        const textColor = getContrastingTextColor(statusColor);
+        const serviceAbbr = (unitType.substring(0, 3) || 'UNK').toUpperCase();
+        // Card
         const unitDiv = document.createElement('div');
         unitDiv.classList.add('unit-card');
         unitDiv.dataset.unitId = unit.id;
-        unitDiv.style.backgroundColor = getUnitTypeColor(unitType);
-        unitDiv.style.color = getContrastingTextColor(getUnitTypeColor(unitType));
-
+        unitDiv.style.backgroundColor = statusColor;
+        unitDiv.style.color = textColor;
+        unitDiv.style.setProperty('--unit-type-color', unitTypeColor);
+        unitDiv.style.setProperty('--text-color', textColor);
+        // Card content
         unitDiv.innerHTML = `
-            <div class="unit-status" style="background-color: ${getStatusColor(status)}; color: ${getContrastingTextColor(getStatusColor(status))};">
-                ${status}
-            </div>
-            <div class="unit-details">
-                <p><strong>Callsign:</strong> ${callsign}</p>
-                <p><strong>Type:</strong> ${unitType}</p>
-                <p><strong>Specific Type:</strong> ${unit.specificType || ''}</p>
-            </div>
+            <span class="unit-main">
+                <span class="unit-service-abbr" style="background:${unitTypeColor};color:${getContrastingTextColor(unitTypeColor)};">${serviceAbbr}</span>
+                <span class="unit-specific-type">${specificType}</span>
+            </span>
+            <span class="unit-callsign-box">${callsign}</span>
+            <span class="unit-status-label ${status.toLowerCase().replace(/\s/g, '-')}" style="background:${statusColor};color:${getContrastingTextColor(statusColor)};">${status}</span>
         `;
-
         unitDiv.addEventListener('click', () => selectUnit(unitDiv, 'manage'));
         availableUnitsList.appendChild(unitDiv);
     });

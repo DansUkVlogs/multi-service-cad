@@ -19,7 +19,7 @@ export function getStatusColor(status) {
       // Handle prefix-based statuses
       if (s.startsWith('transporting to hospital')) return '#0288D1'; // Cyan Blue
       if (s.startsWith('going to hospital')) return '#0288D1'; // Cyan Blue
-      if (s.startsWith('going to standby')) return '#0288D1'; // Cyan Blue
+      if (s.startsWith('go to standby')) return '#0288D1'; // Cyan Blue
       if (s.startsWith('going to base')) return '#0288D1'; // Cyan Blue
       if (s.startsWith('going to replenish at base')) return '#D32F2F'; // Strong Red
       if (s.startsWith('at hospital')) return '#FF9800'; // Orange
