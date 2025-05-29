@@ -10,34 +10,59 @@
   <header style="text-align: center; margin: 40px 0;">
     <img src="imgs/logo.png" alt="Logo" style="width: 150px; height: auto; margin-bottom: 10px; border: 2px solid #ccc; border-radius: 10px;">
     <h1 style="margin: 0; font-size: 2em;">Role Selector - British Empire CAD System</h1>
-    <div id="active-counts-container" style="margin: 30px auto 0 auto; max-width: 700px;">
-      <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 1.1em;">
-        <div style="flex:1; text-align:center;">Police</div>
-        <div style="flex:1; text-align:center;">Ambulance</div>
-        <div style="flex:1; text-align:center;">Fire</div>
-        <div style="flex:1; text-align:center;">Dispatchers</div>
-        <div style="flex:1; text-align:center;">Civilians</div>
-        <div style="flex:1; text-align:center;">Total</div>
-      </div>
-      <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 1.3em;">
-        <div id="count-police" style="flex:1; text-align:center;">-</div>
-        <div id="count-ambulance" style="flex:1; text-align:center;">-</div>
-        <div id="count-fire" style="flex:1; text-align:center;">-</div>
-        <div id="count-dispatchers" style="flex:1; text-align:center;">-</div>
-        <div id="count-ccivilians" style="flex:1; text-align:center;">-</div>
-        <div id="count-total" style="flex:1; text-align:center;">-</div>
+    <div id="connection-status" class="connection-status">
+      <span class="status-dot"></span>
+      <span class="status-text">Connecting...</span>
+    </div>
+    <div id="active-counts-container" class="active-counts-container">
+      <div class="counters-grid">
+        <div class="counter-item clickable-counter" data-role="police" data-url="police/police.html">
+          <img src="imgs/counter-icons/police-icon.png" alt="Police" class="counter-icon">
+          <div class="counter-label">Police</div>
+          <div class="counter-number">
+            <div class="number-scroll" id="count-police" data-value="0">0</div>
+          </div>
+        </div>
+        <div class="counter-item clickable-counter" data-role="ambulance" data-url="ambulance/ambulance.html">
+          <img src="imgs/counter-icons/ambulance-icon.png" alt="Ambulance" class="counter-icon">
+          <div class="counter-label">Ambulance</div>
+          <div class="counter-number">
+            <div class="number-scroll" id="count-ambulance" data-value="0">0</div>
+          </div>
+        </div>
+        <div class="counter-item clickable-counter" data-role="fire" data-url="fire/fire.html">
+          <img src="imgs/counter-icons/fire-icon.png" alt="Fire" class="counter-icon">
+          <div class="counter-label">Fire</div>
+          <div class="counter-number">
+            <div class="number-scroll" id="count-fire" data-value="0">0</div>
+          </div>
+        </div>
+        <div class="counter-item clickable-counter" data-role="dispatch" data-url="dispatch/dispatch.html">
+          <img src="imgs/counter-icons/dispatch-icon.png" alt="Dispatchers" class="counter-icon">
+          <div class="counter-label">Dispatchers</div>
+          <div class="counter-number">
+            <div class="number-scroll" id="count-dispatchers" data-value="0">0</div>
+          </div>
+        </div>
+        <div class="counter-item clickable-counter" data-role="civilian" data-url="civilian/civilian.html">
+          <img src="imgs/counter-icons/civilian-icon.png" alt="Civilians" class="counter-icon">
+          <div class="counter-label">Civilians</div>
+          <div class="counter-number">
+            <div class="number-scroll" id="count-ccivilians" data-value="0">0</div>
+          </div>
+        </div>
+        <div class="counter-item clickable-counter total-counter" data-role="admin" data-url="admin/admin.html">
+          <div class="counter-icon-placeholder">Σ</div>
+          <div class="counter-label">Total</div>
+          <div class="counter-number">
+            <div class="number-scroll" id="count-total" data-value="0">0</div>
+          </div>
+        </div>
       </div>
     </div>
   </header>
   <main style="text-align: center; margin-top: 20px;">
-    <div class="roles" style="display: inline-block; text-align: left;">
-      <button class="role-btn" onclick="window.location.href='ambulance/ambulance.html'" style="margin: 10px; padding: 10px 20px; font-size: 1em;">Ambulance</button>
-      <button class="role-btn" data-role="police" style="margin: 10px; padding: 10px 20px; font-size: 1em;">Police</button>
-      <button class="role-btn" data-role="fire" style="margin: 10px; padding: 10px 20px; font-size: 1em;">Fire</button>
-      <button class="role-btn" onclick="window.location.href='civilian/civilian.html'" style="margin: 10px; padding: 10px 20px; font-size: 1em;">Civilian</button>
-      <button class="role-btn" data-role="dispatch" style="margin: 10px; padding: 10px 20px; font-size: 1em;">Dispatch</button>
-      <button class="role-btn" data-role="admin" style="margin: 10px; padding: 10px 20px; font-size: 1em;">Admin</button>
-    </div>
+    <!-- Role buttons removed - counters are now clickable -->
   </main>
   
   <div id="civilianModal" class="modal">
@@ -53,13 +78,22 @@
   <script type="module" src="firebase/firebase.js"></script>
   <script type="module" src="index.js"></script>
   <script>
-  // Attach event listeners for role buttons (except those with direct window.location.href)
+  // Add click handlers for counter navigation
   document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.role-btn[data-role]').forEach(btn => {
-      btn.addEventListener('click', function() {
-        const role = btn.getAttribute('data-role');
+    document.querySelectorAll('.clickable-counter').forEach(counter => {
+      counter.addEventListener('click', function() {
+        const role = counter.getAttribute('data-role');
+        const url = counter.getAttribute('data-url');
+        
+        // Store role in localStorage for compatibility
         localStorage.setItem('userRole', role);
-        window.location.href = `${role}/${role}.html`;
+        
+        // Add click effect
+        counter.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+          counter.style.transform = '';
+          window.location.href = url;
+        }, 150);
       });
     });
   });
