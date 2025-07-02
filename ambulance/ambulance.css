@@ -7,7 +7,7 @@ body {
     font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #f0f0f0;
+    background: linear-gradient(135deg, #eafbe7 0%, #b6f0c1 100%); /* Soft modern green gradient */
     height: 100vh;
     min-height: 100vh;
     display: flex;
@@ -22,8 +22,8 @@ body {
     display: flex;
     flex-direction: row;
     align-items: flex-start;
-    background-color: #004d00;
-    color: white;
+    background: linear-gradient(135deg, #b6f0c1 0%, #eafbe7 100%); /* Soft modern green gradient */
+    color: #222;
     padding: 5px 20px;
     position: relative;
     z-index: 1;
@@ -31,8 +31,10 @@ body {
     margin-bottom: 10px;
     width: 100%;
     box-sizing: border-box;
-    justify-content: space-between; /* Use space-between for full width */
+    justify-content: space-between;
     gap: 20px;
+    border-bottom: 1.5px solid #b6f0c1;
+    box-shadow: 0 2px 12px rgba(102, 187, 106, 0.08);
 }
 
 /* Add logo styling for top left */
@@ -115,10 +117,11 @@ body {
 .status-buttons {
     display: flex;
     flex-wrap: wrap;
-    gap: 5px; /* Reduced gap between buttons */
+    gap: 5px;
     padding: 10px;
-    background-color: #004d00;
-    justify-content: space-between; /* Ensures buttons are spaced out */
+    background: #eafbe7; /* Light green */
+    justify-content: space-between;
+    border-bottom: 1px solid #b6f0c1;
 }
 
 .status-buttons .right-buttons {
@@ -150,6 +153,10 @@ body {
     width: 100%;
     height: 100%; /* Ensure both columns fill the parent */
     align-items: stretch; /* Make children the same height */
+    background: #f7fdf9;
+    border-radius: 18px;
+    box-shadow: 0 4px 24px rgba(102, 187, 106, 0.07);
+    padding: 18px 12px;
 }
 
 .call-details, .calls-list {
@@ -169,11 +176,12 @@ body {
     left: 0;
     right: 0;
     z-index: 2;
-    background: #004d00;
+    background: #eafbe7;
     padding-bottom: 10px;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
+    border-bottom: 1px solid #b6f0c1;
 }
 
 /* Calls List Content scrolls */
@@ -224,8 +232,8 @@ body {
 }
 
 .call-details {
-    background-color: #004d00; /* Dark green background */
-    color: white;
+    background: linear-gradient(135deg, #b6f0c1 0%, #eafbe7 100%); /* Soft modern green gradient */
+    color: #222;
     padding: 20px;
     border-radius: 20px; /* Rounded corners */
     display: flex;
@@ -236,6 +244,8 @@ body {
     height: 100%;
     min-height: 100%;
     box-sizing: border-box;
+    box-shadow: 0 2px 12px rgba(102, 187, 106, 0.08);
+    border: 1.5px solid #b6f0c1;
 }
 
 .call-details h2 {
@@ -256,8 +266,8 @@ body {
     text-align: left; /* Align text to the left */
     overflow-y: auto; /* Add vertical scrolling if content overflows */
     padding: 10px; /* Add padding for better readability */
-    background-color: #003300; /* Dark green background for contrast */
-    color: white; /* Ensure text is visible */
+    background-color: #d6f5e3; /* Light green background for contrast */
+    color: #222; /* Ensure text is visible */
     border-radius: 5px; /* Add rounded corners */
     font-size: 1.2rem; /* Slightly larger font size for description */
 }
@@ -265,16 +275,16 @@ body {
 .attached-units-title {
     margin-top: 5px; /* Further reduced margin for a smaller gap */
     font-size: 1.2rem;
-    color: black; /* Ensure the title is visible */
+    color: #218838; /* Modern green for visibility */
     margin-bottom: 0; /* Remove bottom margin to reduce space */
 }
 
 .call-details .attached-units {
     margin-top: 3px; /* Further reduced margin for a smaller gap */
     padding: 10px;
-    background-color: #003300; /* Green background for the units container */
+    background-color: #b6f0c1; /* Light green for the units container */
     border-radius: 10px; /* Rounded corners for the container */
-    color: white; /* Ensure text is visible */
+    color: #222; /* Ensure text is visible */
 }
 
 #attached-units-container {
@@ -328,7 +338,7 @@ body {
     position: absolute; /* Dock the timestamp */
     bottom: 2px; /* Make it lower spacing from the bottom */
     left: 20px; /* Align it to the left with some padding */
-    font-size: 1.3rem; /* Slightly larger font size for timestamp */
+    font-size: 1.3rem; /*
     font-weight: bold;
     text-align: left;
 }
@@ -418,8 +428,12 @@ body {
     font-weight: 500;
     min-width: 60px;
     word-break: break-word;
-    max-width: 180px;
+    max-width: 100%; /* Allow incident/location to use full width of container */
+    flex: 1 1 0; /* Allow to grow and fill available space */
     display: inline-block;
+    white-space: normal; /* Allow wrapping only if truly needed */
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 @media (max-width: 700px) {
     .incident-location-row {
@@ -433,8 +447,8 @@ body {
 }
 
 .calls-list {
-    background-color: #004d00;
-    color: white;
+    background: #eafbe7; /* Light green */
+    color: #222;
     padding: 20px;
     border-radius: 10px;
     flex: 0.5; /* Adjust width to take up half the page */
@@ -988,8 +1002,8 @@ body {
 
 /* --- Call Details Section: No Timestamp, No Scroll, Left-Aligned --- */
 .call-details-card {
-    background: #004d00;
-    color: #fff;
+    background: linear-gradient(135deg, #b6f0c1 0%, #eafbe7 100%); /* Soft modern green gradient */
+    color: #222;
     border-radius: 22px;
     box-shadow: 0 6px 32px rgba(0,0,0,0.13);
     padding: 24px 24px 18px 24px;
@@ -1006,42 +1020,42 @@ body {
     overflow: visible;
 }
 
-/* Make all text in call-details-card white by default */
+/* Make all text in call-details-card dark by default */
 .call-details-card,
 .call-details-card * {
-    color: #fff;
+    color: #222;
 }
 
-/* Highlight labels and important info in yellow */
+/* Highlight labels and important info in a modern green for contrast */
 .call-details-card .incident-label,
 .call-details-card .location-label,
 .call-details-card .caller-info strong,
 .call-details-card .description strong {
-    color: #ffd900;
+    color: #218838;
 }
 
 .call-details-card .attached-units-title {
-    color: black; /* Ensure the title is visible */;
+    color: #218838;
 }
 
-/* Make incident/location values yellow for visibility */
+/* Make incident/location values a deeper green for visibility */
 .call-details-card .incident,
 .call-details-card .location {
-    color: #ffd900;
+    color: #145c2c;
     font-weight: bold;
 }
 
-/* Description textarea: darker green for contrast */
+/* Description textarea: keep contrast but use a lighter green background */
 .call-details-card .descriptionText {
-    background: #003300;
-    color: #fff;
+    background: #d6f5e3;
+    color: #222;
     border: 1px solid #b2d8b2;
 }
 
-/* Attached units section: slightly lighter green for contrast */
+/* Attached units section: use a soft green background for contrast */
 .call-details-card .attached-units-section {
-    background: #005a00;
-    color: #fff;
+    background: #b6f0c1;
+    color: #222;
 }
 
 /* Remove previous color overrides for .call-details-section, .incident-label, .location-label, .incident, .location, .descriptionText, .attached-units-title if present */

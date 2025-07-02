@@ -810,8 +810,16 @@ function openSetupModal() {
 }
 
 function closeSetupModal() {
-    document.getElementById('setup-modal').classList.remove('active');
-    document.getElementById('modal-overlay').classList.remove('active');
+    const setupModal = document.getElementById('setup-modal');
+    const modalOverlay = document.getElementById('modal-overlay');
+    if (setupModal) {
+        setupModal.classList.remove('active');
+        setupModal.style.display = 'none';
+    }
+    if (modalOverlay) {
+        modalOverlay.classList.remove('active');
+        modalOverlay.style.display = 'none';
+    }
     document.body.classList.remove('modal-active');
     isStartupModalActive = false;
     flushSoundQueue(); // Play any queued sounds after modal closes
@@ -1951,8 +1959,7 @@ async function handleSelfDetach(unitId, callId) {
         playSoundByKey('callupdate');
         showNotification('Successfully detached from call!', 'success');
         
-        // Update button state
-        updateSelfAttachButtonState();
+        // Update button state        updateSelfAttachButtonState();
         
         // Unlock call selection
         lockCallSelection(false);
