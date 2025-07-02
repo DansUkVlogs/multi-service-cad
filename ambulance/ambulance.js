@@ -1945,99 +1945,6 @@ async function handleSelfDetach(unitId, callId) {
     }
 }
 
-// Function to set up panic button event listener
-function setupPanicButton() {
-    const panicButton = document.querySelector('.panic-button');
-    
-    if (panicButton) {
-        panicButton.addEventListener('click', async () => {
-            const unitId = sessionStorage.getItem("unitId");
-            const civilianId = sessionStorage.getItem("civilianId");
-            
-            if (!unitId || unitId === "None") {
-                showNotification("No valid UnitID found. Cannot trigger panic.", "error");
-                return;
-            }
-            
-            try {
-                // Create panic alert in database
-                await addDoc(collection(db, "panicAlerts"), {
-                    unitId: unitId,
-                    civilianId: civilianId || "Unknown",
-                    timestamp: new Date(),
-                    status: "Active",
-                    location: "Unknown" // Could be enhanced to get GPS location
-                });
-                
-                // Update unit status to indicate panic
-                const unitRef = doc(db, "units", unitId);
-                await updateDoc(unitRef, { 
-                    status: "PANIC - Emergency Assistance Required",
-                    lastPanicTime: new Date()
-                });
-                
-                // Update UI
-                updateStatusIndicator("PANIC - Emergency Assistance Required");
-                
-                // Visual feedback - flash the button red
-                panicButton.style.backgroundColor = "#ff0000";
-                panicButton.style.color = "#ffffff";
-                panicButton.style.animation = "flash 1s infinite";
-                
-                // Play panic sound
-                playSoundByKey('panic');
-                
-                showNotification("PANIC ALERT ACTIVATED - Emergency services notified!", "error");
-                
-                // Reset button appearance after 5 seconds
-                setTimeout(() => {
-                    panicButton.style.backgroundColor = "";
-                    panicButton.style.color = "";
-                    panicButton.style.animation = "";
-                }, 5000);
-                
-            } catch (error) {
-                showNotification("Failed to send panic alert. Please try again.", "error");
-                console.error("Error sending panic alert:", error);
-            }
-        });
-    }
-}
-
-// Function to update dispatcher count display
-function updateDispatcherCount(snapshot) {
-    const counterDiv = document.getElementById('dispatcher-counter-display');
-    
-    // Create the counter display if it doesn't exist
-    if (!counterDiv) {
-        const newCounterDiv = document.createElement('div');
-        newCounterDiv.id = 'dispatcher-counter-display';
-        newCounterDiv.style.position = 'fixed';
-        newCounterDiv.style.bottom = '20px';
-        newCounterDiv.style.right = '20px';
-        newCounterDiv.style.background = '#0288D1';
-        newCounterDiv.style.color = '#fff';
-        newCounterDiv.style.padding = '10px 20px';
-        newCounterDiv.style.borderRadius = '12px';
-        newCounterDiv.style.fontWeight = 'bold';
-        newCounterDiv.style.fontSize = '1em';
-        newCounterDiv.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
-        newCounterDiv.style.zIndex = '9998';
-        document.body.appendChild(newCounterDiv);
-    }
-    
-    const displayElement = document.getElementById('dispatcher-counter-display');
-    if (displayElement) {
-        if (snapshot && snapshot.size !== undefined) {
-            // Subtract 1 to exclude placeholder or self-count
-            const count = Math.max(0, snapshot.size - 1);
-            displayElement.textContent = `Active Dispatchers: ${count}`;
-        } else {
-            displayElement.textContent = 'Active Dispatchers: ?';
-        }
-    }
-}
-
 // Function to update self attach button state
 async function updateSelfAttachButtonState() {
     const selfAttachBtn = document.getElementById('self-attach-btn');
@@ -2148,117 +2055,217 @@ function lockCallSelection(locked) {
     }
 }
 
-// --- Calls Section Enable/Disable Logic Based on Dispatcher Activity ---
-
-/**
- * Monitors dispatcher count and user attachment state to enable/disable the All Calls section.
- * Disables the calls section and shows a message if dispatcher count > 1 and user is not attached to a call.
- * Enables the calls section and hides the message otherwise.
- * This function is self-contained and does not alter or remove any existing code.
- */
-// Wait for DOM to be ready before setting up the calls section lock
-document.addEventListener('DOMContentLoaded', function setupCallsSectionLockRealtime() {
-    console.log('🔧 Setting up calls section lock realtime...');
-    const callsContainer = document.getElementById('calls-container');
-    const callsDisabledMessage = document.getElementById('calls-disabled-message');
-    console.log('📦 Elements found:', { callsContainer: !!callsContainer, callsDisabledMessage: !!callsDisabledMessage });
-    let dispatcherCount = 0;
-    let isAttached = false;
-    let currentUnitId = null;
-
-    // Helper: Check if user is attached to a call (by sessionStorage or DB)
-    async function checkUserAttached() {
-        currentUnitId = sessionStorage.getItem('unitId');
-        if (!currentUnitId) return false;
-        // Check for attachedCallId in sessionStorage first (fastest)
-        const attachedCallId = sessionStorage.getItem('attachedCallId');
-        if (attachedCallId) return true;
-        // Fallback: Query Firestore for attachedUnit with this unitId
-        try {
-            const attachedUnitQuery = query(collection(db, 'attachedUnit'), where('unitID', '==', currentUnitId));
-            const snapshot = await getDocs(attachedUnitQuery);
-            return !snapshot.empty;
-        } catch (e) {
-            return false;
-        }
-    }    // Helper: Update UI state
-    function updateCallsSectionLockUI(shouldDisable) {
-        console.log('🎛️ Updating UI state:', { shouldDisable, dispatcherCount, isAttached });
-        if (!callsContainer || !callsDisabledMessage) {
-            console.warn('⚠️ Missing DOM elements for calls section lock');
-            return;
-        }
-        
-        // Get self attach button
-        const selfAttachBtn = document.getElementById('self-attach-btn');
-        
-        if (shouldDisable) {
-            console.log('🔒 Disabling calls section and hiding self attach button');
-            callsContainer.style.pointerEvents = 'none';
-            callsContainer.style.opacity = '0.5';
-            callsDisabledMessage.style.display = 'block';
-            
-            // Hide self attach button when dispatchers are active
-            if (selfAttachBtn) {
-                selfAttachBtn.style.display = 'none';
-            }
+// Function to update dispatcher count display
+function updateDispatcherCount(snapshot) {
+    const counterDiv = document.getElementById('dispatcher-counter-display');
+    
+    // Create the counter display if it doesn't exist
+    if (!counterDiv) {
+        const newCounterDiv = document.createElement('div');
+        newCounterDiv.id = 'dispatcher-counter-display';
+        newCounterDiv.style.position = 'fixed';
+        newCounterDiv.style.bottom = '20px';
+        newCounterDiv.style.right = '20px';
+        newCounterDiv.style.background = '#0288D1';
+        newCounterDiv.style.color = '#fff';
+        newCounterDiv.style.padding = '10px 20px';
+        newCounterDiv.style.borderRadius = '12px';
+        newCounterDiv.style.fontWeight = 'bold';
+        newCounterDiv.style.fontSize = '1em';
+        newCounterDiv.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
+        newCounterDiv.style.zIndex = '9998';
+        document.body.appendChild(newCounterDiv);
+    }
+    
+    const displayElement = document.getElementById('dispatcher-counter-display');
+    if (displayElement) {
+        if (snapshot && snapshot.size !== undefined) {
+            // Subtract 1 to exclude placeholder or self-count
+            const count = Math.max(0, snapshot.size - 1);
+            displayElement.textContent = `Active Dispatchers: ${count}`;
         } else {
-            console.log('🔓 Enabling calls section and showing self attach button');
-            callsContainer.style.pointerEvents = '';
-            callsContainer.style.opacity = '';
-            callsDisabledMessage.style.display = 'none';
-            
-            // Show self attach button when no dispatchers are active
-            if (selfAttachBtn) {
-                selfAttachBtn.style.display = '';
-            }
+            displayElement.textContent = 'Active Dispatchers: ?';
         }
     }
+}
 
-    // Main logic: check and update UI
-    async function evaluateAndUpdate() {
-        isAttached = await checkUserAttached();
-        const shouldDisable = (dispatcherCount > 0);
-        console.log('🔄 Evaluating state:', { dispatcherCount, isAttached, shouldDisable });
-        updateCallsSectionLockUI(shouldDisable);
-    }
-
-    // Listen for dispatcher count changes in real time
-    const dispatchersRef = collection(db, 'dispatchers');
-    onSnapshot(dispatchersRef, (snapshot) => {
-        const oldCount = dispatcherCount;
-        dispatcherCount = snapshot ? Math.max(0, snapshot.size - 1) : 0;
-        console.log('👮 Dispatcher count changed:', { oldCount, newCount: dispatcherCount });
-        evaluateAndUpdate();
-    });
-
-    // Listen for changes in user attachment (attachedUnit collection)
-    let attachedUnitUnsub = null;
-    function setupAttachedUnitListener() {
-        if (attachedUnitUnsub) attachedUnitUnsub();
-        currentUnitId = sessionStorage.getItem('unitId');
-        if (!currentUnitId) return;
-        const attachedUnitQuery = query(collection(db, 'attachedUnit'), where('unitID', '==', currentUnitId));
-        attachedUnitUnsub = onSnapshot(attachedUnitQuery, () => {
-            console.log('📎 User attachment status may have changed');
-            evaluateAndUpdate();
+// Function to set up panic button event listener
+function setupPanicButton() {
+    const panicButton = document.querySelector('.panic-button');
+    
+    if (panicButton) {
+        panicButton.addEventListener('click', async () => {
+            const unitId = sessionStorage.getItem("unitId");
+            const civilianId = sessionStorage.getItem("civilianId");
+            
+            if (!unitId || unitId === "None") {
+                showNotification("No valid UnitID found. Cannot trigger panic.", "error");
+                return;
+            }
+            
+            try {
+                // Create panic alert in database
+                await addDoc(collection(db, "panicAlerts"), {
+                    unitId: unitId,
+                    civilianId: civilianId || "Unknown",
+                    timestamp: new Date(),
+                    status: "Active",
+                    location: "Unknown" // Could be enhanced to get GPS location
+                });
+                
+                // Update unit status to indicate panic
+                const unitRef = doc(db, "units", unitId);
+                await updateDoc(unitRef, { 
+                    status: "PANIC - Emergency Assistance Required",
+                    lastPanicTime: new Date()
+                });
+                
+                // Update UI
+                updateStatusIndicator("PANIC - Emergency Assistance Required");
+                
+                // Visual feedback - flash the button red
+                panicButton.style.backgroundColor = "#ff0000";
+                panicButton.style.color = "#ffffff";
+                panicButton.style.animation = "flash 1s infinite";
+                
+                // Play panic sound
+                playSoundByKey('panic');
+                
+                showNotification("PANIC ALERT ACTIVATED - Emergency services notified!", "error");
+                
+                // Reset button appearance after 5 seconds
+                setTimeout(() => {
+                    panicButton.style.backgroundColor = "";
+                    panicButton.style.color = "";
+                    panicButton.style.animation = "";
+                }, 5000);
+                
+            } catch (error) {
+                showNotification("Failed to send panic alert. Please try again.", "error");
+                console.error("Error sending panic alert:", error);
+            }
         });
     }
-    // Listen for changes to sessionStorage (unitId/attachedCallId)
-    window.addEventListener('storage', (e) => {
-        if (e.key === 'unitId' || e.key === 'attachedCallId') {
-            console.log('💾 Session storage changed:', e.key);
-            setupAttachedUnitListener();
-            evaluateAndUpdate();
-        }
-    });
-    // Also run on page load    setupAttachedUnitListener();
-    evaluateAndUpdate();
+}
 
-    // If user attaches/detaches via UI, re-check
-    document.addEventListener('callDetailsChanged', () => {
-        console.log('📞 Call details changed event received');
-        setupAttachedUnitListener();
-        evaluateAndUpdate();
-    });
-});
+// Call this at startup for troubleshooting
+window.debugLogAllAttachedUnits = debugLogAllAttachedUnits;
+
+// Add global debug functions for browser console testing
+window.testAttachedUnits = async function() {
+    console.log('=== TESTING ALL ATTACHED UNITS ===');
+    await debugLogAllAttachedUnits();
+};
+
+window.testCallsData = async function() {
+    console.log('=== TESTING ALL CALLS DATA ===');
+    try {
+        const callsRef = collection(db, 'calls');
+        const snapshot = await getDocs(callsRef);
+        console.log('Total calls in database:', snapshot.size);
+        snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            console.log(`Call ID: ${doc.id}`, data);
+        });
+    } catch (err) {
+        console.error('Error fetching calls:', err);
+    }
+};
+
+window.testSpecificCallAttachedUnits = async function(callId) {
+    console.log(`=== TESTING ATTACHED UNITS FOR CALL ${callId} ===`);
+    await debugLogAttachedUnitsForCall(callId);
+};
+
+window.forceRenderAttachedUnits = async function() {
+    console.log('=== FORCE RENDERING ATTACHED UNITS FOR ALL CALLS ===');
+    const callsContainer = document.getElementById('calls-container');
+    if (!callsContainer) {
+        console.log('No calls container found');
+        return;
+    }
+    
+    const callCards = callsContainer.querySelectorAll('.call-card');
+    console.log('Found', callCards.length, 'call cards');
+    
+    for (const callCard of callCards) {
+        const callId = callCard.dataset.callId;
+        const attachedUnitsContainer = callCard.querySelector('.attached-units-compact');
+        if (callId && attachedUnitsContainer) {
+            console.log(`Force rendering for call ${callId}`);
+            await renderAttachedUnitsForCallCompact(callId, attachedUnitsContainer);
+        }
+    }
+};
+
+// Collection name verification function for debugging
+window.verifyCollectionNames = function() {
+    console.log('=== COLLECTION NAME VERIFICATION ===');
+    console.log('Checking which collection name is being used in the ambulance interface...');
+    
+    // Test both collection names to see which one has data
+    Promise.all([
+        getDocs(collection(db, "attachedUnit")),
+        getDocs(collection(db, "attachedUnits"))
+    ]).then(([attachedUnitSnap, attachedUnitsSnap]) => {
+        console.log(`"attachedUnit" (singular) collection has ${attachedUnitSnap.size} documents`);
+        console.log(`"attachedUnits" (plural) collection has ${attachedUnitsSnap.size} documents`);
+        
+        if (attachedUnitSnap.size > 0) {
+            console.log('✅ The correct collection is "attachedUnit" (singular)');
+            console.log('Sample document from attachedUnit:', attachedUnitSnap.docs[0].data());
+        }
+        
+        if (attachedUnitsSnap.size > 0) {
+            console.log('⚠️ Found data in "attachedUnits" (plural) - this might be the wrong collection');
+            console.log('Sample document from attachedUnits:', attachedUnitsSnap.docs[0].data());
+        }
+        
+        if (attachedUnitSnap.size === 0 && attachedUnitsSnap.size === 0) {
+            console.log('ℹ️ No attached units found in either collection');
+        }
+    }).catch(console.error);
+};
+
+// Enhanced test function that checks rendering for a specific call
+window.testCallAttachedUnitsRendering = async function(callId) {
+    if (!callId) {
+        console.log('Please provide a callId. Usage: testCallAttachedUnitsRendering("your-call-id")');
+        return;
+    }
+    
+    console.log(`=== TESTING ATTACHED UNITS RENDERING FOR CALL ${callId} ===`);
+    
+    // Check if call exists
+    const callDoc = await getDoc(doc(db, "calls", callId));
+    if (!callDoc.exists()) {
+        console.error(`Call with ID ${callId} does not exist`);
+        return;
+    }
+    
+    console.log('Call exists:', callDoc.data());
+    
+    // Check attached units for this call
+    await debugLogAttachedUnitsForCall(callId);
+    
+    // Test rendering functions
+    const testContainer = document.createElement('div');
+    testContainer.id = 'test-container';
+    document.body.appendChild(testContainer);
+    
+    try {
+        console.log('Testing renderAttachedUnitsForCallCompact...');
+        await renderAttachedUnitsForCallCompact(callId, testContainer);
+        console.log('Compact rendering result:', testContainer.innerHTML);
+        
+        testContainer.innerHTML = '';
+        
+        console.log('Testing renderAttachedUnitsForSelectedCall...');
+        await renderAttachedUnitsForSelectedCall(callId, testContainer);
+        console.log('Selected call rendering result:', testContainer.innerHTML);
+    } catch (error) {
+        console.error('Error in rendering functions:', error);
+    } finally {
+        document.body.removeChild(testContainer);
+    }
+};
