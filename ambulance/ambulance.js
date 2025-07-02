@@ -445,6 +445,8 @@ async function handleStatusChange(status) {
         }
         // Update the status indicator (this will play the sound)
         updateStatusIndicator(status);
+        // Update the status gradient bar
+        updateStatusGradientBar(status);
     } catch (error) {
         showNotification("Cannot connect to the database. Please check your network or firewall settings.", "error");
         console.error(`Error updating status to ${status}:`, error);
@@ -829,6 +831,25 @@ window.addEventListener('load', async () => {
     if (modalBackBtn) modalBackBtn.addEventListener('click', handleBackToHome);
     const headerBackBtn = document.querySelector('.header .back-button');
     if (headerBackBtn) headerBackBtn.addEventListener('click', handleBackToHome);
+
+    // --- Add this: Set initial status gradient bar on load ---
+    const unitId = sessionStorage.getItem('unitId');
+    if (unitId && unitId !== 'None') {
+        try {
+            const unitRef = doc(db, 'units', unitId);
+            const unitSnap = await getDoc(unitRef);
+            if (unitSnap.exists()) {
+                const status = unitSnap.data().status || 'Unavailable';
+                updateStatusGradientBar(status, false);
+            } else {
+                updateStatusGradientBar('Unavailable', false);
+            }
+        } catch (e) {
+            updateStatusGradientBar('Unavailable', false);
+        }
+    } else {
+        updateStatusGradientBar('Unavailable', false);
+    }
 });
 
 // Add this function before showHospitalModal to fix the error
@@ -1934,6 +1955,7 @@ async function handleSelfDetach(unitId, callId) {
         // Refresh the attached units display if the call is still selected
         if (window.selectedCall && window.selectedCall.id === callId) {
             const attachedUnitsContainer = document.getElementById('attached-units-container');
+
             if (attachedUnitsContainer) {
                 await renderAttachedUnitsForSelectedCall(callId, attachedUnitsContainer);
             }
