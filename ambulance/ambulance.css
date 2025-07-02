@@ -338,7 +338,7 @@ body {
     position: absolute; /* Dock the timestamp */
     bottom: 2px; /* Make it lower spacing from the bottom */
     left: 20px; /* Align it to the left with some padding */
-    font-size: 1.3rem; /*
+    font-size: 1.3rem; 
     font-weight: bold;
     text-align: left;
 }
