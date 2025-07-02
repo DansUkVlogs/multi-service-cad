@@ -828,7 +828,12 @@ window.addEventListener('load', async () => {
     openSetupModal();
     document.getElementById('modal-overlay').addEventListener('click', closeSetupModal);
     const modalBackBtn = document.getElementById('modal-back-home');
-    if (modalBackBtn) modalBackBtn.addEventListener('click', handleBackToHome);
+    if (modalBackBtn) {
+        modalBackBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            await handleBackToHome();
+        });
+    }
     const headerBackBtn = document.querySelector('.header .back-button');
     if (headerBackBtn) headerBackBtn.addEventListener('click', handleBackToHome);
 
