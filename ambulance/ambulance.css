@@ -668,31 +668,48 @@ body {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background-color: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-    z-index: 1000;
-    width: 500px;
-    max-width: 90%; /* Ensure it fits on smaller screens */
-    box-sizing: border-box;
-    height: 97%;;
-}
-
-#setup-modal .modal-content {
+    background: linear-gradient(135deg, #3a7bd5 0%, #00d2ff 100%);
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    padding: 10px; /* blue gradient border */
+    width: 650px;
+    max-width: 98vw;
+    min-width: 340px;
+    height: auto;
+    min-height: unset;
+    /* Make modal less tall and more box-like */
+    padding: 6px 6px 6px 6px;
+    aspect-ratio: 2.2/1;
+    /* Ensure perfect centering */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    animation: fadeInModal 0.3s;
 }
-
+#setup-modal .modal-content {
+    background: rgba(255,255,255,0.97);
+    border: 1px solid #3a7bd5;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px 0 rgba(58,123,213,0.08);
+    padding: 16px 32px 12px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+}
 #setup-modal h2.modal-title {
-    font-size: 1.5rem;
+    font-size: 1.7rem;
     font-weight: bold;
-    color: #333;
+    color: #2563eb;
     text-align: center;
     margin-bottom: 10px;
+    letter-spacing: 0.5px;
 }
-
 .profile-picture-container {
     display: flex;
     justify-content: center;
@@ -704,8 +721,10 @@ body {
     width: 120px;
     height: 120px;
     border-radius: 50%;
-    border: 2px solid #ccc;
+    border: 2px solid #3a7bd5;
     object-fit: cover;
+    border: 3px solid #3a7bd5;
+    box-shadow: 0 2px 12px rgba(58,123,213,0.10);
 }
 
 .slot-selection {
@@ -722,8 +741,19 @@ body {
 
 .slot-controls {
     display: flex;
-    gap: 10px;
+    flex-direction: column;
     align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    margin: 18px 0 0 0;
+}
+
+.slot-controls select,
+.slot-controls button {
+    width: 220px;
+    max-width: 100%;
+    margin: 0 auto;
 }
 
 .slot-controls select {
@@ -743,18 +773,18 @@ body {
 }
 
 .slot-controls button {
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    padding: 10px 15px;
-    border-radius: 10px;
-    font-size: 14px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
+    background: linear-gradient(90deg, #3a7bd5 0%, #00d2ff 100%);
+    color: #fff;
+    border-radius: 8px;
+    transition: background 0.2s, box-shadow 0.2s;
+    font-weight: 600;
+    font-size: 1.08rem;
+    padding: 10px 0;
 }
 
 .slot-controls button:hover {
-    background-color: #45a049;
+    background: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%);
+    box-shadow: 0 4px 16px rgba(58,123,213,0.18);
 }
 
 .character-details {
