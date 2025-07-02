@@ -428,12 +428,8 @@ body {
     font-weight: 500;
     min-width: 60px;
     word-break: break-word;
-    max-width: 100%; /* Allow incident/location to use full width of container */
-    flex: 1 1 0; /* Allow to grow and fill available space */
+    max-width: 180px;
     display: inline-block;
-    white-space: normal; /* Allow wrapping only if truly needed */
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 @media (max-width: 700px) {
     .incident-location-row {
