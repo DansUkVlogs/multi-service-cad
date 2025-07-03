@@ -950,7 +950,23 @@ function setupSelfAttachButton() {
 
 // Stub for updateDispatcherCount to prevent ReferenceError
 function updateDispatcherCount(snapshot) {
-    // TODO: Implement dispatcher count UI update if needed
+    const counterDiv = document.getElementById('dispatcher-counter-display');
+    let count = snapshot ? snapshot.size : 0;
+    if (count > 0) count = count - 1;
+    if (counterDiv) {
+        counterDiv.textContent = `Active Dispatchers: ${count}`;
+    }
+    // Lock or unlock the calls section based on dispatcher count
+    const callsContainer = document.getElementById('calls-container');
+    if (callsContainer) {
+        if (count >= 1) {
+            callsContainer.style.pointerEvents = 'none';
+            callsContainer.style.opacity = '0.5';
+        } else {
+            callsContainer.style.pointerEvents = '';
+            callsContainer.style.opacity = '';
+        }
+    }
 }
 
 // Stub for setupStatusButtons to prevent ReferenceError
@@ -958,63 +974,124 @@ function setupStatusButtons() {
     // TODO: Implement status button setup logic if needed
 }
 
-// Stub for setupPanicButton to prevent ReferenceError
+// --- PANIC BUTTON LOGIC ---
 function setupPanicButton() {
-    // TODO: Implement panic button setup logic if needed
+    const panicBtn = document.querySelector('.panic-button');
+    if (!panicBtn) return;
+    // Prevent multiple event listeners
+    if (panicBtn.dataset.listenerAttached === 'true') return;
+    panicBtn.dataset.listenerAttached = 'true';
+    let panicActive = false;
+    let panicDocId = null;
+    let panicBlinkInterval = null;
+
+    async function activatePanic() {
+        console.log('[PANIC DEBUG] activatePanic called. panicActive:', panicActive);
+        if (panicActive) return; // Prevent double execution
+        panicActive = true;
+        // Get unit info
+        const unitId = sessionStorage.getItem('unitId');
+        if (!unitId) {
+            showNotification('No UnitID found. Cannot activate panic.', 'error');
+            return;
+        }
+        const unitSnap = await getDoc(doc(db, 'units', unitId));
+        if (!unitSnap.exists()) {
+            showNotification('Unit not found in database.', 'error');
+            return;
+        }
+        const unitData = unitSnap.data();
+        // Find attached call (if any)
+        let callLocation = null;
+        let callId = null;
+        const attachedSnap = await getDocs(query(collection(db, 'attachedUnit'), where('unitID', '==', unitId)));
+        if (!attachedSnap.empty) {
+            const callRef = attachedSnap.docs[0].data().callID;
+            callId = callRef;
+            const callSnap = await getDoc(doc(db, 'calls', callRef));
+            if (callSnap.exists()) {
+                callLocation = callSnap.data().location || null;
+            }
+        }
+        // Prevent duplicate panic alerts for this unit
+        const existingPanicQuery = query(collection(db, 'panicAlerts'), where('unitId', '==', unitId));
+        const existingPanicSnap = await getDocs(existingPanicQuery);
+        if (!existingPanicSnap.empty) {
+            // Already exists, use the first one
+            panicDocId = existingPanicSnap.docs[0].id;
+            console.log('[PANIC DEBUG] Panic alert already exists for this unit, not creating duplicate.');
+        } else {
+            // Add to panicAlerts collection
+            const panicDoc = await addDoc(collection(db, 'panicAlerts'), {
+                unitId,
+                callsign: unitData.callsign || 'Unknown',
+                service: unitData.unitType || 'Unknown',
+                callLocation: callLocation || null,
+                timestamp: new Date(),
+            });
+            panicDocId = panicDoc.id;
+        }
+        panicActive = true;
+        // Change status to PANIC and start blinking
+        updateStatusIndicator('PANIC');
+        startPanicBlink();
+        playSoundByKey('panictones');
+    }
+
+    async function deactivatePanic() {
+        if (panicDocId) {
+            await deleteDoc(doc(db, 'panicAlerts', panicDocId));
+        }
+        panicDocId = null;
+        panicActive = false;
+        stopPanicBlink();
+        updateStatusIndicator('Unavailable');
+        playSoundByKey('tones');
+        // Do NOT call removePanicPopup() here; let the Firestore listener update the popup
+    }
+
+    function startPanicBlink() {
+        const indicator = document.getElementById('current-status-indicator');
+        if (!indicator) return;
+        let visible = true;
+        indicator.textContent = 'PANIC';
+        indicator.style.background = '#ff2222';
+        indicator.style.color = '#fff';
+        panicBlinkInterval = setInterval(() => {
+            indicator.style.opacity = visible ? '1' : '0.2';
+            visible = !visible;
+        }, 400);
+    }
+    function stopPanicBlink() {
+        const indicator = document.getElementById('current-status-indicator');
+        if (!indicator) return;
+        clearInterval(panicBlinkInterval);
+        indicator.style.opacity = '1';
+        indicator.textContent = 'Unavailable';
+        indicator.style.background = '';
+        indicator.style.color = '';
+    }
+    function removePanicPopup() {
+        const popup = document.getElementById('panic-popup');
+        if (popup) popup.remove();
+        const mini = document.getElementById('panic-mini-btn');
+        if (mini) mini.remove();
+    }
+
+    panicBtn.addEventListener('click', async () => {
+        if (!panicActive) {
+            await activatePanic();
+        } else {
+            await deactivatePanic();
+        }
+    });
 }
 
-// Utility to update the status gradient bar color
-function updateStatusGradientBar(status, animate = true) {
-    const bar = document.getElementById("status-gradient-bar");
-    if (!bar) return;
-    const color = getStatusColor(status);
-    bar.style.background = `linear-gradient(
-        to bottom,
-        ${color} 0%,
-        ${color}CC 25%,
-        ${color}88 60%,
-        transparent 100%
-    )`;
-    bar.style.opacity = "1";
-    if (animate) animateStatusGradientBar(status);
-}
-
-// Utility to animate the status gradient bar
-function animateStatusGradientBar(status) {
-    const bar = document.getElementById("status-gradient-bar");
-    if (!bar) return;
-    const color = getStatusColor(status);
-
-    // Set the gradient background (multi-stop for smoothness)
-    bar.style.background = `linear-gradient(
-        to bottom,
-        ${color} 0%,
-        ${color}CC 25%,
-        ${color}88 60%,
-        transparent 100%
-    )`;
-
-    // Remove previous animation if any
-    bar.classList.remove("flashing");
-    // Force reflow to restart animation
-    void bar.offsetWidth;
-    bar.classList.add("flashing");
-
-    // Remove the class after animation completes (0.25s * 2 = 0.5s)
-    setTimeout(() => {
-        bar.classList.remove("flashing");
-    }, 500);
-}
-
-// Utility to update the status indicator bar in the header
-function updateStatusIndicator(status) {
-    const indicator = document.getElementById("current-status-indicator");
-    if (!indicator) return;
-    const color = getStatusColor(status);
-    indicator.textContent = status;
-    indicator.style.background = color;
-    indicator.style.color = getContrastingTextColor(color);
-    playSoundByKey('statuschange'); // Play sound on status change
+// Ensure setupPanicButton is called on DOMContentLoaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupPanicButton);
+} else {
+    setupPanicButton();
 }
 
 // --- Dispatcher Counter and Calls List Logic ---
@@ -1638,4 +1715,251 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
     }
+
+    // --- Incident Report Modal Logic ---
+    const incidentReportBtn = document.getElementById('incident-report-btn');
+    const incidentReportModal = document.getElementById('incident-report-modal');
+    const closeIncidentReportModalBtn = document.getElementById('close-incident-report-modal');
+    const incidentReportForm = document.getElementById('incident-report-form');
+    if (incidentReportBtn && incidentReportModal && closeIncidentReportModalBtn && incidentReportForm) {
+        incidentReportBtn.addEventListener('click', () => {
+            incidentReportModal.style.display = 'block';
+            document.body.classList.add('modal-active');
+        });
+        closeIncidentReportModalBtn.addEventListener('click', () => {
+            incidentReportModal.style.display = 'none';
+            document.body.classList.remove('modal-active');
+        });
+        incidentReportForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            showNotification('Incident Report submitted!', 'success');
+            incidentReportModal.style.display = 'none';
+            document.body.classList.remove('modal-active');
+            incidentReportForm.reset();
+        });
+    }
+
+    // --- Death Form Modal Logic ---
+   
+    const deathFormBtn = document.getElementById('death-form-btn');
+    const deathFormModal = document.getElementById('death-form-modal');
+    const closeDeathFormModalBtn = document.getElementById('close-death-form-modal');
+    const deathForm = document.getElementById('death-form');
+    if (deathFormBtn && deathFormModal && closeDeathFormModalBtn && deathForm) {
+        deathFormBtn.addEventListener('click', () => {
+            deathFormModal.style.display = 'block';
+            document.body.classList.add('modal-active');
+        });
+        closeDeathFormModalBtn.addEventListener('click', () => {
+            deathFormModal.style.display = 'none';
+            document.body.classList.remove('modal-active');
+        });
+        deathForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            showNotification('Death Form submitted!', 'success');
+            deathFormModal.style.display = 'none';
+            document.body.classList.remove('modal-active');
+            deathForm.reset();
+        });
+    }
+
+    // --- Accident/Injury Form Modal Logic ---
+    const accidentInjuryFormBtn = document.getElementById('accident-injury-form-btn');
+    const accidentInjuryFormModal = document.getElementById('accident-injury-form-modal');
+    const closeAccidentInjuryFormModalBtn = document.getElementById('close-accident-injury-form-modal');
+    const accidentInjuryForm = document.getElementById('accident-injury-form');
+    if (accidentInjuryFormBtn && accidentInjuryFormModal && closeAccidentInjuryFormModalBtn && accidentInjuryForm) {
+        accidentInjuryFormBtn.addEventListener('click', () => {
+            accidentInjuryFormModal.style.display = 'block';
+            document.body.classList.add('modal-active');
+        });
+        closeAccidentInjuryFormModalBtn.addEventListener('click', () => {
+            accidentInjuryFormModal.style.display = 'none';
+            document.body.classList.remove('modal-active');
+        });
+        accidentInjuryForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            showNotification('Accident/Injury Form submitted!', 'success');
+            accidentInjuryFormModal.style.display = 'none';
+            document.body.classList.remove('modal-active');
+            accidentInjuryForm.reset();
+        });
+    }
 });
+
+// --- Utility: Status Indicator and Gradient Bar ---
+function updateStatusIndicator(status) {
+    // Update the status indicator element's text and color
+    const indicator = document.getElementById('current-status-indicator');
+    if (!indicator) return;
+    indicator.textContent = status;
+    if (status === 'PANIC') {
+        indicator.style.background = '#ff2222';
+        indicator.style.color = '#fff';
+    } else if (status === 'Available') {
+        indicator.style.background = '#388e3c';
+        indicator.style.color = '#fff';
+    } else if (status === 'Unavailable') {
+        indicator.style.background = '#D32F2F';
+        indicator.style.color = '#fff';
+    } else {
+        indicator.style.background = '';
+        indicator.style.color = '';
+    }
+}
+
+function updateStatusGradientBar(status, flashing) {
+    // Optionally update a gradient bar at the top of the page
+    const bar = document.getElementById('status-gradient-bar');
+    if (!bar) return;
+    if (flashing) {
+        bar.classList.add('flashing');
+        setTimeout(() => bar.classList.remove('flashing'), 700);
+    }
+    // You can add more logic here to change the gradient based on status if desired
+}
+
+// --- PANIC ALERT REAL-TIME LISTENER ---
+(function setupPanicAlertsListener() {
+    const unitId = sessionStorage.getItem('unitId');
+    console.log('[PANIC DEBUG] Current user unitId from sessionStorage:', unitId);
+    const panicAlertsRef = collection(db, 'panicAlerts');
+    let lastPanicDocIds = [];
+    let lastSelectedTab = 0;
+
+    onSnapshot(panicAlertsRef, (snapshot) => {
+        // Gather all valid panic alerts except placeholders
+        const panicUnits = [];
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            // Debug log each panic alert
+            console.log('[PANIC DEBUG] Found panic alert:', data);
+            // Filtering: ignore only empty, null, undefined, 'None', 'placeholder' (case-insensitive)
+            if (
+                data.unitId &&
+                typeof data.unitId === 'string' &&
+                data.unitId.trim() !== '' &&
+                data.unitId.toLowerCase() !== 'none' &&
+                data.unitId.toLowerCase() !== 'placeholder'
+            ) {
+                console.log('[PANIC DEBUG] --> PASSES FILTER, will be shown in popup');
+                panicUnits.push({ ...data, docId: docSnap.id });
+            } else {
+
+                console.log('[PANIC DEBUG] --> FILTERED OUT');
+            }
+        });
+        console.log('[PANIC DEBUG] Filtered panic units:', panicUnits);
+        // If there are any, show the popup with tabs
+        if (panicUnits.length > 0) {
+            // Try to keep the same tab selected if possible
+
+            let selectedTab = lastSelectedTab;
+            if (selectedTab >= panicUnits.length) selectedTab = 0;
+            showPanicPopupTabs(panicUnits, selectedTab);
+            lastPanicDocIds = panicUnits.map(p => p.docId);
+            lastSelectedTab = selectedTab;
+        } else {
+            removePanicPopup();
+            lastPanicDocIds = [];
+            lastSelectedTab = 0;
+        }
+    });
+
+    // Show a popup/modal for one or more panic alerts, with tabs
+    function showPanicPopupTabs(panicUnits, selectedTab) {
+        removePanicPopup();
+        // Create popup
+        const popup = document.createElement('div');
+        popup.id = 'panic-popup';
+        popup.style.position = 'fixed';
+        popup.style.bottom = '32px';
+        popup.style.right = '32px';
+        popup.style.zIndex = '2000';
+        popup.style.background = '#fff';
+        popup.style.border = '3px solid #ff2222';
+        popup.style.borderRadius = '16px';
+        popup.style.boxShadow = '0 8px 32px rgba(255,0,0,0.18)';
+        popup.style.padding = '28px 36px 18px 36px';
+        popup.style.minWidth = '320px';
+        popup.style.maxWidth = '90vw';
+        popup.style.fontSize = '1.18rem';
+        popup.style.fontWeight = '700';
+        popup.style.color = '#b71c1c';
+        popup.style.display = 'flex';
+        popup.style.flexDirection = 'column';
+        popup.style.alignItems = 'center';
+        popup.style.gap = '12px';
+
+        // Tabs if more than one
+        let tabsHtml = '';
+        if (panicUnits.length > 1) {
+            tabsHtml = '<div id="panic-tabs" style="display:flex;gap:8px;margin-bottom:10px;">' +
+                panicUnits.map((unit, idx) =>
+                    `<button class="panic-tab-btn" data-tab="${idx}" style="padding:6px 18px;border-radius:8px;border:none;font-weight:bold;cursor:pointer;${idx===selectedTab?"background:#ff2222;color:#fff;":"background:#eee;color:#b71c1c;"}">${unit.callsign || 'Unknown'}</button>`
+                ).join('') +
+                '</div>';
+        }
+
+        // Main content for selected tab
+        const unit = panicUnits[selectedTab];
+        const contentHtml = `
+            <div style="font-size:2rem;color:#ff2222;font-weight:bold;">PANIC ALERT</div>
+            <div style="font-size:1.1rem;color:#b71c1c;">Unit: <b>${unit.callsign || 'Unknown'}</b></div>
+            <div style="font-size:1.1rem;color:#b71c1c;">Service: <b>${unit.service || 'Unknown'}</b></div>
+            <div style="font-size:1.1rem;color:#b71c1c;">Location: <b>${unit.callLocation || 'Unknown'}</b></div>
+            <button id="panic-popup-minimize" style="margin-top:10px;padding:8px 18px;border-radius:8px;background:#ff2222;color:#fff;font-weight:bold;border:none;cursor:pointer;">Minimize</button>
+        `;
+        popup.innerHTML = tabsHtml + contentHtml;
+        document.body.appendChild(popup);
+
+        // Tab switching
+        if (panicUnits.length > 1) {
+            popup.querySelectorAll('.panic-tab-btn').forEach(btn => {
+                btn.onclick = () => {
+                    const idx = parseInt(btn.getAttribute('data-tab'));
+                    lastSelectedTab = idx;
+                    showPanicPopupTabs(panicUnits, idx);
+                };
+            });
+        }
+
+        // Minimize button
+        document.getElementById('panic-popup-minimize').onclick = function() {
+            popup.style.display = 'none';
+            // Add a mini button to restore
+            if (!document.getElementById('panic-mini-btn')) {
+                const miniBtn = document.createElement('button');
+                miniBtn.id = 'panic-mini-btn';
+                miniBtn.textContent = 'See Active PANIC Units';
+                miniBtn.style.position = 'fixed';
+                miniBtn.style.bottom = '32px';
+                miniBtn.style.right = '32px';
+                miniBtn.style.zIndex = '2001';
+                miniBtn.style.background = '#ff2222';
+                miniBtn.style.color = '#fff';
+                miniBtn.style.fontWeight = 'bold';
+                miniBtn.style.border = 'none';
+                miniBtn.style.borderRadius = '12px';
+                miniBtn.style.padding = '14px 24px';
+                miniBtn.style.fontSize = '1.1rem';
+                miniBtn.style.boxShadow = '0 4px 16px rgba(255,0,0,0.18)';
+                miniBtn.onclick = function() {
+                    popup.style.display = 'flex';
+                    miniBtn.remove();
+                };
+                document.body.appendChild(miniBtn);
+            }
+        };
+        // Play a panic sound if desired
+        playSoundByKey('panictones');
+    }
+
+    // Remove the popup and mini button
+    function removePanicPopup() {
+        const popup = document.getElementById('panic-popup');
+        if (popup) popup.remove();
+        const mini = document.getElementById('panic-mini-btn');
+        if (mini) mini.remove();
+    }
+})();

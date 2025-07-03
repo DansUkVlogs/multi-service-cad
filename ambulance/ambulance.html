@@ -254,5 +254,68 @@
             </div>
         </div>
     </div>
+
+    <!-- Incident Report Modal -->
+    <div id="incident-report-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Incident Report Form</h2>
+            <form id="incident-report-form">
+                <label for="incident-type">Incident Type:</label>
+                <input type="text" id="incident-type" name="incident-type" required>
+                <label for="incident-details">Details:</label>
+                <textarea id="incident-details" name="incident-details" required></textarea>
+                <div class="modal-buttons">
+                    <button type="submit">Submit</button>
+                    <button type="button" id="close-incident-report-modal">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Death Form Modal -->
+    <div id="death-form-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Death Form</h2>
+            <form id="death-form">
+                <label for="deceased-name">Deceased Name:</label>
+                <input type="text" id="deceased-name" name="deceased-name" required>
+                <label for="death-cause">Cause of Death:</label>
+                <input type="text" id="death-cause" name="death-cause" required>
+                <label for="death-notes">Notes:</label>
+                <textarea id="death-notes" name="death-notes"></textarea>
+                <div class="modal-buttons">
+                    <button type="submit">Submit</button>
+                    <button type="button" id="close-death-form-modal">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Accident/Injury Form Modal -->
+    <div id="accident-injury-form-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Accident/Injury Form</h2>
+            <form id="accident-injury-form">
+                <label for="injured-name">Injured Name:</label>
+                <input type="text" id="injured-name" name="injured-name" required>
+                <label for="injury-type">Type of Injury:</label>
+                <input type="text" id="injury-type" name="injury-type" required>
+                <label for="injury-notes">Notes:</label>
+                <textarea id="injury-notes" name="injury-notes"></textarea>
+                <div class="modal-buttons">
+                    <button type="submit">Submit</button>
+                    <button type="button" id="close-accident-injury-form-modal">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Move Form Action Buttons Row to bottom of page -->
+    <div class="form-buttons-row sticky-form-footer">
+        <button id="incident-report-btn" class="form-action-btn styled-form-btn">Incident Report Form</button>
+        <button id="death-form-btn" class="form-action-btn styled-form-btn">Death Form</button>
+        <button id="accident-injury-form-btn" class="form-action-btn styled-form-btn">Accident/Injury Form</button>
+        <!-- Add more form buttons here if needed -->
+    </div>
 </body>
 </html>

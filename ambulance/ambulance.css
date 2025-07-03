@@ -1330,3 +1330,52 @@ body.modal-active .modal-overlay {
         box-shadow: 0 0 20px #ff0000;
     }
 }
+
+.sticky-form-footer {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    width: 100vw;
+    background: linear-gradient(90deg, #eafbe7 0%, #b6f0c1 100%);
+    box-shadow: 0 -2px 16px rgba(0,0,0,0.08);
+    padding: 18px 0 10px 0;
+    z-index: 100;
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+}
+
+.styled-form-btn {
+    background: linear-gradient(90deg, #4caf50 0%, #388e3c 100%);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 28px;
+    font-size: 1.13rem;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(44, 62, 80, 0.08);
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
+    letter-spacing: 0.5px;
+}
+.styled-form-btn:hover, .styled-form-btn:focus {
+    background: linear-gradient(90deg, #388e3c 0%, #4caf50 100%);
+    box-shadow: 0 4px 16px rgba(44, 62, 80, 0.16);
+    transform: translateY(-2px) scale(1.04);
+    outline: none;
+}
+
+@media (max-width: 700px) {
+    .sticky-form-footer {
+        flex-direction: column;
+        gap: 10px;
+        padding: 12px 0 8px 0;
+    }
+    .styled-form-btn {
+        width: 90vw;
+        max-width: 400px;
+        margin: 0 auto;
+        font-size: 1rem;
+        padding: 10px 0;
+    }
+}
