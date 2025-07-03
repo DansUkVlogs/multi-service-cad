@@ -7,22 +7,35 @@ export function getStatusColor(status) {
     case 'available':
       return '#43A047'; // Deep Green
     case 'unavailable':
+    case 'panic':
+    case 'meal break':
       return '#D32F2F'; // Strong Red
     case 'busy':
     case 'on scene':
       return '#FF9800'; // Orange
-    case 'meal break':
-      return '#D32F2F'; // Strong Red
     case 'en route':
       return '#0288D1'; // Cyan Blue
     default:
-      // Handle prefix-based statuses
+      // Handle prefix-based statuses - Special Button Patterns
+      
+      // Hospital Button Statuses
+      if (s.startsWith('transporting to hospital -')) return '#0288D1'; // Cyan Blue - "Transporting To Hospital - LOCATION"
+      if (s.startsWith('at hospital -')) return '#FF9800'; // Orange - "At Hospital - LOCATION"
+      
+      // Base Button Statuses  
+      if (s.startsWith('going to replenish at base -')) return '#0288D1'; // Cyan Blue - "Going to replenish at base - LOCATION"
+      if (s.startsWith('at base - replenishing -')) return '#D32F2F'; // Strong Red - "at base - replenishing - LOCATION"
+      
+      // Standby Button Statuses (used by both Hospital and Base buttons)
+      if (s.startsWith('going to standby -')) return '#0288D1'; // Cyan Blue - "Going to Standby - LOCATION"
+      if (s.startsWith('at standby -')) return '#43A047'; // Deep Green - "At Standby - LOCATION"
+      
+      // Legacy patterns for backward compatibility
       if (s.startsWith('transporting to hospital')) return '#0288D1'; // Cyan Blue
       if (s.startsWith('going to hospital')) return '#0288D1'; // Cyan Blue
-      if (s.startsWith('go to standby')) return '#0288D1'; // Cyan Blue
+      if (s.startsWith('going to standby')) return '#0288D1'; // Cyan Blue
       if (s.startsWith('going to base')) return '#0288D1'; // Cyan Blue
       if (s.startsWith('going to replenish at base')) return '#D32F2F'; // Strong Red
-      if (s.startsWith('at hospital')) return '#FF9800'; // Orange
       if (s.startsWith('at hospital')) return '#FF9800'; // Orange
       if (s.startsWith('at standby')) return '#43A047'; // Deep Green
       if (s.startsWith('at base - replenishing')) return '#D32F2F'; // Strong Red

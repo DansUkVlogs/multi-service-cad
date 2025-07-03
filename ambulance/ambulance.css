@@ -109,10 +109,12 @@ body {
     color: white;
 }
 
+/* Legacy styles - now handled by JavaScript selection system
 .selected-status {
-    background-color: #ffd900;/* Yellow background for selected status */
+    background-color: #ffd900;
     color: black;
 }
+*/
 
 .status-buttons {
     display: flex;
@@ -129,12 +131,14 @@ body {
     gap: 10px; /* Adds spacing between the right-docked buttons */
 }
 
+/* Legacy styles - now handled by JavaScript selection system
 .status-buttons button.selected-status {
-    background-color: #4caf50; /* Green background for selected status */
+    background-color: #4caf50;
     color: white;
     font-weight: bold;
     border: 2px solid #388e3c;
 }
+*/
 
 .main-content {
     display: flex;
@@ -944,10 +948,10 @@ body {
     top: 0;
     left: 0;
     width: 100vw;
-    height: 100px;
+    height: 18px;
     pointer-events: none;
-    z-index: 1;
-    background: linear-gradient(to bottom, transparent, transparent);
+    z-index: 2;
+    background: linear-gradient(90deg, #388e3c 0%, #fbc02d 50%, #D32F2F 100%);
     opacity: 1;
     transition: opacity 0.7s;
 }
