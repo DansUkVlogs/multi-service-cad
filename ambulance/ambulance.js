@@ -1115,15 +1115,40 @@ function setupPanicButton() {
         console.log('[PANIC DEBUG] activatePanic called. panicActive:', panicActive);
         if (panicActive) return; // Prevent double execution
         panicActive = true;
+        
+        // Play panic sound immediately for local user
+        console.log('[PANIC DEBUG] Playing local panic sound immediately');
+        console.log('[PANIC DEBUG] audioPaths loaded:', audioPathsLoaded, 'audioPaths:', audioPaths);
+        console.log('[PANIC DEBUG] userHasInteracted:', userHasInteracted, 'isStartupModalActive:', isStartupModalActive);
+        
+        // Enhanced panic sound playing with multiple attempts
+        playSoundByKey('panictones');
+        
+        // Additional fallback: try direct audio play as backup with a slight delay
+        setTimeout(() => {
+            if (audioPaths && audioPaths['panictones']) {
+                console.log('[PANIC DEBUG] Fallback: playing panic sound directly');
+                try {
+                    const audio = new Audio(audioPaths['panictones']);
+                    audio.volume = 0.8; // Ensure good volume
+                    audio.play().catch(err => console.error('[PANIC DEBUG] Direct panic audio play failed:', err));
+                } catch (e) {
+                    console.error('[PANIC DEBUG] Direct panic audio creation failed:', e);
+                }
+            }
+        }, 100);
+        
         // Get unit info
         const unitId = sessionStorage.getItem('unitId');
         if (!unitId) {
             showNotification('No UnitID found. Cannot activate panic.', 'error');
+            panicActive = false;
             return;
         }
         const unitSnap = await getDoc(doc(db, 'units', unitId));
         if (!unitSnap.exists()) {
             showNotification('Unit not found in database.', 'error');
+            panicActive = false;
             return;
         }
         const unitData = unitSnap.data();
@@ -1161,18 +1186,47 @@ function setupPanicButton() {
         // Change status to PANIC and start blinking
         updateStatusIndicator('PANIC');
         startPanicBlink();
-        playSoundByKey('panictones');
     }
 
     async function deactivatePanic() {
+        console.log('[PANIC DEBUG] Deactivating panic, panicDocId:', panicDocId);
+        
         if (panicDocId) {
-            await deleteDoc(doc(db, 'panicAlerts', panicDocId));
+            try {
+                await deleteDoc(doc(db, 'panicAlerts', panicDocId));
+                console.log('[PANIC DEBUG] Successfully deleted panic alert from Firestore');
+            } catch (error) {
+                console.error('[PANIC DEBUG] Error deleting panic alert:', error);
+            }
         }
+        
         panicDocId = null;
         panicActive = false;
         stopPanicBlink();
         updateStatusIndicator('Unavailable');
+        
+        // Play tones sound immediately for local user when panic stops
+        console.log('[PANIC DEBUG] Playing local tones sound for panic deactivation');
+        console.log('[PANIC DEBUG] audioPaths loaded:', audioPathsLoaded, 'audioPaths:', audioPaths);
+        console.log('[PANIC DEBUG] userHasInteracted:', userHasInteracted, 'isStartupModalActive:', isStartupModalActive);
+        
+        // Enhanced tones sound playing with multiple attempts
         playSoundByKey('tones');
+        
+        // Additional fallback: try direct audio play as backup with a slight delay
+        setTimeout(() => {
+            if (audioPaths && audioPaths['tones']) {
+                console.log('[PANIC DEBUG] Fallback: playing tones sound directly');
+                try {
+                    const audio = new Audio(audioPaths['tones']);
+                    audio.volume = 0.8; // Ensure good volume
+                    audio.play().catch(err => console.error('[PANIC DEBUG] Direct tones audio play failed:', err));
+                } catch (e) {
+                    console.error('[PANIC DEBUG] Direct tones audio creation failed:', e);
+                }
+            }
+        }, 100);
+        
         // Do NOT call removePanicPopup() here; let the Firestore listener update the popup
     }
 
@@ -2110,6 +2164,8 @@ function updateStatusGradientBar(status, flashing) {
     onSnapshot(panicAlertsRef, (snapshot) => {
         // Gather all valid panic alerts except placeholders
         const panicUnits = [];
+        const currentPanicDocIds = [];
+        
         snapshot.forEach(docSnap => {
             const data = docSnap.data();
             // Debug log each panic alert
@@ -2124,20 +2180,97 @@ function updateStatusGradientBar(status, flashing) {
             ) {
                 console.log('[PANIC DEBUG] --> PASSES FILTER, will be shown in popup');
                 panicUnits.push({ ...data, docId: docSnap.id });
+                currentPanicDocIds.push(docSnap.id);
             } else {
-
                 console.log('[PANIC DEBUG] --> FILTERED OUT');
             }
         });
+        
         console.log('[PANIC DEBUG] Filtered panic units:', panicUnits);
+        console.log('[PANIC DEBUG] Current panic doc IDs:', currentPanicDocIds);
+        console.log('[PANIC DEBUG] Last panic doc IDs:', lastPanicDocIds);
+        
+        // Detect new panic alerts (play panic sound for OTHER users only)
+        const newPanicIds = currentPanicDocIds.filter(id => !lastPanicDocIds.includes(id));
+        if (newPanicIds.length > 0) {
+            console.log('[PANIC DEBUG] New panic alerts detected:', newPanicIds);
+            // Check if any of the new panic alerts are from other units (not current user)
+            const otherUserPanics = panicUnits.filter(unit => 
+                newPanicIds.includes(unit.docId) && unit.unitId !== unitId
+            );
+            if (otherUserPanics.length > 0) {
+                console.log('[PANIC DEBUG] Playing panic sound for other users panic alerts:', otherUserPanics);
+                
+                // Enhanced panic sound playing for other users' alerts
+                playSoundByKey('panictones');
+                
+                // Additional fallback with slight delay
+                setTimeout(() => {
+                    if (audioPaths && audioPaths['panictones']) {
+                        console.log('[PANIC DEBUG] Fallback: playing panic sound directly for other users');
+                        try {
+                            const audio = new Audio(audioPaths['panictones']);
+                            audio.volume = 0.8;
+                            audio.play().catch(err => console.error('[PANIC DEBUG] Direct panic audio play failed (other users):', err));
+                        } catch (e) {
+                            console.error('[PANIC DEBUG] Direct panic audio creation failed (other users):', e);
+                        }
+                    }
+                }, 150);
+            }
+        }
+        
+        // Detect removed panic alerts (play tones sound when ALL panics are gone or when any panic is cleared)
+        const removedPanicIds = lastPanicDocIds.filter(id => !currentPanicDocIds.includes(id));
+        if (removedPanicIds.length > 0) {
+            console.log('[PANIC DEBUG] Panic alerts removed:', removedPanicIds);
+            
+            // If ALL panics are now gone, play tones for everyone
+            if (currentPanicDocIds.length === 0) {
+                console.log('[PANIC DEBUG] All panic alerts cleared, playing tones sound');
+                playSoundByKey('tones');
+                
+                // Enhanced tones sound playing with fallback
+                setTimeout(() => {
+                    if (audioPaths && audioPaths['tones']) {
+                        console.log('[PANIC DEBUG] Fallback: playing tones sound directly (all panics cleared)');
+                        try {
+                            const audio = new Audio(audioPaths['tones']);
+                            audio.volume = 0.8;
+                            audio.play().catch(err => console.error('[PANIC DEBUG] Direct tones audio play failed (all cleared):', err));
+                        } catch (e) {
+                            console.error('[PANIC DEBUG] Direct tones audio creation failed (all cleared):', e);
+                        }
+                    }
+                }, 100);
+            } else {
+                // If some panics still exist but some were cleared, also play tones
+                console.log('[PANIC DEBUG] Some panic alerts cleared (but others remain), playing tones sound');
+                playSoundByKey('tones');
+                
+                // Enhanced tones sound playing with fallback
+                setTimeout(() => {
+                    if (audioPaths && audioPaths['tones']) {
+                        console.log('[PANIC DEBUG] Fallback: playing tones sound directly (some cleared)');
+                        try {
+                            const audio = new Audio(audioPaths['tones']);
+                            audio.volume = 0.8;
+                            audio.play().catch(err => console.error('[PANIC DEBUG] Direct tones audio play failed (some cleared):', err));
+                        } catch (e) {
+                            console.error('[PANIC DEBUG] Direct tones audio creation failed (some cleared):', e);
+                        }
+                    }
+                }, 100);
+            }
+        }
+        
         // If there are any, show the popup with tabs
         if (panicUnits.length > 0) {
             // Try to keep the same tab selected if possible
-
             let selectedTab = lastSelectedTab;
             if (selectedTab >= panicUnits.length) selectedTab = 0;
             showPanicPopupTabs(panicUnits, selectedTab);
-            lastPanicDocIds = panicUnits.map(p => p.docId);
+            lastPanicDocIds = currentPanicDocIds;
             lastSelectedTab = selectedTab;
         } else {
             removePanicPopup();
@@ -2232,8 +2365,6 @@ function updateStatusGradientBar(status, flashing) {
                 document.body.appendChild(miniBtn);
             }
         };
-        // Play a panic sound if desired
-        playSoundByKey('panictones');
     }
 
     // Remove the popup and mini button
