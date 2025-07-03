@@ -1,7 +1,7 @@
 // --- Dynamic Hospital Button UI Update ---
 // (Removed duplicate definition to resolve SyntaxError)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getFirestore, doc, deleteDoc, getDoc, collection, addDoc, updateDoc, getDocs, setDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { getFirestore, doc, deleteDoc, getDoc, collection, addDoc, updateDoc, getDocs, setDoc, onSnapshot, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { getStatusColor, getContrastingTextColor } from "../dispatch/statusColor.js";
 import { getUnitTypeColor } from '../dispatch/statusColor.js';
 
@@ -690,6 +690,96 @@ function showStandbyModal(onConfirm, onCancel) {
     confirmBtn.addEventListener("click", confirmHandler);
     cancelBtn.addEventListener("click", cancelHandler);
 }
+function showRefuelModal(onConfirm, onCancel) {
+    const modal = document.getElementById("refuel-modal");
+    const select = document.getElementById("refuel-location-select");
+
+    // Populate refuel dropdown
+    loadRefuelLocations().then(locations => {
+        select.innerHTML = '<option value="" disabled selected>--Select Fuel Station--</option>';
+        locations.forEach(loc => {
+            const opt = document.createElement("option");
+            opt.value = loc;
+            opt.textContent = loc;
+            select.appendChild(opt);
+        });
+    });
+
+    modal.style.display = "block";
+    document.body.classList.add('modal-active');
+
+    const confirmBtn = document.getElementById("confirm-refuel-btn");
+    const cancelBtn = document.getElementById("cancel-refuel-btn");
+
+    function cleanup() {
+        modal.style.display = "none";
+        document.body.classList.remove('modal-active');
+        confirmBtn.removeEventListener("click", confirmHandler);
+        cancelBtn.removeEventListener("click", cancelHandler);
+    }
+
+    function confirmHandler() {
+        const location = select.value;
+        if (!location) {
+            showNotification("Please select a fuel station.", "error");
+            return;
+        }
+        cleanup();
+        onConfirm(location);
+    }
+    function cancelHandler() {
+        cleanup();
+        if (onCancel) onCancel();
+    }
+
+    confirmBtn.addEventListener("click", confirmHandler);
+    cancelBtn.addEventListener("click", cancelHandler);
+}
+
+function showRefuelPriceModal(location, onConfirm) {
+    const modal = document.getElementById("refuel-price-modal");
+    const input = document.getElementById("refuel-price-input");
+
+    // Clear previous input and set focus
+    input.value = "£";
+    modal.style.display = "block";
+    document.body.classList.add('modal-active');
+    
+    // Focus the input after a short delay to ensure modal is visible
+    setTimeout(() => input.focus(), 100);
+
+    const confirmBtn = document.getElementById("confirm-refuel-price-btn");
+
+    function cleanup() {
+        modal.style.display = "none";
+        document.body.classList.remove('modal-active');
+        confirmBtn.removeEventListener("click", confirmHandler);
+        input.removeEventListener("keypress", keypressHandler);
+    }
+
+    async function confirmHandler() {
+        const price = input.value.trim();
+        if (!price || price === "£") {
+            showNotification("Please enter a price.", "error");
+            return;
+        }
+        
+        // Ensure price starts with £
+        const formattedPrice = price.startsWith('£') ? price : `£${price}`;
+        
+        cleanup();
+        await onConfirm(formattedPrice);
+    }
+
+    function keypressHandler(e) {
+        if (e.key === "Enter") {
+            confirmHandler();
+        }
+    }
+
+    confirmBtn.addEventListener("click", confirmHandler);
+    input.addEventListener("keypress", keypressHandler);
+}
 
 // Location loading functions for modals
 function loadHospitalLocations() {
@@ -725,6 +815,17 @@ function loadStandbyLocations() {
         .catch(error => {
             console.error('Error loading standby locations:', error);
             return ['Standby Point A', 'Standby Point B'];
+        });
+}
+function loadRefuelLocations() {
+    return fetch('../data/location.json')
+        .then(response => response.json())
+        .then(data => {
+            return data['fuel-stations'] || [];
+        })
+        .catch(error => {
+            console.error('Error loading refuel locations:', error);
+            return ['Shell Station', 'BP Station', 'Texaco Station'];
         });
 }
 
@@ -847,6 +948,54 @@ function setupStatusButtons() {
                     updateStatusAndButton(finalStatus, btn, 'Going To Base', true);
                     showNotification(`Now at base: ${currentLocation}`, 'success');
                 }
+            });
+        // Refueling button logic - special workflow
+        } else if (status === 'Refueling') {
+            btn.addEventListener('click', function refuelingBtnHandler() {
+                // Show refuel location modal first
+                showRefuelModal(function(location) {
+                    // Then show price modal
+                    showRefuelPriceModal(location, async function(price) {
+                        try {
+                            // Save refuel log to Firebase
+                            const unitId = sessionStorage.getItem('unitId');
+                            const civilianName = sessionStorage.getItem('civilianName') || 'Unknown';
+                            
+                            if (!unitId) {
+                                showNotification('No UnitID found. Cannot save refuel log.', 'error');
+                                return;
+                            }
+                            
+                            // Get unit callsign from Firebase
+                            const unitSnap = await getDoc(doc(db, 'units', unitId));
+                            const callsign = unitSnap.exists() ? unitSnap.data().callsign : 'Unknown';
+                            
+                            // Save to refuelLogs collection
+                            await addDoc(collection(db, 'refuelLogs'), {
+                                unitId: unitId,
+                                callsign: callsign,
+                                civilianName: civilianName,
+                                location: location,
+                                price: price,
+                                timestamp: serverTimestamp()
+                            });
+                            
+                            showNotification(`Refueling completed at ${location} for ${price}`, 'success');
+                            
+                            // Return to Available status
+                            const availableBtn = document.querySelector('[data-status="Available"]');
+                            if (availableBtn) {
+                                handleStatusChange('Available', availableBtn);
+                            }
+                            
+                        } catch (error) {
+                            console.error('Error saving refuel log:', error);
+                            showNotification('Error saving refuel log', 'error');
+                        }
+                    });
+                }, function() {
+                    // Cancel callback - do nothing
+                });
             });
         } else {
             // All other status buttons
