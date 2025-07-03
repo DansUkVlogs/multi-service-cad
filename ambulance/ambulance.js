@@ -25,6 +25,12 @@ try {
     throw e;
 }
 
+// --- Global State Variables for Self-Attach/Detach System ---
+let isUserAttachedToCall = false;
+let userAttachedCallId = null;
+let selfAttachLockActive = false;
+let dispatcherLockActive = false;
+
 // Utility: Check network connectivity (keep for UI, not for DB ops)
 function checkNetworkAndNotify() {
     const isLocal = location.hostname === "localhost" || location.protocol === "file:";
@@ -1550,24 +1556,43 @@ async function displayCalls(calls) {
     console.log('[DEBUG] displayCalls completed, rendered', calls.length, 'call cards');
 }
 
-// Stub for updateDispatcherCount to prevent ReferenceError
-function updateDispatcherCount(snapshot) {
-    // TODO: Implement dispatcher count UI update if needed
+// Updated dispatcher count management with self-attach priority system
+async function updateDispatcherCount(snapshot) {
     const counterDiv = document.getElementById('dispatcher-counter-display');
     let count = snapshot ? snapshot.size : 0;
     if (count > 0) count = count - 1;
     if (counterDiv) {
         counterDiv.textContent = `Active Dispatchers: ${count}`;
     }
-    // Lock or unlock the calls section based on dispatcher count
-    const callsContainer = document.getElementById('calls-container');
-    if (callsContainer) {
-        if (count >= 1) {
-            callsContainer.style.pointerEvents = 'none';
-            callsContainer.style.opacity = '0.5';
-        } else {
-            callsContainer.style.pointerEvents = '';
-            callsContainer.style.opacity = '';
+    
+    const selfAttachBtn = document.getElementById('self-attach-btn');
+    
+    if (count >= 1) {
+        // Dispatcher active - priority system
+        // 1. Remove self-attach lock first
+        if (selfAttachLockActive) {
+            removeAllLocks();
+        }
+        // 2. Apply dispatcher lock
+        applyDispatcherLock();
+        // 3. Hide self-attach button
+        if (selfAttachBtn) {
+            selfAttachBtn.style.display = 'none';
+        }
+    } else {
+        // No dispatcher active
+        // 1. Remove dispatcher lock
+        if (dispatcherLockActive) {
+            removeAllLocks();
+        }
+        // 2. Show self-attach button
+        if (selfAttachBtn) {
+            selfAttachBtn.style.display = '';
+        }
+        // 3. Check attachment status and update button/lock accordingly
+        await updateSelfAttachButton();
+        if (isUserAttachedToCall) {
+            applySelfAttachLock();
         }
     }
 }
@@ -1609,9 +1634,126 @@ function animateStatusGradientBar(status) {
     }, 500);
 }
 
-// Stub for setupSelfAttachButton to prevent ReferenceError
+// Enhanced self-attach/detach button functionality
 function setupSelfAttachButton() {
-    // TODO: Implement self-attach button logic if needed
+    const selfAttachBtn = document.getElementById('self-attach-btn');
+    if (!selfAttachBtn) return;
+    
+    // Prevent multiple event listeners
+    if (selfAttachBtn.dataset.listenerAttached === 'true') return;
+    selfAttachBtn.dataset.listenerAttached = 'true';
+    
+    selfAttachBtn.addEventListener('click', async function() {
+        const unitId = sessionStorage.getItem('unitId');
+        
+        if (!unitId || unitId === 'None') {
+            showNotification('No valid UnitID found. Cannot perform attach/detach operation.', 'error');
+            return;
+        }
+        
+        // Check current attachment status
+        await checkUserAttachmentStatus();
+        
+        if (isUserAttachedToCall) {
+            // DETACH functionality
+            try {
+                // Find and remove attachment
+                const attachedUnitQuery = query(
+                    collection(db, "attachedUnit"),
+                    where("unitID", "==", unitId)
+                );
+                const attachmentSnapshot = await getDocs(attachedUnitQuery);
+                
+                if (!attachmentSnapshot.empty) {
+                    // Get unit details for notification
+                    const unitSnap = await getDoc(doc(db, 'units', unitId));
+                    const callsign = unitSnap.exists() ? unitSnap.data().callsign : 'Unknown';
+                    
+                    // Remove all attachment documents for this unit
+                    const deletePromises = attachmentSnapshot.docs.map(doc => 
+                        deleteDoc(doc.ref)
+                    );
+                    await Promise.all(deletePromises);
+                    
+                    // Update state
+                    isUserAttachedToCall = false;
+                    userAttachedCallId = null;
+                    
+                    // Remove self-attach lock and update button
+                    removeAllLocks();
+                    await updateSelfAttachButton();
+                    
+                    // Refresh attached units display
+                    const attachedUnitsContainer = document.getElementById('attached-units-container');
+                    if (attachedUnitsContainer && window.selectedCall) {
+                        await renderAttachedUnitsForSelectedCall(window.selectedCall.id, attachedUnitsContainer);
+                    }
+                    
+                    showNotification(`${callsign} successfully detached from call.`, 'success');
+                } else {
+                    showNotification('No attachment found to remove.', 'warning');
+                }
+            } catch (error) {
+                console.error('Error detaching unit from call:', error);
+                showNotification('Failed to detach from call. Please try again.', 'error');
+            }
+        } else {
+            // ATTACH functionality
+            if (!window.selectedCall || !window.selectedCall.id) {
+                showNotification('No call selected. Please select a call first.', 'error');
+                return;
+            }
+            
+            try {
+                // Check if unit is already attached to this specific call
+                const attachedUnitQuery = query(
+                    collection(db, "attachedUnit"),
+                    where("callID", "==", window.selectedCall.id),
+                    where("unitID", "==", unitId)
+                );
+                const existingAttachment = await getDocs(attachedUnitQuery);
+                
+                if (!existingAttachment.empty) {
+                    showNotification('Unit is already attached to this call.', 'warning');
+                    return;
+                }
+                
+                // Get unit details for notification
+                const unitSnap = await getDoc(doc(db, 'units', unitId));
+                const callsign = unitSnap.exists() ? unitSnap.data().callsign : 'Unknown';
+                
+                // Attach unit to call
+                await addDoc(collection(db, 'attachedUnit'), {
+                    callID: window.selectedCall.id,
+                    unitID: unitId,
+                    timestamp: serverTimestamp()
+                });
+                
+                // Update state
+                isUserAttachedToCall = true;
+                userAttachedCallId = window.selectedCall.id;
+                
+                // Apply self-attach lock and update button
+                await updateSelfAttachButton();
+                applySelfAttachLock();
+                
+                // Refresh attached units display
+                const attachedUnitsContainer = document.getElementById('attached-units-container');
+                if (attachedUnitsContainer && window.selectedCall) {
+                    await renderAttachedUnitsForSelectedCall(window.selectedCall.id, attachedUnitsContainer);
+                }
+                
+                showNotification(`${callsign} successfully attached to call.`, 'success');
+                
+            } catch (error) {
+                console.error('Error attaching unit to call:', error);
+                showNotification('Failed to attach unit to call. Please try again.', 'error');
+            }
+        }
+    });
+    
+    // Initialize button state
+    updateSelfAttachButton();
 }
 
 // Function to select a call and update the call details panel
@@ -1735,9 +1877,21 @@ document.addEventListener("DOMContentLoaded", () => {
     const attachedUnitRef = collection(db, "attachedUnit");
     onSnapshot(attachedUnitRef, async (snapshot) => {
         try {
-            console.log('AttachedUnit collection updated, refreshing attached units display');
+            console.log('AttachedUnit collection updated, checking user attachment status');
             
-            // Check if current user's unit is involved in any changes for sound logic
+            // Update button state based on current attachment
+            await updateSelfAttachButton();
+            
+            // Apply appropriate lock based on attachment status (if no dispatcher lock)
+            if (!dispatcherLockActive) {
+                if (isUserAttachedToCall && !selfAttachLockActive) {
+                    applySelfAttachLock();
+                } else if (!isUserAttachedToCall && selfAttachLockActive) {
+                    removeAllLocks();
+                }
+            }
+            
+            // ...existing code for call refreshing...
             const currentUnitId = sessionStorage.getItem('unitId');
             let currentUserInvolved = false;
             
@@ -2171,5 +2325,148 @@ function closeSetupModal() {
     const setupModal = document.getElementById('setup-modal');
     if (setupModal) {
         setupModal.style.display = 'none';
+    }
+}
+
+// Function to check if user is currently attached to any call
+async function checkUserAttachmentStatus() {
+    const unitId = sessionStorage.getItem('unitId');
+    if (!unitId || unitId === 'None') {
+        isUserAttachedToCall = false;
+        userAttachedCallId = null;
+        return false;
+    }
+    
+    try {
+        const attachedUnitQuery = query(
+            collection(db, "attachedUnit"),
+            where("unitID", "==", unitId)
+        );
+        const attachmentSnapshot = await getDocs(attachedUnitQuery);
+        
+        if (!attachmentSnapshot.empty) {
+            isUserAttachedToCall = true;
+            userAttachedCallId = attachmentSnapshot.docs[0].data().callID;
+            return true;
+        } else {
+            isUserAttachedToCall = false;
+            userAttachedCallId = null;
+            return false;
+        }
+    } catch (error) {
+        console.error('Error checking user attachment status:', error);
+        isUserAttachedToCall = false;
+        userAttachedCallId = null;
+        return false;
+    }
+}
+
+// Function to apply self-attach lock with distinct visual style
+function applySelfAttachLock() {
+    const callsContainer = document.getElementById('calls-container');
+    if (!callsContainer) return;
+    
+    selfAttachLockActive = true;
+    callsContainer.style.pointerEvents = 'none';
+    callsContainer.style.opacity = '0.6';
+    callsContainer.style.border = '2px solid #f39c12';
+    callsContainer.style.borderRadius = '8px';
+    callsContainer.style.backgroundColor = 'rgba(243, 156, 18, 0.1)';
+    
+    // Add a lock indicator
+    let lockIndicator = document.getElementById('self-attach-lock-indicator');
+    if (!lockIndicator) {
+        lockIndicator = document.createElement('div');
+        lockIndicator.id = 'self-attach-lock-indicator';
+        lockIndicator.style.position = 'absolute';
+        lockIndicator.style.top = '10px';
+        lockIndicator.style.right = '10px';
+        lockIndicator.style.background = '#f39c12';
+        lockIndicator.style.color = '#fff';
+        lockIndicator.style.padding = '5px 10px';
+        lockIndicator.style.borderRadius = '5px';
+        lockIndicator.style.fontSize = '12px';
+        lockIndicator.style.fontWeight = 'bold';
+        lockIndicator.style.zIndex = '1000';
+        lockIndicator.textContent = 'LOCKED: Attached to Call';
+        callsContainer.style.position = 'relative';
+        callsContainer.appendChild(lockIndicator);
+    }
+    
+    showNotification('Calls list locked - You are attached to a call. Use "Self Detach" to unlock.', 'warning');
+}
+
+// Function to apply dispatcher lock with distinct visual style
+function applyDispatcherLock() {
+    const callsContainer = document.getElementById('calls-container');
+    if (!callsContainer) return;
+    
+    dispatcherLockActive = true;
+    callsContainer.style.pointerEvents = 'none';
+    callsContainer.style.opacity = '0.5';
+    callsContainer.style.border = '2px solid #e74c3c';
+    callsContainer.style.borderRadius = '8px';
+    callsContainer.style.backgroundColor = 'rgba(231, 76, 60, 0.1)';
+    
+    // Add a lock indicator
+    let lockIndicator = document.getElementById('dispatcher-lock-indicator');
+    if (!lockIndicator) {
+        lockIndicator = document.createElement('div');
+        lockIndicator.id = 'dispatcher-lock-indicator';
+        lockIndicator.style.position = 'absolute';
+        lockIndicator.style.top = '10px';
+        lockIndicator.style.right = '10px';
+        lockIndicator.style.background = '#e74c3c';
+        lockIndicator.style.color = '#fff';
+        lockIndicator.style.padding = '5px 10px';
+        lockIndicator.style.borderRadius = '5px';
+        lockIndicator.style.fontSize = '12px';
+        lockIndicator.style.fontWeight = 'bold';
+        lockIndicator.style.zIndex = '1000';
+        lockIndicator.textContent = 'LOCKED: Dispatcher Active';
+        callsContainer.style.position = 'relative';
+        callsContainer.appendChild(lockIndicator);
+    }
+    
+    showNotification('Calls list locked - Active dispatcher is managing calls.', 'info');
+}
+
+// Function to remove all locks and restore normal appearance
+function removeAllLocks() {
+    const callsContainer = document.getElementById('calls-container');
+    if (!callsContainer) return;
+    
+    selfAttachLockActive = false;
+    dispatcherLockActive = false;
+    
+    // Reset styles
+    callsContainer.style.pointerEvents = '';
+    callsContainer.style.opacity = '';
+    callsContainer.style.border = '';
+    callsContainer.style.borderRadius = '';
+    callsContainer.style.backgroundColor = '';
+    
+    // Remove lock indicators
+    const selfLockIndicator = document.getElementById('self-attach-lock-indicator');
+    const dispatcherLockIndicator = document.getElementById('dispatcher-lock-indicator');
+    if (selfLockIndicator) selfLockIndicator.remove();
+    if (dispatcherLockIndicator) dispatcherLockIndicator.remove();
+}
+
+// Function to update self-attach button text and functionality
+async function updateSelfAttachButton() {
+    const selfAttachBtn = document.getElementById('self-attach-btn');
+    if (!selfAttachBtn) return;
+    
+    await checkUserAttachmentStatus();
+    
+    if (isUserAttachedToCall) {
+        selfAttachBtn.textContent = 'Self Detach';
+        selfAttachBtn.style.backgroundColor = '#e74c3c';
+        selfAttachBtn.style.color = '#fff';
+    } else {
+        selfAttachBtn.textContent = 'Self Attach';
+        selfAttachBtn.style.backgroundColor = '';
+        selfAttachBtn.style.color = '';
     }
 }
