@@ -577,10 +577,16 @@ function displayCurrentIDs() {
     const standby = sessionStorage.getItem("standbyButton_lastStandby") || null;
     // Use the most recently set location (hospital > base > standby)
     let location = hospital || base || standby || "None";
-    // Civilian and Unit
-    document.getElementById("civilian-id-display").textContent = `Current CivilianID: ${civilianId}`;
-    document.getElementById("unit-id-display").textContent = `Current UnitID: ${unitId}`;
-    // Single pill for currently selected location
+    // Civilian and Unit (styled as pills)
+    const civilianIdDisplay = document.getElementById("civilian-id-display");
+    const unitIdDisplay = document.getElementById("unit-id-display");
+    if (civilianIdDisplay) {
+        civilianIdDisplay.innerHTML = `<span class=\"unit-pill\" style=\"background:#eafbe7; border-radius:8px; padding:4px 12px;\">Civilian ID: <span id=\\"civilian-id-value\\">${civilianId}</span></span>`;
+    }
+    if (unitIdDisplay) {
+        unitIdDisplay.innerHTML = `<span class=\"unit-pill\" style=\"background:#eafbe7; border-radius:8px; padding:4px 12px;\">Unit ID: <span id=\\"unit-id-value\\">${unitId}</span></span>`;
+    }
+    // Single pill for currently selected location, matching the exact style of the Unit ID pill
     let statusBox = document.getElementById("current-location-box");
     if (!statusBox) {
         statusBox = document.createElement("div");
@@ -591,22 +597,16 @@ function displayCurrentIDs() {
         statusBox.style.flexWrap = "wrap";
         statusBox.style.justifyContent = "flex-start";
         statusBox.style.alignItems = "center";
-        document.getElementById("unit-id-display").after(statusBox);
+        if (unitIdDisplay) unitIdDisplay.after(statusBox);
     }
     statusBox.innerHTML = "";
-    // Style the pill
-    const pill = document.createElement("div");
-    pill.textContent = `Currently Selected Location: ${location}`;
-    pill.style.fontWeight = "bold";
-    pill.style.color = "#0074d9";
-    pill.style.background = "#eaf6fb";
-    pill.style.padding = "5px 16px";
-    pill.style.borderRadius = "16px";
-    pill.style.fontSize = "15px";
-    pill.style.boxShadow = "0 1px 4px rgba(0,0,0,0.06)";
-    pill.style.margin = "2px 0";
-    pill.style.display = "inline-block";
-    statusBox.appendChild(pill);
+    const locationPill = document.createElement("span");
+    locationPill.className = "unit-pill";
+    locationPill.style.background = "#eafbe7";
+    locationPill.style.borderRadius = "8px";
+    locationPill.style.padding = "4px 12px";
+    locationPill.textContent = `Current Location: ${location}`;
+    statusBox.appendChild(locationPill);
 }
 
 // Patch modals to update displayCurrentIDs and set only one location at a time
@@ -1795,7 +1795,7 @@ async function renderAttachedUnitsForCallCompact(callId, container) {
     }
     container.dataset.rendering = 'true';
 
-    container.innerHTML = ''; // Clear existing content    
+    container.innerHTML = ''; // Clear existing content
     try {        const attachedUnitQuery = query(
             collection(db, "attachedUnit"),
             where("callID", "==", callId)
@@ -1847,10 +1847,14 @@ async function renderAttachedUnitsForCallCompact(callId, container) {
             if (unitStatus && unitStatus !== 'Unknown') tooltipParts.push(unitStatus);
             const tooltip = tooltipParts.join(' ');
 
+            // Compact card: service abbr (colored) and callsign only
+            var abbr = (unitType ? unitType.substring(0, 3).toUpperCase() : 'UNK');
+            var abbrColor = getUnitTypeColor(unitType);
+            var abbrTextColor = getContrastingTextColor(abbrColor);
             var unitCardHTML =
-                '<div class="unit-card" style="background-color: ' + statusColor + '; color: ' + textColor + ';" title="' + tooltip + '">' +
-                    '<div class="unit-callsign">' + unitCallsign + '</div>' +
-                    '<div class="unit-service-type">' + unitType + '-' + specificType + '</div>' +
+                '<div class="unit-pill call-list-attached-unit-pill" style="background-color: ' + statusColor + '; color: ' + textColor + '; margin: 4px 0; padding: 5px 16px; border-radius: 16px; font-size: 15px; font-weight: bold; box-shadow: 0 1px 4px rgba(0,0,0,0.06); white-space: nowrap; display: flex; flex-direction: row; align-items: center; min-width: 120px; max-width: 340px; height: 35px;" title="' + tooltip + '">' +
+                    '<span style="background:' + abbrColor + ';color:' + abbrTextColor + ';border-radius:6px;padding:2px 12px;margin-right:14px;font-weight:bold;font-size:1.08em;display:inline-block;min-width:42px;text-align:center;">' + abbr + '</span>' +
+                    '<span style="flex:1;text-align:left;font-weight:bold;font-size:1.05em;">' + unitCallsign + '</span>' +
                 '</div>';
 
             unitCards.push(unitCardHTML);
@@ -1860,7 +1864,8 @@ async function renderAttachedUnitsForCallCompact(callId, container) {
         if (unitCards.length === 0) {
             container.innerHTML = '<div style="color: #999; font-size: 9px; text-align: center; padding: 6px; font-style: italic;">None</div>';
         } else {
-            container.innerHTML = unitCards.join('');
+            // Make cards even closer together vertically
+            container.innerHTML = '<div class="call-list-attached-units" style="display: flex; flex-direction: column; gap: 1px; overflow-y: auto; max-height: 220px; padding: 12px 0 1px 0;">' + unitCards.join('') + '</div>';
         }
     } catch (error) {
         console.error('Error fetching attached units for call ID ' + callId + ':', error);
@@ -1873,75 +1878,106 @@ async function renderAttachedUnitsForCallCompact(callId, container) {
 // Function to render attached units for the selected call in the call details section
 async function renderAttachedUnitsForSelectedCall(callId, container) {
     if (!container) return;
-
     // Prevent multiple simultaneous renders for the same container
     if (container.dataset.rendering === 'true') {
         return;
     }
     container.dataset.rendering = 'true';
-
-    container.innerHTML = ''; // Clear existing content
-
-    try {        const attachedUnitQuery = query(
+    container.innerHTML = '';
+    try {
+        const attachedUnitQuery = query(
             collection(db, "attachedUnit"),
-            where("callID", "==", callId) // Fetch units attached to the specific call
+            where("callID", "==", callId)
         );
         const attachedUnitSnapshot = await getDocs(attachedUnitQuery);
-
         if (attachedUnitSnapshot.empty) {
             container.innerHTML = '<p style="color: #ccc; font-style: italic; text-align: center; padding: 15px; margin: 0; background-color: rgba(255,255,255,0.05); border-radius: 8px; width: 100%;">No Attached Units</p>';
             container.dataset.rendering = 'false';
             return;
         }
-
-        const renderedUnitIds = new Set(); // Track rendered unit IDs to prevent duplicates
-
+        const renderedUnitIds = new Set();
         for (const docSnap of attachedUnitSnapshot.docs) {
             const { unitID } = docSnap.data();
-
             if (!unitID || renderedUnitIds.has(unitID)) {
-                continue; // Skip missing unit IDs or duplicates
+                continue;
             }
-
             const unitRef = doc(db, "units", unitID);
             const unitSnap = await getDoc(unitRef);
-
             if (!unitSnap.exists()) {
                 console.warn('Unit with ID ' + unitID + ' not found.');
                 continue;
             }
-
             const unitData = unitSnap.data();
+            // Card style inspired by dispatch, but using ambulance page colors
             const unitDiv = document.createElement('div');
-            unitDiv.classList.add('attached-unit-detail');
-            unitDiv.style.backgroundColor = getStatusColor(unitData.status);
-            unitDiv.style.color = getContrastingTextColor(getStatusColor(unitData.status));
-            unitDiv.style.padding = '8px 12px';
+            unitDiv.classList.add('attached-unit');
+            unitDiv.style.display = 'flex';
+            unitDiv.style.flexDirection = 'column';
+            unitDiv.style.alignItems = 'flex-start';
+            unitDiv.style.justifyContent = 'center';
+            unitDiv.style.padding = '7px 12px';
             unitDiv.style.margin = '5px 0';
             unitDiv.style.borderRadius = '8px';
-            unitDiv.style.fontSize = '14px';
-            unitDiv.style.fontWeight = 'bold';
-            unitDiv.style.display = 'flex';
-            unitDiv.style.justifyContent = 'space-between';
-            unitDiv.style.alignItems = 'center';
-            unitDiv.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+            unitDiv.style.fontSize = '1em';
+            unitDiv.style.fontWeight = '600';
+            unitDiv.style.background = getStatusColor(unitData.status) || '#eafbe7';
+            unitDiv.style.color = getContrastingTextColor(getStatusColor(unitData.status) || '#eafbe7');
+            unitDiv.style.boxShadow = '0 2px 8px rgba(0,77,0,0.10)';
             unitDiv.style.width = '100%';
+            unitDiv.style.maxWidth = '320px';
+            unitDiv.style.cursor = 'default';
 
-            unitDiv.innerHTML =
-                '<div style="width: 100%; display: flex; align-items: center; justify-content: space-between;">' +
-                    '<div style="display: flex; flex-direction: column; gap: 2px;">' +
-                        '<span style="font-size: 16px; font-weight: bold;">' + (unitData.unitType || 'Unknown') + '</span>' +
-                        '<span style="font-size: 16px; opacity: 0.9;">' + (unitData.specificType || 'Unknown') + '</span>' +
-                    '</div>' +
-                    '<div style="text-align: right; font-size: 16px; font-weight: bold; margin-left: 20px;">' +
-                        (unitData.callsign || 'N/A') +
-                    '</div>' +
-                '</div>';
+            // Row: Service abbreviation (left), callsign (center), status (right)
+            const row = document.createElement('span');
+            row.style.display = 'flex';
+            row.style.alignItems = 'center';
+            row.style.width = '100%';
+
+            const abbr = document.createElement('span');
+            abbr.textContent = (unitData.unitType ? unitData.unitType.substring(0, 3).toUpperCase() : 'UNK');
+            abbr.style.background = getUnitTypeColor(unitData.unitType || 'Ambulance');
+            abbr.style.color = getContrastingTextColor(getUnitTypeColor(unitData.unitType || 'Ambulance'));
+            abbr.style.borderRadius = '6px';
+            abbr.style.padding = '2px 8px';
+            abbr.style.marginRight = '12px';
+            abbr.style.fontWeight = 'bold';
+            abbr.style.fontSize = '1em';
+
+            const callsign = document.createElement('span');
+            callsign.textContent = unitData.callsign || 'N/A';
+            callsign.style.flex = '1';
+            callsign.style.textAlign = 'left';
+            callsign.style.fontWeight = 'bold';
+            callsign.style.fontSize = '1.05em';
+
+            const status = document.createElement('span');
+            status.textContent = unitData.status || '';
+            status.style.background = 'rgba(255,255,255,0.18)';
+            status.style.color = '#004d00';
+            status.style.borderRadius = '5px';
+            status.style.padding = '2px 8px';
+            status.style.marginLeft = '12px';
+            status.style.fontWeight = '600';
+            status.style.fontSize = '0.98em';
+
+            row.appendChild(abbr);
+            row.appendChild(callsign);
+            row.appendChild(status);
+            unitDiv.appendChild(row);
+
+            // Specific type (below service row)
+            const specificType = unitData.specificType;
+            const specificTypeSpan = document.createElement('span');
+            specificTypeSpan.style.fontSize = '0.93em';
+            specificTypeSpan.style.opacity = '0.82';
+            specificTypeSpan.style.marginLeft = '2px';
+            specificTypeSpan.style.marginTop = '1px';
+            specificTypeSpan.textContent = (specificType && specificType !== 'Unknown') ? specificType : '';
+            unitDiv.appendChild(specificTypeSpan);
 
             container.appendChild(unitDiv);
-            renderedUnitIds.add(unitID); // Mark this unit as rendered
+            renderedUnitIds.add(unitID);
         }
-
         if (renderedUnitIds.size === 0) {
             container.innerHTML = '<p style="color: #ccc; font-style: italic; text-align: center; padding: 10px;">No Attached Units</p>';
         }

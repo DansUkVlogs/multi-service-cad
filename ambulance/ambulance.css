@@ -332,6 +332,18 @@ body {
 .attached-unit {
     transition: transform 0.2s ease;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 5px; /* Less rounded appearance for pills */
+    text-align: left;
+    padding: 6px 12px 6px 10px;
+    font-size: 1.18rem;
+    min-height: 38px;
+    min-width: 70px;
+    display: flex;
+    align-items: center;
+    margin: 2px 0;
+    background: #eafbe7;
+    box-shadow: 0 2px 8px rgba(0,77,0,0.06);
+    font-weight: 600;
 }
 
 .attached-unit:hover {
