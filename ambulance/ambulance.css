@@ -1,3 +1,105 @@
+/* --- All Calls attached units container and unit pills (All Calls list only) --- */
+.all-calls-attached-units-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 48px; /* Adjust as needed for 2 rows of pills */
+  overflow-y: auto;
+  min-height: 24px;
+  align-items: flex-start;
+  width: 100%;
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
+
+.all-calls-unit-pill {
+  display: flex;
+  align-items: center;
+  background: #eafbe7;
+  color: #004d00;
+  border-radius: 16px;
+  font-size: 1.18em;
+  font-weight: 600;
+  padding: 10px 22px;
+  margin: 0 0 10px 0;
+  border: 1.5px solid #b2d8b2;
+  box-shadow: 0 2px 6px rgba(0,77,0,0.10);
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+  transition: background 0.15s;
+}
+
+.all-calls-unit-pill-abbr {
+  display: inline-block;
+  border-radius: 10px;
+  padding: 4px 16px;
+  margin-right: 18px;
+  font-weight: bold;
+  font-size: 1.08em;
+  min-width: 48px;
+  text-align: center;
+  background: #b2d8b2;
+  color: #004d00;
+  box-shadow: 0 1px 2px rgba(0,77,0,0.07);
+}
+
+.all-calls-unit-pill-callsign {
+  flex: 1;
+  text-align: left;
+  font-weight: bold;
+  font-size: 1.10em;
+  margin-left: 6px;
+  letter-spacing: 0.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.all-calls-unit-pill[data-service="Ambulance"] {
+  background: #eafbe7;
+  color: #004d00;
+  border-color: #b2d8b2;
+}
+.all-calls-unit-pill[data-service="Fire"] {
+  background: #fff3e0;
+  color: #d84315;
+  border-color: #ffccbc;
+}
+.all-calls-unit-pill[data-service="Police"] {
+  background: #e3f2fd;
+  color: #1565c0;
+  border-color: #90caf9;
+}
+.all-calls-unit-pill[data-service="Civilian"] {
+  background: #f3e5f5;
+  color: #6a1b9a;
+  border-color: #ce93d8;
+}
+.all-calls-unit-pill[data-service="Multiple"] {
+  background: #fffde7;
+  color: #fbc02d;
+  border-color: #ffe082;
+}
+
+/* Hide scrollbars for Chrome, Edge, Safari */
+.all-calls-attached-units-container::-webkit-scrollbar {
+  height: 6px;
+  background: transparent;
+}
+.all-calls-attached-units-container::-webkit-scrollbar-thumb {
+  background: #b2d8b2;
+  border-radius: 6px;
+}
+/* Hide scrollbars for Firefox */
+.all-calls-attached-units-container {
+  scrollbar-width: thin;
+  scrollbar-color: #b2d8b2 #eafbe7;
+}
 html, body {
     height: 100%;
     min-height: 100%;
@@ -707,15 +809,13 @@ body {
     padding: 6px 6px 6px 6px;
     aspect-ratio: 2.2/1;
     /* Ensure perfect centering */
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     border: none;
     animation: fadeInModal 0.3s;
+    z-index: 1200 !important;
 }
 #setup-modal .modal-content {
     background: rgba(255,255,255,0.97);
@@ -1089,12 +1189,12 @@ body {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(0,0,0,0.45);
-    z-index: 1000;
+    z-index: 1150 !important;
     display: none;
     pointer-events: auto;
 }
 .modal[style*="display: block"], .modal[style*="display:block"] {
-    z-index: 1100;
+    z-index: 1200 !important;
 }
 .modal[style*="display: block"], .modal[style*="display:block"] ~ .modal-overlay {
     display: block !important;

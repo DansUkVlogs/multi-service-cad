@@ -1,5 +1,15 @@
 // --- Real-time listener for dispatcher-driven attach/detach and call updates (Ambulance Page) ---
 document.addEventListener('DOMContentLoaded', () => {
+    // --- PATCH: BROADCAST UNIT SELECTION LOGIC ---
+    // Replace any logic that populates the broadcast unit selection dropdown to use ALL units, not just available
+    // Example: If you have a function like getAvailableUnitsForBroadcast, replace it with getAllUnitsForBroadcast below
+    async function getAllUnitsForBroadcast() {
+        const unitsSnap = await getDocs(collection(db, 'units'));
+        return unitsSnap.docs.map(docu => ({ id: docu.id, ...docu.data() }));
+    }
+    // If you have a broadcast modal with a unit dropdown, use:
+    // const units = await getAllUnitsForBroadcast();
+    // ...populate dropdown with units...
     // --- BROADCAST LISTENER & UI (AMBULANCE PAGE) ---
     let callsign = null;
     function getCallsign() {
@@ -101,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
         broadcastHistoryBtn.style.height = '54px';
         broadcastHistoryBtn.style.fontSize = '2em';
         broadcastHistoryBtn.style.boxShadow = '0 2px 12px rgba(0,0,0,0.18)';
-        broadcastHistoryBtn.style.zIndex = '10030';
+        broadcastHistoryBtn.style.zIndex = '100';
         broadcastHistoryBtn.style.cursor = 'pointer';
         document.body.appendChild(broadcastHistoryBtn);
     }
@@ -1723,14 +1733,30 @@ function setupPanicButton() {
 
     async function deactivatePanic() {
         console.log('[PANIC DEBUG] Deactivating panic, panicDocId:', panicDocId);
-        
         const unitId = sessionStorage.getItem('unitId');
-        
-        // Delete the panic call first
+        // --- PATCH: End panic follows close call procedure ---
+        // 1. Detach all units from the call (if any)
+        let callId = null;
+        const attachedSnap = await getDocs(query(collection(db, 'attachedUnit'), where('unitID', '==', unitId)));
+        if (!attachedSnap.empty) {
+            callId = attachedSnap.docs[0].data().callID;
+        }
+        if (callId) {
+            // Detach all units from this call
+            const attachedUnitQuery = query(collection(db, 'attachedUnit'), where('callID', '==', callId));
+            const attachedUnitSnapshot = await getDocs(attachedUnitQuery);
+            for (const attachedDoc of attachedUnitSnapshot.docs) {
+                await deleteDoc(attachedDoc.ref);
+            }
+            // Delete the call itself
+            await deleteDoc(doc(db, 'calls', callId));
+            clearCallDetailsSection && clearCallDetailsSection();
+        }
+        // --- End PATCH ---
+        // Delete the panic call (legacy)
         if (unitId) {
             await deletePanicCall(unitId);
         }
-        
         if (panicDocId) {
             try {
                 await deleteDoc(doc(db, 'panicAlerts', panicDocId));
@@ -1749,34 +1775,21 @@ function setupPanicButton() {
                 }
             }
         }
-        
         panicDocId = null;
         panicActive = false;
         stopPanicBlink();
         updateStatusIndicator('Unavailable');
-        
         // Play tones sound immediately for local user when panic stops
-        console.log('[PANIC DEBUG] Playing local tones sound for panic deactivation');
-        console.log('[PANIC DEBUG] audioPaths loaded:', audioPathsLoaded, 'audioPaths:', audioPaths);
-        console.log('[PANIC DEBUG] userHasInteracted:', userHasInteracted, 'isStartupModalActive:', isStartupModalActive);
-        
-        // Enhanced tones sound playing with multiple attempts
         playSoundByKey('tones');
-        
-        // Additional fallback: try direct audio play as backup with a slight delay
         setTimeout(() => {
             if (audioPaths && audioPaths['tones']) {
-                console.log('[PANIC DEBUG] Fallback: playing tones sound directly');
                 try {
                     const audio = new Audio(audioPaths['tones']);
-                    audio.volume = 0.8; // Ensure good volume
-                    audio.play().catch(err => console.error('[PANIC DEBUG] Direct tones audio play failed:', err));
-                } catch (e) {
-                    console.error('[PANIC DEBUG] Direct tones audio creation failed:', e);
-                }
+                    audio.volume = 0.8;
+                    audio.play().catch(() => {});
+                } catch (e) {}
             }
         }, 100);
-        
         // Do NOT call removePanicPopup() here; let the Firestore listener update the popup
     }
 
@@ -2140,7 +2153,8 @@ async function renderAttachedUnitsForCallCompact(callId, container) {
     container.dataset.rendering = 'true';
 
     container.innerHTML = ''; // Clear existing content
-    try {        const attachedUnitQuery = query(
+    try {
+        const attachedUnitQuery = query(
             collection(db, "attachedUnit"),
             where("callID", "==", callId)
         );
@@ -2181,7 +2195,6 @@ async function renderAttachedUnitsForCallCompact(callId, container) {
             const statusColor = getStatusColor(unitStatus);
             const textColor = getContrastingTextColor(statusColor);
 
-            // Create unit card HTML with callsign and service-specificType format
             // Build tooltip with only non-"Unknown" values
             const tooltipParts = [];
             if (unitCallsign && unitCallsign !== 'N/A') tooltipParts.push(unitCallsign);
@@ -2196,9 +2209,9 @@ async function renderAttachedUnitsForCallCompact(callId, container) {
             var abbrColor = getUnitTypeColor(unitType);
             var abbrTextColor = getContrastingTextColor(abbrColor);
             var unitCardHTML =
-                '<div class="unit-pill call-list-attached-unit-pill" style="background-color: ' + statusColor + '; color: ' + textColor + '; margin: 4px 0; padding: 5px 16px; border-radius: 16px; font-size: 15px; font-weight: bold; box-shadow: 0 1px 4px rgba(0,0,0,0.06); white-space: nowrap; display: flex; flex-direction: row; align-items: center; min-width: 120px; max-width: 340px; height: 35px;" title="' + tooltip + '">' +
-                    '<span style="background:' + abbrColor + ';color:' + abbrTextColor + ';border-radius:6px;padding:2px 12px;margin-right:14px;font-weight:bold;font-size:1.08em;display:inline-block;min-width:42px;text-align:center;">' + abbr + '</span>' +
-                    '<span style="flex:1;text-align:left;font-weight:bold;font-size:1.05em;">' + unitCallsign + '</span>' +
+                '<div class="all-calls-unit-pill" style="background-color: ' + statusColor + '; color: ' + textColor + ';" title="' + tooltip + '">' +
+                    '<span class="all-calls-unit-pill-abbr" style="background:' + abbrColor + ';color:' + abbrTextColor + ';">' + abbr + '</span>' +
+                    '<span class="all-calls-unit-pill-callsign">' + unitCallsign + '</span>' +
                 '</div>';
 
             unitCards.push(unitCardHTML);
@@ -2208,8 +2221,7 @@ async function renderAttachedUnitsForCallCompact(callId, container) {
         if (unitCards.length === 0) {
             container.innerHTML = '<div style="color: #999; font-size: 9px; text-align: center; padding: 6px; font-style: italic;">None</div>';
         } else {
-            // Make cards even closer together vertically
-            container.innerHTML = '<div class="call-list-attached-units" style="display: flex; flex-direction: column; gap: 1px; overflow-y: auto; max-height: 220px; padding: 12px 0 1px 0;">' + unitCards.join('') + '</div>';
+            container.innerHTML = '<div class="all-calls-attached-units-container">' + unitCards.join('') + '</div>';
         }
     } catch (error) {
         console.error('Error fetching attached units for call ID ' + callId + ':', error);

@@ -1121,32 +1121,283 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Close Call button
+    // Close Call button with confirmation modal (copied from ambulance.js)
     if (closeCallBtn) {
         closeCallBtn.addEventListener("click", async () => {
             if (!selectedCallId) {
                 showNotification("No call is selected.", "error");
                 return;
             }
+            showCloseCallConfirmationModal();
+        });
+    }
 
+    // Show close call confirmation modal (copied and adapted from ambulance.js)
+    function showCloseCallConfirmationModal() {
+        // Remove any existing modal first
+        const existingModal = document.getElementById('close-call-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        // Create background overlay
+        const overlay = document.createElement('div');
+        overlay.id = 'close-call-modal';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.7);
+            border: 3px solid #d32f2f;
+            z-index: 10000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        `;
+        // Create modal content
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            background: #fff;
+            border: 3px solid #d32f2f;
+            border-radius: 16px;
+            padding: 32px 40px 24px 40px;
+            min-width: 400px;
+            max-width: 90vw;
+            box-shadow: 0 8px 32px rgba(211, 47, 47, 0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            font-family: inherit;
+        `;
+        // Create warning icon
+        const warningIcon = document.createElement('div');
+        warningIcon.innerHTML = '⚠️';
+        warningIcon.style.cssText = `
+            font-size: 3rem;
+            margin-bottom: 10px;
+        `;
+        // Create title
+        const title = document.createElement('div');
+        title.textContent = 'CLOSE CALL - WARNING';
+        title.style.cssText = `
+            font-size: 1.8rem;
+            color: #d32f2f;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
+        `;
+        // Create warning message
+        const message = document.createElement('div');
+        message.innerHTML = `
+            <p style="color: #d32f2f; font-weight: bold; font-size: 1.1rem; text-align: center; margin: 0 0 15px 0;">
+                Are you sure you wish to close this call?
+            </p>
+            <p style="color: #333; font-size: 1rem; text-align: center; margin: 0 0 10px 0;">
+                <strong>This action will:</strong>
+            </p>
+            <ul style="color: #d32f2f; font-size: 1rem; text-align: left; margin: 0 0 15px 0; padding-left: 20px;">
+                <li>Detach ALL units from this call</li>
+                <li>Permanently delete the call</li>
+                <li>Make the call inaccessible forever</li>
+            </ul>
+            <p style="color: #d32f2f; font-weight: bold; font-size: 1.1rem; text-align: center; margin: 0;">
+                THIS CANNOT BE UNDONE!
+            </p>
+        `;
+        // Create checkbox container
+        const checkboxContainer = document.createElement('div');
+        checkboxContainer.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 15px 0;
+            padding: 12px;
+            background: #ffebee;
+            border: 2px solid #d32f2f;
+            border-radius: 8px;
+            width: 100%;
+            box-sizing: border-box;
+        `;
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = 'close-call-confirm-checkbox';
+        checkbox.style.cssText = `
+            transform: scale(1.2);
+            margin-right: 5px;
+        `;
+        const checkboxLabel = document.createElement('label');
+        checkboxLabel.setAttribute('for', 'close-call-confirm-checkbox');
+        checkboxLabel.textContent = 'I understand this action cannot be undone';
+        checkboxLabel.style.cssText = `
+            color: #d32f2f;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+        `;
+        checkboxContainer.appendChild(checkbox);
+        checkboxContainer.appendChild(checkboxLabel);
+        // Create button container
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.cssText = `
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            width: 100%;
+            margin-top: 10px;
+        `;
+        // Create No button
+        const noBtn = document.createElement('button');
+        noBtn.textContent = 'No, Cancel';
+        noBtn.style.cssText = `
+            padding: 12px 24px;
+            border: 2px solid #666;
+            background: #fff;
+            color: #666;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+            min-width: 120px;
+        `;
+        // Create Yes button
+        const yesBtn = document.createElement('button');
+        yesBtn.textContent = 'Yes, Close Call';
+        yesBtn.style.cssText = `
+            padding: 12px 24px;
+            border: none;
+            background: #d32f2f;
+            color: #fff;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+            min-width: 120px;
+        `;
+        // Assemble modal
+        buttonContainer.appendChild(noBtn);
+        buttonContainer.appendChild(yesBtn);
+        modal.appendChild(warningIcon);
+        modal.appendChild(title);
+        modal.appendChild(message);
+        modal.appendChild(checkboxContainer);
+        modal.appendChild(buttonContainer);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+        // Event handlers
+        function closeModal() {
+            overlay.remove();
+        }
+        // No button - close modal
+        noBtn.addEventListener('click', closeModal);
+        // Yes button - validate checkbox and proceed
+        yesBtn.addEventListener('click', async () => {
+            if (!checkbox.checked) {
+                showNotification('Please check the confirmation checkbox to proceed.', 'error');
+                return;
+            }
+            // Close modal and proceed with closing the call
+            closeModal();
+            await executeCloseCall();
+        });
+        // Click outside to cancel
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                closeModal();
+            }
+        });
+        // ESC key to cancel
+        document.addEventListener('keydown', function escHandler(e) {
+            if (e.key === 'Escape') {
+                closeModal();
+                document.removeEventListener('keydown', escHandler);
+            }
+        });
+    }
+
+    // Execute close call operation: detach all units, then delete call (copied from ambulance.js)
+    async function executeCloseCall() {
+        if (!selectedCallId) {
+            showNotification('No call selected to close.', 'error');
+            return;
+        }
+        const callId = selectedCallId;
+        const detachedUnits = [];
+        try {
+            showNotification('Closing call...', 'info');
+            // Step 1: Get all units attached to this call
+            const attachedUnitQuery = query(
+                collection(db, "attachedUnit"),
+                where("callID", "==", callId)
+            );
+            const attachedUnitSnapshot = await getDocs(attachedUnitQuery);
+            // Step 2: Detach all units and move them to availableUnits
+            for (const attachedDoc of attachedUnitSnapshot.docs) {
+                const unitData = attachedDoc.data();
+                const unitId = unitData.unitID;
+                if (!unitId) continue;
+                try {
+                    // Get unit details to check status
+                    const unitRef = doc(db, "units", unitId);
+                    const unitSnap = await getDoc(unitRef);
+                    if (!unitSnap.exists()) continue;
+                    const unit = unitSnap.data();
+                    const unitStatus = unit.status || 'Unknown';
+                    // Remove from attachedUnit collection
+                    await deleteDoc(attachedDoc.ref);
+                    // Add to availableUnits only if status is not "Unavailable"
+                    if (unitStatus !== "Unavailable") {
+                        const availableUnitDocRef = doc(db, "availableUnits", unitId);
+                        await setDoc(availableUnitDocRef, { unitId: unitId });
+                    }
+                    detachedUnits.push({ unitId, attachedDocId: attachedDoc.id, callId, unitStatus, originalAttachedData: unitData });
+                } catch (unitError) {
+                    // Rollback: Re-attach all previously detached units
+                    await rollbackDetachedUnits(detachedUnits);
+                    showNotification('Failed to detach units from call. Operation cancelled.', 'error');
+                    return;
+                }
+            }
+            // Step 3: Delete the call from calls collection
             try {
-                const callDocRef = doc(db, "calls", selectedCallId);
-                await deleteDoc(callDocRef); // Remove the call from Firestore
-                playSound("callclosed"); // Play call closed sound
-                showNotification("Call closed successfully.", "success");
-
-                selectedCallId = null; // Reset the selected call ID
+                const callDocRef = doc(db, "calls", callId);
+                await deleteDoc(callDocRef);
+                // Step 4: Clear call details section (no rollback needed past this point)
+                selectedCallId = null;
                 callerName.textContent = "";
                 callLocation.textContent = "";
                 callStatus.textContent = "";
                 callTimestamp.textContent = "";
-                attachedUnits.innerHTML = "<p>No Attached Units</p>"; // Clear attached units
-                await loadCalls(); // Reload the calls list to reflect the deletion
-            } catch (error) {
-                console.error("Error closing call:", error);
-                showNotification("Failed to close the call. Please try again.", "error");
+                attachedUnits.innerHTML = "<p>No Attached Units</p>";
+                await loadCalls();
+                showNotification(`Call closed successfully. ${detachedUnits.length} units were detached.`, 'success');
+            } catch (deleteError) {
+                // Rollback: Re-attach all detached units
+                await rollbackDetachedUnits(detachedUnits);
+                showNotification('Failed to delete call. Operation cancelled.', 'error');
             }
-        });
+        } catch (error) {
+            showNotification('Failed to close call. Please try again.', 'error');
+        }
+    }
+
+    // Rollback function for detached units (copied from ambulance.js)
+    async function rollbackDetachedUnits(detachedUnits) {
+        for (const unit of detachedUnits) {
+            try {
+                // Re-add to attachedUnit collection
+                await setDoc(doc(db, "attachedUnit", unit.attachedDocId), unit.originalAttachedData);
+                // Remove from availableUnits
+                await deleteDoc(doc(db, "availableUnits", unit.unitId));
+            } catch (e) {
+                // Ignore rollback errors
+            }
+        }
     }
 
     // Save Changes button
@@ -1502,16 +1753,32 @@ function openBroadcastComposer(targetType, prefill = {}) {
         };
         groupBtnsDiv.appendChild(btn);
     });
-    // Search logic
+    // Search logic (fetch all units from Firestore for searching)
     const searchBox = document.getElementById('recipient-search-box');
     const addBtn = document.getElementById('add-recipient-btn');
     const searchResultsDiv = document.getElementById('recipient-search-results');
+    let allUnitsForSearch = [];
+
+    async function fetchAllUnitsForSearch() {
+        // Use Firestore to get all units
+        try {
+            const snapshot = await getDocs(collection(db, 'units'));
+            allUnitsForSearch = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        } catch (err) {
+            allUnitsForSearch = [];
+        }
+    }
+
     function updateSearchResults() {
         const val = searchBox.value.trim().toLowerCase();
         searchResultsDiv.innerHTML = '';
         if (!val) return;
-        // Only show units not already selected
-        const filtered = allUnits.filter(u => (u.callsign||'').toLowerCase().includes(val) && !selectedRecipients.includes(u.callsign));
+        // Only show units not already selected and not unavailable
+        const filtered = allUnitsForSearch.filter(u => {
+            const callsign = (u.callsign||'').toLowerCase();
+            const status = (u.status||'').toLowerCase();
+            return callsign.includes(val) && !selectedRecipients.includes(u.callsign) && status !== 'unavailable';
+        });
         filtered.slice(0, 20).forEach(u => {
             let res = document.createElement('div');
             res.textContent = u.callsign;
@@ -1529,30 +1796,42 @@ function openBroadcastComposer(targetType, prefill = {}) {
             searchResultsDiv.appendChild(res);
         });
     }
-    searchBox.addEventListener('input', updateSearchResults);
-    searchBox.addEventListener('blur', () => setTimeout(()=>{searchResultsDiv.innerHTML='';}, 200));
-    searchBox.addEventListener('keydown', e => {
-        if (e.key === 'Enter') {
+
+    // Wait for all units to be fetched before enabling search
+    fetchAllUnitsForSearch().then(() => {
+        searchBox.addEventListener('input', updateSearchResults);
+        searchBox.addEventListener('blur', () => setTimeout(()=>{searchResultsDiv.innerHTML='';}, 200));
+        searchBox.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                const val = searchBox.value.trim().toLowerCase();
+                const filtered = allUnitsForSearch.filter(u => {
+                    const callsign = (u.callsign||'').toLowerCase();
+                    const status = (u.status||'').toLowerCase();
+                    return callsign.includes(val) && !selectedRecipients.includes(u.callsign) && status !== 'unavailable';
+                });
+                if (filtered.length === 1) {
+                    selectedRecipients.push(filtered[0].callsign);
+                    renderSelectedRecipients();
+                    searchBox.value = '';
+                    searchResultsDiv.innerHTML = '';
+                }
+            }
+        });
+        addBtn.onclick = () => {
             const val = searchBox.value.trim().toLowerCase();
-            const filtered = allUnits.filter(u => (u.callsign||'').toLowerCase().includes(val) && !selectedRecipients.includes(u.callsign));
+            const filtered = allUnitsForSearch.filter(u => {
+                const callsign = (u.callsign||'').toLowerCase();
+                const status = (u.status||'').toLowerCase();
+                return callsign.includes(val) && !selectedRecipients.includes(u.callsign) && status !== 'unavailable';
+            });
             if (filtered.length === 1) {
                 selectedRecipients.push(filtered[0].callsign);
                 renderSelectedRecipients();
                 searchBox.value = '';
                 searchResultsDiv.innerHTML = '';
             }
-        }
+        };
     });
-    addBtn.onclick = () => {
-        const val = searchBox.value.trim().toLowerCase();
-        const filtered = allUnits.filter(u => (u.callsign||'').toLowerCase().includes(val) && !selectedRecipients.includes(u.callsign));
-        if (filtered.length === 1) {
-            selectedRecipients.push(filtered[0].callsign);
-            renderSelectedRecipients();
-            searchBox.value = '';
-            searchResultsDiv.innerHTML = '';
-        }
-    };
 
     document.getElementById('send-broadcast-btn').onclick = async () => {
         const msg = document.getElementById('broadcast-message').value.trim();
