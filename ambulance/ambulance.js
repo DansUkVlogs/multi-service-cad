@@ -1553,6 +1553,114 @@ onSnapshot(q, (snapshot) => {
     }
 });
 
+// --- Real-time Call Details Listener ---
+let selectedCallListener = null;
+
+// Function to set up real-time listener for selected call details
+function setupSelectedCallListener(callId) {
+    // Clean up existing listener
+    if (selectedCallListener) {
+        selectedCallListener();
+        selectedCallListener = null;
+    }
+    
+    if (!callId) return;
+    
+    console.log('[CALL DETAILS] Setting up real-time listener for call:', callId);
+    
+    // Set up real-time listener for this specific call
+    const callDocRef = doc(db, 'calls', callId);
+    selectedCallListener = onSnapshot(callDocRef, (docSnapshot) => {
+        if (docSnapshot.exists()) {
+            const updatedCallData = { id: docSnapshot.id, ...docSnapshot.data() };
+            console.log('[CALL DETAILS] Call data updated in real-time:', updatedCallData);
+            
+            // Update the call details section with new data
+            updateCallDetailsSection(updatedCallData);
+        } else {
+            console.log('[CALL DETAILS] Call document no longer exists');
+            // Call was deleted, clear the details section
+            clearCallDetailsSection();
+        }
+    }, (error) => {
+        console.error('[CALL DETAILS] Error in real-time listener:', error);
+    });
+}
+
+// Function to update the call details section with new data
+function updateCallDetailsSection(callData) {
+    // Update caller name
+    const callerNameElement = document.querySelector('.callerName');
+    if (callerNameElement) {
+        callerNameElement.textContent = callData.callerName || 'Unknown';
+    }
+    
+    // Update incident text
+    const incidentElement = document.querySelector('.incident');
+    if (incidentElement) {
+        incidentElement.textContent = callData.status || 'Unknown';
+    }
+    
+    // Update location text
+    const locationElement = document.querySelector('.location');
+    if (locationElement) {
+        locationElement.textContent = callData.location || 'Location not provided';
+    }
+    
+    // Update description text
+    const descriptionElement = document.querySelector('.descriptionText');
+    if (descriptionElement) {
+        if (descriptionElement.tagName === 'TEXTAREA') {
+            descriptionElement.value = callData.description || '';
+        } else {
+            descriptionElement.textContent = callData.description || 'No description provided';
+        }
+    }
+    
+    // Update timestamp
+    const timestampElement = document.querySelector('.timestamp');
+    if (timestampElement && callData.timestamp) {
+        const timestamp = callData.timestamp.toDate ? callData.timestamp.toDate() : new Date(callData.timestamp);
+        timestampElement.textContent = `${timestamp.toLocaleTimeString('en-GB')} ${timestamp.toLocaleDateString('en-GB')}`;
+    }
+    
+    // Update attached units section
+    const attachedUnitsContainer = document.getElementById('attached-units-container');
+    if (attachedUnitsContainer) {
+        renderAttachedUnitsForSelectedCall(callData.id, attachedUnitsContainer);
+    }
+    
+    // Update window.selectedCall with new data
+    window.selectedCall = callData;
+    
+    console.log('[CALL DETAILS] Updated call details section with new data');
+}
+
+// Function to clear the call details section
+function clearCallDetailsSection() {
+    const callerNameElement = document.querySelector('.callerName');
+    const incidentElement = document.querySelector('.incident');
+    const locationElement = document.querySelector('.location');
+    const descriptionElement = document.querySelector('.descriptionText');
+    const timestampElement = document.querySelector('.timestamp');
+    const attachedUnitsContainer = document.getElementById('attached-units-container');
+    
+    if (callerNameElement) callerNameElement.textContent = 'Unknown';
+    if (incidentElement) incidentElement.textContent = 'No call selected';
+    if (locationElement) locationElement.textContent = 'No location';
+    if (descriptionElement) {
+        if (descriptionElement.tagName === 'TEXTAREA') {
+            descriptionElement.value = '';
+        } else {
+            descriptionElement.textContent = 'No description';
+        }
+    }
+    if (timestampElement) timestampElement.textContent = '';
+    if (attachedUnitsContainer) attachedUnitsContainer.innerHTML = '';
+    
+    window.selectedCall = null;
+}
+
 // Utility: Debug log all attachedUnit docs for a call
 async function debugLogAttachedUnitsForCall(callId) {
     try {
@@ -2067,9 +2175,7 @@ async function selectCall(call) {
         window.selectedCall = latestCall;
         
         // Set up real-time listener for the selected call
-        if (window.setupSelectedCallListener) {
-            window.setupSelectedCallListener(latestCall.id);
-        }
+        setupSelectedCallListener(latestCall.id);
         
         // Render attached units for the selected call in call details section
         const attachedUnitsContainer = document.getElementById('attached-units-container');
@@ -2140,9 +2246,6 @@ try {
 } catch (error) {
     console.error('Error setting up calls listener:', error);
 }
-
-// --- Fix: Remove duplicate stub definitions for setupSelfAttachButton and updateDispatcherCount ---
-// (Removed duplicate function definitions to resolve SyntaxError)
 
 // Add real-time listeners for attached units updates
 document.addEventListener("DOMContentLoaded", () => {
