@@ -845,7 +845,7 @@ function setupStatusButtons() {
         
         // Hospital button logic - two stage
         if (status === 'Transporting To Hospital') {
-            btn.addEventListener('click', function hospitalBtnHandler() {
+            btn.addEventListener('click', async function hospitalBtnHandler() {
                 const currentLocation = sessionStorage.getItem('hospitalButton_lastHospital');
                 const currentStatus = btn.textContent.trim();
                 
@@ -868,7 +868,7 @@ function setupStatusButtons() {
                             newStatus = `Transporting To Hospital - ${location}`;
                         }
                         
-                        updateStatusAndButton(newStatus, btn, 'At Hospital');
+                        await updateStatusAndButton(newStatus, btn, 'At Hospital');
                         showNotification(`Selected hospital: ${location}`, 'success');
                     });
                 } else {
@@ -881,13 +881,13 @@ function setupStatusButtons() {
                         finalStatus = `At Hospital - ${currentLocation}`;
                     }
                     
-                    updateStatusAndButton(finalStatus, btn, 'Transporting To Hospital', true);
+                    await updateStatusAndButton(finalStatus, btn, 'Transporting To Hospital', true);
                     showNotification(`Now at hospital: ${currentLocation}`, 'success');
                 }
             });
         // Standby button logic - two stage
         } else if (status === 'Go To Standby') {
-            btn.addEventListener('click', function standbyBtnHandler() {
+            btn.addEventListener('click', async function standbyBtnHandler() {
                 const currentLocation = sessionStorage.getItem('standbyButton_lastStandby');
                 const currentStatus = btn.textContent.trim();
                 
@@ -902,20 +902,20 @@ function setupStatusButtons() {
                         displayCurrentIDs();
                         
                         const newStatus = `Going to Standby - ${location}`;
-                        updateStatusAndButton(newStatus, btn, 'At Standby');
+                        await updateStatusAndButton(newStatus, btn, 'At Standby');
                         showNotification(`Going to standby: ${location}`, 'success');
                     });
                 } else {
                     // Stage 2: Use saved location, change to "At Standby"
                     const finalStatus = `At Standby - ${currentLocation}`;
                     
-                    updateStatusAndButton(finalStatus, btn, 'Go To Standby', true);
+                    await updateStatusAndButton(finalStatus, btn, 'Go To Standby', true);
                     showNotification(`Now at standby: ${currentLocation}`, 'success');
                 }
             });
         // Base button logic - two stage
         } else if (status === 'Going To Base') {
-            btn.addEventListener('click', function baseBtnHandler() {
+            btn.addEventListener('click', async function baseBtnHandler() {
                 const currentLocation = sessionStorage.getItem('baseButton_lastBase');
                 const currentStatus = btn.textContent.trim();
                 
@@ -938,7 +938,7 @@ function setupStatusButtons() {
                             newStatus = `Going to replenish at base - ${location}`;
                         }
                         
-                        updateStatusAndButton(newStatus, btn, 'At Base');
+                        await updateStatusAndButton(newStatus, btn, 'At Base');
                         showNotification(`Going to base: ${location}`, 'success');
                     });
                 } else {
@@ -951,7 +951,7 @@ function setupStatusButtons() {
                         finalStatus = `at base - replenishing - ${currentLocation}`;
                     }
                     
-                    updateStatusAndButton(finalStatus, btn, 'Going To Base', true);
+                    await updateStatusAndButton(finalStatus, btn, 'Going To Base', true);
                     showNotification(`Now at base: ${currentLocation}`, 'success');
                 }
             });
@@ -991,7 +991,7 @@ function setupStatusButtons() {
                             // Return to Available status
                             const availableBtn = document.querySelector('[data-status="Available"]');
                             if (availableBtn) {
-                                handleStatusChange('Available', availableBtn);
+                                await handleStatusChange('Available', availableBtn);
                             }
                             
                         } catch (error) {
@@ -1005,9 +1005,9 @@ function setupStatusButtons() {
             });
         } else {
             // All other status buttons
-            btn.addEventListener('click', function() {
+            btn.addEventListener('click', async function() {
                 if (status) {
-                    handleStatusChange(status, btn);
+                    await handleStatusChange(status, btn);
                 }
             });
         }
@@ -1015,52 +1015,75 @@ function setupStatusButtons() {
 }
 
 // Simple status change handler for all status buttons
-function handleStatusChange(status, button) {
+async function handleStatusChange(status, button) {
     const unitId = sessionStorage.getItem('unitId');
     if (!unitId || unitId === 'None') {
         showNotification('No valid UnitID found. Cannot change status.', 'error');
         return;
     }
     
-    // Update status indicator and show notification
-    updateStatusIndicator(status);
-    animateStatusGradientBar(status);
-    showNotification(`Status changed to: ${status}`, 'success');
-    
-    // Set this button as the active one (green for normal buttons)
-    setActiveStatusButton(button, 'green');
-    
-    console.log(`Status changed to: ${status} for unit: ${unitId}`);
+    try {
+        // Update status in Firebase
+        const unitDocRef = doc(db, "units", unitId);
+        await updateDoc(unitDocRef, {
+            status: status
+        });
+        
+        // Update status indicator and show notification
+        updateStatusIndicator(status);
+        animateStatusGradientBar(status);
+        showNotification(`Status changed to: ${status}`, 'success');
+        
+        // Set this button as the active one (green for normal buttons)
+        setActiveStatusButton(button, 'green');
+        
+        console.log(`Status changed to: ${status} for unit: ${unitId}`);
+    } catch (error) {
+        console.error('Error updating status in Firebase:', error);
+        showNotification('Failed to update status. Please try again.', 'error');
+    }
 }
 
 // Function to update status and button text for two-stage buttons
-function updateStatusAndButton(statusText, button, newButtonText, isSecondStage = false) {
+async function updateStatusAndButton(statusText, button, newButtonText, isSecondStage = false) {
     const unitId = sessionStorage.getItem('unitId');
     if (!unitId || unitId === 'None') {
         showNotification('No valid UnitID found. Cannot change status.', 'error');
         return;
     }
     
-    // Update status indicator and show notification
-    updateStatusIndicator(statusText);
-    animateStatusGradientBar(statusText);
-    
-    // Update button text
-    button.textContent = newButtonText;
-    
-    // Set button as active with appropriate stage
-    if (newButtonText === 'At Hospital' || newButtonText === 'At Base' || newButtonText === 'At Standby') {
-        // Stage 1: Blue highlighting (location selected, going to location)
-        setActiveStatusButton(button, 'blue');
-    } else if (isSecondStage) {
-        // Stage 2: Green highlighting (at location performing activity)
-        setActiveStatusButton(button, 'green');
-    } else {
-        // Back to original state: Set as normal green active button
-        setActiveStatusButton(button, 'green');
+    try {
+        // Update status in Firebase
+        const unitDocRef = doc(db, "units", unitId);
+        await updateDoc(unitDocRef, {
+            status: statusText
+        });
+        
+        // Update status indicator and show notification
+        updateStatusIndicator(statusText);
+        animateStatusGradientBar(statusText);
+        
+        // Update button text
+        button.textContent = newButtonText;
+        
+        // Set button as active with appropriate stage
+        if (newButtonText === 'At Hospital' || newButtonText === 'At Base' || newButtonText === 'At Standby') {
+            // Stage 1: Blue highlighting (location selected, going to location)
+            setActiveStatusButton(button, 'blue');
+        } else if (isSecondStage) {
+            // Stage 2: Green highlighting (at location performing activity)
+            setActiveStatusButton(button, 'green');
+        } else {
+            // Back to original state: Set as normal green active button
+            setActiveStatusButton(button, 'green');
+        }
+        
+        showNotification(`Status changed to: ${statusText}`, 'success');
+        console.log(`Status changed to: ${statusText} for unit: ${unitId}`);
+    } catch (error) {
+        console.error('Error updating status in Firebase:', error);
+        showNotification('Failed to update status. Please try again.', 'error');
     }
-    
-    console.log(`Status changed to: ${statusText} for unit: ${unitId}`);
 }
 
 // Helper function to reset button styles to default
