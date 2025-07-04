@@ -32,27 +32,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Attach event
         if (attachedCallId && attachedCallId !== lastAttachedCallId) {
-            // New attach (dispatcher or other)
             lastAttachedCallId = attachedCallId;
-            // Set up real-time listener for the call details
+            // Set up real-time listener for the call details and attached units
             if (callDetailsUnsub) callDetailsUnsub();
-            callDetailsUnsub = onSnapshot(doc(db, 'calls', attachedCallId), (docSnap) => {
+            // Listen for call document changes
+            callDetailsUnsub = onSnapshot(doc(db, 'calls', attachedCallId), async (docSnap) => {
                 if (docSnap.exists()) {
                     const callData = { id: docSnap.id, ...docSnap.data() };
+                    // Listen for attached/detached units for this call
+                    const attachedUnitCallQuery = query(collection(db, 'attachedUnit'), where('callID', '==', attachedCallId));
+                    // Track previous attached unit IDs
+                    if (!window._prevAttachedUnitIds) window._prevAttachedUnitIds = new Set();
+                    let prevUnitIds = new Set(window._prevAttachedUnitIds);
+                    let currUnitIds = new Set();
+                    const attachedUnitSnapshot = await getDocs(attachedUnitCallQuery);
+                    attachedUnitSnapshot.forEach(docu => {
+                        const data = docu.data();
+                        if (data.unitID) currUnitIds.add(data.unitID);
+                    });
+                    // Detect attach/detach
+                    let attachedChanged = false;
+                    if (prevUnitIds.size !== currUnitIds.size || [...prevUnitIds].some(id => !currUnitIds.has(id)) || [...currUnitIds].some(id => !prevUnitIds.has(id))) {
+                        attachedChanged = true;
+                    }
+                    window._prevAttachedUnitIds = currUnitIds;
+
                     // If this is the first time (attach), show details and play attach sound
                     if (!lastCallData) {
                         updateCallDetailsSection(callData);
                         playAttachSound();
-                    } else {
-                        // If any field changed, play update sound
-                        const fields = ['description', 'status', 'location', 'callerName'];
-                        let changed = false;
-                        for (const f of fields) {
-                            if (callData[f] !== lastCallData[f]) { changed = true; break; }
-                        }
-                        if (changed) playUpdateSound();
-                        updateCallDetailsSection(callData);
+                        lastCallData = callData;
+                        return;
                     }
+                    // Play update sound if any of the following changed:
+                    // location, description, status, attached/detached unit, or status
+                    const fields = ['description', 'status', 'location', 'callerName'];
+                    let changed = false;
+                    for (const f of fields) {
+                        if (callData[f] !== lastCallData[f]) { changed = true; break; }
+                    }
+                    if (changed || attachedChanged) {
+                        playUpdateSound();
+                    }
+                    updateCallDetailsSection(callData);
                     lastCallData = callData;
                 } else {
                     // Call was deleted
@@ -63,12 +85,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         // Detach event
         if (!attachedCallId && lastAttachedCallId) {
-            // Detached from call (dispatcher or other)
             lastAttachedCallId = null;
             if (callDetailsUnsub) { callDetailsUnsub(); callDetailsUnsub = null; }
             clearCallDetailsSection();
             lastCallData = null;
             playDetachSound();
+            window._prevAttachedUnitIds = new Set();
         }
     });
 });
