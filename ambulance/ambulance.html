@@ -84,10 +84,44 @@
                 </div>
             </div>
             <div class="calls-list">
-                <div class="calls-list-header">
-                    <h2 style="margin-bottom: 0;">All Calls</h2>
+                <div class="calls-list-header" style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <h2 style="margin-bottom: 0;">All Calls</h2>
+                        <button id="new-call-btn" class="new-call" style="background: linear-gradient(135deg, #004d00, #009933); color: white; border: none; padding: 12px 18px; border-radius: 12px; font-size: 1em; font-weight: bold; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 6px 20px rgba(0, 77, 0, 0.18);">New Call</button>
+                    </div>
                     <div id="dispatcher-counter-display" class="dispatcher-counter-display">Active Dispatchers: ?</div>
                 </div>
+    <!-- New Call Modal -->
+    <div id="newCallModal" class="modal" style="display: none; width: 480px; max-width: 98vw;">
+        <div class="modal-content" style="display: flex; flex-direction: column; align-items: center; gap: 15px; position: relative;">
+            <span class="close" id="close-new-call-modal" style="position: absolute; top: 10px; right: 10px; font-size: 18px; cursor: pointer; background: none; border: none; color: #004d00; font-weight: bold;">&times;</span>
+            <h2 style="color: #004d00; text-align: center; margin: 0 0 15px 0; font-size: 1.5rem; text-shadow: 1px 1px 3px rgba(0,77,0,0.12); width: 100%;">Create New Call</h2>
+            <form id="newCallForm" style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 12px;">
+                <div class="form-group" style="width: 90%; display: flex; flex-direction: column; align-items: center; margin-bottom: 0;">
+                    <label for="callerName" style="color: #004d00; font-weight: bold; width: 100%; text-align: center;">Caller Name</label>
+                    <input type="text" id="callerName" name="callerName" value="AMBULANCE DISPATCH" readonly style="border: 2px solid #004d00; border-radius: 8px; padding: 10px; width: 100%; background: rgba(255,255,255,0.9);">
+                </div>
+                <div class="form-group" style="width: 90%; display: flex; flex-direction: column; align-items: center; margin-bottom: 0;">
+                    <label for="description" style="color: #004d00; font-weight: bold; width: 100%; text-align: center;">Description</label>
+                    <textarea id="description" name="description" required style="border: 2px solid #004d00; border-radius: 8px; padding: 10px; width: 100%; background: rgba(255,255,255,0.9); resize: none; min-height: 60px;"></textarea>
+                </div>
+                <div class="form-group" style="width: 90%; display: flex; flex-direction: column; align-items: center; margin-bottom: 0;">
+                    <label for="location" style="color: #004d00; font-weight: bold; width: 100%; text-align: center;">Location</label>
+                    <input type="text" id="location" name="location" maxlength="5" required style="border: 2px solid #004d00; border-radius: 8px; padding: 10px; width: 100%; background: rgba(255,255,255,0.9);">
+                </div>
+                <div class="form-group" style="width: 90%; display: flex; flex-direction: column; align-items: center; margin-bottom: 0;">
+                    <label for="service" style="color: #004d00; font-weight: bold; width: 100%; text-align: center;">Service</label>
+                    <select id="service" name="service" required style="border: 2px solid #004d00; border-radius: 8px; padding: 10px; width: 100%; background: white;">
+                        <option value="Multiple">Multiple</option>
+                        <option value="Fire">Fire</option>
+                        <option value="Police">Police</option>
+                        <option value="Ambulance">Ambulance</option>
+                    </select>
+                </div>
+                <button type="submit" class="submit-call" style="background: linear-gradient(135deg, #004d00, #009933); color: white; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; width: 90%; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 15px rgba(0,77,0,0.18);">Place Call</button>
+            </form>
+        </div>
+    </div>
                 <div class="calls-fade-top"></div>
                 <div id="calls-container">
                     <!-- Calls will be dynamically populated here -->

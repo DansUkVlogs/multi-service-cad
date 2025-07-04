@@ -1,3 +1,66 @@
+// --- New Call Modal Logic ---
+document.addEventListener('DOMContentLoaded', () => {
+    const newCallBtn = document.getElementById('new-call-btn');
+    const newCallModal = document.getElementById('newCallModal');
+    const closeNewCallModalBtn = document.getElementById('close-new-call-modal');
+    const newCallForm = document.getElementById('newCallForm');
+    if (newCallBtn && newCallModal && closeNewCallModalBtn && newCallForm) {
+        // Open modal
+        newCallBtn.addEventListener('click', () => {
+            newCallModal.style.display = 'block';
+            document.body.classList.add('modal-active');
+            // Reset form fields
+            newCallForm.reset();
+            document.getElementById('callerName').value = 'AMBULANCE DISPATCH';
+        });
+        // Close modal
+        closeNewCallModalBtn.addEventListener('click', () => {
+            newCallModal.style.display = 'none';
+            document.body.classList.remove('modal-active');
+        });
+        // Close modal on outside click
+        window.addEventListener('click', (e) => {
+            if (e.target === newCallModal) {
+                newCallModal.style.display = 'none';
+                document.body.classList.remove('modal-active');
+            }
+        });
+        // Handle form submit
+        newCallForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const description = document.getElementById('description').value.trim();
+            const location = document.getElementById('location').value.trim();
+            const service = document.getElementById('service').value;
+            if (!description || !location || !service) {
+                showNotification('Please fill in all fields.', 'error');
+                return;
+            }
+            if (location.length < 3 || location.length > 5) {
+                showNotification('Location must be 3-5 characters.', 'error');
+                return;
+            }
+            try {
+                const callData = {
+                    callerName: 'AMBULANCE DISPATCH',
+                    description,
+                    location,
+                    service,
+                    status: 'New',
+                    timestamp: new Date(),
+                    createdBy: 'ambulance',
+                };
+                await addDoc(collection(db, 'calls'), callData);
+                showNotification('New call placed successfully.', 'success');
+                playSoundByKey('newambulancecall');
+                newCallModal.style.display = 'none';
+                document.body.classList.remove('modal-active');
+            } catch (err) {
+                showNotification('Failed to place new call. Please try again.', 'error');
+                console.error('Error placing new call:', err);
+            }
+        });
+    }
+});
 // --- Dynamic Hospital Button UI Update ---
 // (Removed duplicate definition to resolve SyntaxError)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
@@ -188,7 +251,22 @@ function playSoundByKey(key) {
 }
 
 // Load audioPaths on startup
-loadAudioPaths();
+// Load audioPaths on startup and preload all audio files for instant playback
+loadAudioPaths().then(paths => {
+    if (paths) {
+        // Preload all audio files referenced in audioPaths
+        Object.values(paths).forEach(url => {
+            if (url) {
+                const audio = new Audio();
+                audio.src = url;
+                //mute and play/pause to force browser to cache
+                audio.muted = true;
+                audio.play().then(() => audio.pause()).catch(() => {});
+                audio.muted = false; // Reset mute for future use
+            }
+        });
+    }
+});
 
 // Function to delete a specified unit
 async function deleteUnit(unitId) {
@@ -1038,6 +1116,9 @@ async function handleStatusChange(status, button) {
         animateStatusGradientBar(status);
         showNotification(`Status changed to: ${status}`, 'success');
         
+        // Play status change sound
+        playSoundByKey('statuschange');
+        
         // Set this button as the active one (green for normal buttons)
         setActiveStatusButton(button, 'green');
         
@@ -1073,6 +1154,9 @@ async function updateStatusAndButton(statusText, button, newButtonText, isSecond
         
         // Update button text
         button.textContent = newButtonText;
+        
+        // Play status change sound
+        playSoundByKey('statuschange');
         
         // Set button as active with appropriate stage
         if (newButtonText === 'At Hospital' || newButtonText === 'At Base' || newButtonText === 'At Standby') {
@@ -1579,8 +1663,14 @@ function setupSelectedCallListener(callId) {
             updateCallDetailsSection(updatedCallData);
         } else {
             console.log('[CALL DETAILS] Call document no longer exists');
-            // Call was deleted, clear the details section
+            // Call was deleted, clear the details section and play closed sound
             clearCallDetailsSection();
+            
+            // Play call closed sound when attached call is closed by someone else
+            playSoundByKey('callclosed');
+            
+            // Show notification that the call was closed
+            showNotification('Your selected call has been closed.', 'info');
         }
     }, (error) => {
         console.error('[CALL DETAILS] Error in real-time listener:', error);
@@ -2478,6 +2568,9 @@ async function executeCloseCall() {
                 selectedCallListener = null;
             }
             
+            // Play call closed sound
+            // playSoundByKey('callclosed'); // Removed: now only played by real-time listener
+            
             showNotification(`Call closed successfully. ${detachedUnits.length} units were detached.`, 'success');
             
         } catch (deleteError) {
@@ -3146,6 +3239,8 @@ function closeSetupModal() {
     if (setupModal) {
         setupModal.style.display = 'none';
     }
+    // Unmute sounds after modal is closed
+    isStartupModalActive = false;
 }
 
 // Function to check if user is currently attached to any call
