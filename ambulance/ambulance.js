@@ -1,3 +1,77 @@
+// --- Real-time listener for dispatcher-driven attach/detach and call updates (Ambulance Page) ---
+document.addEventListener('DOMContentLoaded', () => {
+    // Avoid duplicate listeners
+    if (window._ambulanceAttachListenerActive) return;
+    window._ambulanceAttachListenerActive = true;
+
+    const unitId = sessionStorage.getItem('unitId');
+    if (!unitId || unitId === 'None') return;
+
+    let lastAttachedCallId = null;
+    let callDetailsUnsub = null;
+    let lastCallData = null;
+
+    // Helper: Play attach/detach sounds only if not self-initiated
+    function playAttachSound() {
+        playSoundByKey('newambulancecall');
+    }
+    function playDetachSound() {
+        playSoundByKey('detach');
+    }
+    function playUpdateSound() {
+        playSoundByKey('newnote');
+    }
+
+    // Listen for changes in attachedUnit for this unit
+    const attachedUnitQuery = query(collection(db, 'attachedUnit'), where('unitID', '==', unitId));
+    onSnapshot(attachedUnitQuery, (snapshot) => {
+        let attachedCallId = null;
+        if (!snapshot.empty) {
+            attachedCallId = snapshot.docs[0].data().callID;
+        }
+
+        // Attach event
+        if (attachedCallId && attachedCallId !== lastAttachedCallId) {
+            // New attach (dispatcher or other)
+            lastAttachedCallId = attachedCallId;
+            // Set up real-time listener for the call details
+            if (callDetailsUnsub) callDetailsUnsub();
+            callDetailsUnsub = onSnapshot(doc(db, 'calls', attachedCallId), (docSnap) => {
+                if (docSnap.exists()) {
+                    const callData = { id: docSnap.id, ...docSnap.data() };
+                    // If this is the first time (attach), show details and play attach sound
+                    if (!lastCallData) {
+                        updateCallDetailsSection(callData);
+                        playAttachSound();
+                    } else {
+                        // If any field changed, play update sound
+                        const fields = ['description', 'status', 'location', 'callerName'];
+                        let changed = false;
+                        for (const f of fields) {
+                            if (callData[f] !== lastCallData[f]) { changed = true; break; }
+                        }
+                        if (changed) playUpdateSound();
+                        updateCallDetailsSection(callData);
+                    }
+                    lastCallData = callData;
+                } else {
+                    // Call was deleted
+                    clearCallDetailsSection();
+                    lastCallData = null;
+                }
+            });
+        }
+        // Detach event
+        if (!attachedCallId && lastAttachedCallId) {
+            // Detached from call (dispatcher or other)
+            lastAttachedCallId = null;
+            if (callDetailsUnsub) { callDetailsUnsub(); callDetailsUnsub = null; }
+            clearCallDetailsSection();
+            lastCallData = null;
+            playDetachSound();
+        }
+    });
+});
 // --- New Call Modal Logic ---
 document.addEventListener('DOMContentLoaded', () => {
     const newCallBtn = document.getElementById('new-call-btn');
