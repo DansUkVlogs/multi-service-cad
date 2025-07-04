@@ -1026,8 +1026,12 @@ async function handleStatusChange(status, button) {
         // Update status in Firebase
         const unitDocRef = doc(db, "units", unitId);
         await updateDoc(unitDocRef, {
-            status: status
+            status: status,
+            lastStatusUpdate: serverTimestamp()
         });
+        
+        // Manage availableUnits and attachedUnit collections
+        await manageUnitCollections(unitId, status);
         
         // Update status indicator and show notification
         updateStatusIndicator(status);
@@ -1056,8 +1060,12 @@ async function updateStatusAndButton(statusText, button, newButtonText, isSecond
         // Update status in Firebase
         const unitDocRef = doc(db, "units", unitId);
         await updateDoc(unitDocRef, {
-            status: statusText
+            status: statusText,
+            lastStatusUpdate: serverTimestamp()
         });
+        
+        // Manage availableUnits and attachedUnit collections
+        await manageUnitCollections(unitId, statusText);
         
         // Update status indicator and show notification
         updateStatusIndicator(statusText);
@@ -1834,6 +1842,7 @@ async function updateDispatcherCount(snapshot) {
     if (count >= 1) {
         // Dispatcher active - priority system
         // 1. Remove self-attach lock first
+       
         if (selfAttachLockActive) {
             removeAllLocks();
         }
@@ -2967,4 +2976,52 @@ function showPanicLocationEditModal(unit) {
     });
     
     console.log('[PANIC DEBUG] Modal created and displayed');
+}
+
+// Function to manage unit collections based on status
+async function manageUnitCollections(unitId, status) {
+    try {
+        // Check if unit is currently attached to a call by querying the attachedUnit collection
+        const attachedUnitQuery = query(collection(db, "attachedUnit"), where("unitID", "==", unitId));
+        const attachedUnitSnap = await getDocs(attachedUnitQuery);
+        const isAttached = !attachedUnitSnap.empty;
+        
+        // Check if unit is in availableUnits
+        const availableUnitDocRef = doc(db, "availableUnits", unitId);
+        const availableUnitSnap = await getDoc(availableUnitDocRef);
+        const isAvailable = availableUnitSnap.exists();
+        
+        if (status === "Unavailable") {
+            // Remove from both collections when unavailable
+            if (isAttached) {
+                // Delete all attachedUnit documents for this unit
+                const attachedDocs = attachedUnitSnap.docs;
+                for (const attachedDoc of attachedDocs) {
+                    await deleteDoc(doc(db, "attachedUnit", attachedDoc.id));
+                }
+                console.log(`Removed unit ${unitId} from attachedUnit collection (status: Unavailable)`);
+            }
+            if (isAvailable) {
+                await deleteDoc(availableUnitDocRef);
+                console.log(`Removed unit ${unitId} from availableUnits collection (status: Unavailable)`);
+            }
+        } else {
+            // For any other status, ensure unit is in availableUnits ONLY if not attached
+            if (!isAttached && !isAvailable) {
+                // Add to availableUnits (only store unitId, other details are in units collection)
+                await setDoc(availableUnitDocRef, {
+                    unitId: unitId
+                });
+                console.log(`Added unit ${unitId} to availableUnits collection (status: ${status})`);
+            } else if (isAttached && isAvailable) {
+                // If unit is attached to a call, remove it from availableUnits
+                await deleteDoc(availableUnitDocRef);
+                console.log(`Removed unit ${unitId} from availableUnits collection (unit is attached to call)`);
+            }
+        }
+        
+    } catch (error) {
+        console.error('Error managing unit collections:', error);
+        // Don't throw error to avoid breaking the status update flow
+    }
 }
