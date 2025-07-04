@@ -477,48 +477,41 @@ async function renderAttachedUnits(callId) {
 
         for (const docSnap of attachedUnitSnapshot.docs) {
             const { unitID } = docSnap.data();
-
             if (!unitID || renderedUnitIds.has(unitID)) {
                 continue; // Skip missing unit IDs or duplicates
             }
-
             const unitRef = doc(db, "units", unitID);
             const unitSnap = await getDoc(unitRef);
-
             if (!unitSnap.exists()) {
                 console.warn(`Unit with ID ${unitID} not found.`);
                 continue;
             }
-
             const unitData = unitSnap.data();
             const callsign = unitData.callsign || 'N/A';
             const unitType = unitData.unitType || 'Unknown';
+            const specificType = unitData.specificType || '';
             const status = unitData.status || 'Unknown';
             const statusColor = getStatusColor(status);
+            const unitTypeColor = getUnitTypeColor(unitType);
+            const textColor = getContrastingTextColor(statusColor);
+            const serviceAbbr = (unitType.substring(0, 3) || 'UNK').toUpperCase();
+            // Use the exact same card structure as renderUnitCards
             const unitDiv = document.createElement('div');
             unitDiv.classList.add('unit-card');
             unitDiv.dataset.unitId = unitID;
             unitDiv.style.backgroundColor = statusColor;
-            unitDiv.style.color = getContrastingTextColor(statusColor);
-            unitDiv.style.setProperty('--unit-type-color', getUnitTypeColor(unitType));
-            unitDiv.style.setProperty('--text-color', getContrastingTextColor(statusColor));
+            unitDiv.style.color = textColor;
+            unitDiv.style.setProperty('--unit-type-color', unitTypeColor);
+            unitDiv.style.setProperty('--text-color', textColor);
             unitDiv.innerHTML = `
                 <span class="unit-main">
-                    <span class="unit-service-abbr" style="background:${getUnitTypeColor(unitType)};color:${getContrastingTextColor(getUnitTypeColor(unitType))};">${(unitType.substring(0, 4) || 'UNKN').toUpperCase()}</span>
-                    <span class="unit-specific-type">${unitType}</span>
+                    <span class="unit-service-abbr" style="background:${unitTypeColor};color:${getContrastingTextColor(unitTypeColor)};">${serviceAbbr}</span>
+                    <span class="unit-specific-type">${specificType}</span>
                 </span>
                 <span class="unit-callsign-box">${callsign}</span>
                 <span class="unit-status-label ${status.toLowerCase().replace(/\s/g, '-')}" style="background:${statusColor};color:${getContrastingTextColor(statusColor)};">${status}</span>
             `;
-            // Ensure the whole card is clickable, not just the text
-            unitDiv.style.cursor = 'pointer';
-            unitDiv.tabIndex = 0; // Make it keyboard accessible
             unitDiv.addEventListener('click', () => selectUnit(unitDiv, 'attached'));
-            unitDiv.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    selectUnit(unitDiv, 'attached');
-                }
-            });
             attachedUnitsContainer.appendChild(unitDiv);
             renderedUnitIds.add(unitID); // Mark this unit as rendered
         }

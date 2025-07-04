@@ -581,12 +581,12 @@ function displayCurrentIDs() {
     const civilianIdDisplay = document.getElementById("civilian-id-display");
     const unitIdDisplay = document.getElementById("unit-id-display");
     if (civilianIdDisplay) {
-        civilianIdDisplay.innerHTML = `<span class=\"unit-pill\" style=\"background:#eafbe7; border-radius:8px; padding:4px 12px;\">Civilian ID: <span id=\\"civilian-id-value\\">${civilianId}</span></span>`;
+        civilianIdDisplay.innerHTML = `<span class=\"unit-pill\" style=\"background: #eaf6fb; color: #0074d9; font-weight: bold; padding: 5px 16px; border-radius: 16px; font-size: 15px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin: 2px 0; display: inline-block;\">Current CivilianID: ${civilianId}</span>`;
     }
     if (unitIdDisplay) {
-        unitIdDisplay.innerHTML = `<span class=\"unit-pill\" style=\"background:#eafbe7; border-radius:8px; padding:4px 12px;\">Unit ID: <span id=\\"unit-id-value\\">${unitId}</span></span>`;
+        unitIdDisplay.innerHTML = `<span class=\"unit-pill\" style=\"background: #eaf6fb; color: #0074d9; font-weight: bold; padding: 5px 16px; border-radius: 16px; font-size: 15px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin: 2px 0; display: inline-block;\">Current UnitID: ${unitId}</span>`;
     }
-    // Single pill for currently selected location, matching the exact style of the Unit ID pill
+    // Single pill for currently selected location, matching the above style
     let statusBox = document.getElementById("current-location-box");
     if (!statusBox) {
         statusBox = document.createElement("div");
@@ -602,10 +602,16 @@ function displayCurrentIDs() {
     statusBox.innerHTML = "";
     const locationPill = document.createElement("span");
     locationPill.className = "unit-pill";
-    locationPill.style.background = "#eafbe7";
-    locationPill.style.borderRadius = "8px";
-    locationPill.style.padding = "4px 12px";
-    locationPill.textContent = `Current Location: ${location}`;
+    locationPill.style.background = "#eaf6fb";
+    locationPill.style.color = "#0074d9";
+    locationPill.style.fontWeight = "bold";
+    locationPill.style.padding = "5px 16px";
+    locationPill.style.borderRadius = "16px";
+    locationPill.style.fontSize = "15px";
+    locationPill.style.boxShadow = "0 1px 4px rgba(0,0,0,0.06)";
+    locationPill.style.margin = "2px 0";
+    locationPill.style.display = "inline-block";
+    locationPill.textContent = `Currently Selected Location: ${location}`;
     statusBox.appendChild(locationPill);
 }
 
