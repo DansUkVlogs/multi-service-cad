@@ -1342,6 +1342,617 @@ function playSound(soundKey) {
     audio.play().catch(error => console.error(`Error playing sound for ${soundKey}:`, error));
 }
 
+// ================== BROADCAST SYSTEM ADDITIONS ==================
+
+// --- Broadcast Firestore Structure ---
+// Collection: broadcasts
+// Fields: message, recipients (array of unitIDs or 'all', 'police', etc), timestamp, priority ('urgent'|'info'), sender, type, seenBy (array), templateId (optional)
+
+
+
+// --- Broadcast Button UI (under New Call) ---
+document.addEventListener('DOMContentLoaded', () => {
+    const addCallBtn = document.getElementById('addCallBtn');
+    if (!addCallBtn) return;
+    // Remove old broadcast buttons if present
+    document.getElementById('broadcast-btn-row')?.remove();
+    document.getElementById('broadcast-multiselect-btn')?.remove();
+    // Add new single "Create Broadcast" button
+    let createBroadcastBtn = document.getElementById('create-broadcast-btn');
+    if (!createBroadcastBtn) {
+        createBroadcastBtn = document.createElement('button');
+        createBroadcastBtn.id = 'create-broadcast-btn';
+        createBroadcastBtn.textContent = 'Create Broadcast';
+        createBroadcastBtn.style.background = '#1976d2';
+        createBroadcastBtn.style.color = '#fff';
+        createBroadcastBtn.style.border = 'none';
+        createBroadcastBtn.style.borderRadius = '7px';
+        createBroadcastBtn.style.padding = '12px 18px';
+        createBroadcastBtn.style.fontWeight = 'bold';
+        createBroadcastBtn.style.cursor = 'pointer';
+        createBroadcastBtn.style.fontSize = '1em';
+        createBroadcastBtn.style.width = '100%';
+        createBroadcastBtn.style.boxSizing = 'border-box';
+        createBroadcastBtn.style.margin = '12px 0 0 0';
+        addCallBtn.parentNode.insertBefore(createBroadcastBtn, addCallBtn.nextSibling);
+    }
+    createBroadcastBtn.onclick = () => openBroadcastComposer('all');
+});
+
+// --- Broadcast Composer Modal ---
+function openBroadcastComposer(targetType, prefill = {}) {
+    // Only one composer at a time
+    let composer = document.getElementById('broadcast-composer-modal');
+    if (composer) composer.remove();
+    composer = document.createElement('div');
+    composer.id = 'broadcast-composer-modal';
+    composer.style.position = 'fixed';
+    composer.style.top = '0';
+    composer.style.left = '0';
+    composer.style.width = '100vw';
+    composer.style.height = '100vh';
+    composer.style.background = 'rgba(0,0,0,0.35)';
+    composer.style.display = 'flex';
+    composer.style.alignItems = 'center';
+    composer.style.justifyContent = 'center';
+    composer.style.zIndex = '10002';
+    composer.innerHTML = `
+        <div style="background:linear-gradient(135deg,#e3f2fd 0%,#fce4ec 100%);padding:0;border-radius:24px;min-width:480px;max-width:98vw;box-shadow:0 12px 48px rgba(30,60,90,0.18);position:relative;">
+            <div style="background:linear-gradient(90deg,#1976d2,#388e3c,#d84315,#1565c0);border-radius:24px 24px 0 0;padding:24px 48px 18px 32px;display:flex;align-items:center;gap:18px;">
+                <span style="font-size:2.2em;">📢</span>
+                <span style="font-size:1.55em;font-weight:700;color:#fff;letter-spacing:1px;text-shadow:0 2px 8px #0002;">Create & Send Broadcast</span>
+                <span id="close-broadcast-composer" style="margin-left:auto;font-size:2.2em;cursor:pointer;color:#fff;opacity:0.85;transition:opacity 0.2s;user-select:none;">&times;</span>
+            </div>
+            <div style="padding:36px 48px 32px 48px;display:flex;flex-direction:column;gap:28px;">
+                <div>
+                    <label for="broadcast-message" style="font-weight:bold;font-size:1.13em;color:#1976d2;">Broadcast Message</label>
+                    <textarea id="broadcast-message" style="width:100%;min-height:90px;resize:vertical;border-radius:10px;border:1.5px solid #bbb;padding:14px;font-size:1.13em;margin-top:8px;" placeholder="Type your broadcast message here...">${prefill.message||''}</textarea>
+                </div>
+                <div style="display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap;">
+                    <div style="flex:1;min-width:180px;">
+                        <label for="broadcast-priority" style="font-weight:bold;font-size:1.13em;color:#1976d2;">Priority</label>
+                        <select id="broadcast-priority" style="width:100%;margin-top:8px;border-radius:10px;padding:12px 16px;font-size:1.13em;border:1.5px solid #bbb;">
+                            <option value="info" ${prefill.priority==='info'?'selected':''}>Info</option>
+                            <option value="urgent" ${prefill.priority==='urgent'?'selected':''}>Urgent</option>
+                        </select>
+                    </div>
+                    <div style="flex:2;min-width:260px;">
+                        <label style="font-weight:bold;font-size:1.13em;color:#1976d2;">Recipients</label>
+                        <div id="recipient-group-btns" style="display:flex;gap:10px;margin:10px 0 14px 0;flex-wrap:wrap;"></div>
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <input type="text" id="recipient-search-box" placeholder="Search unit callsign..." style="flex:1;padding:12px 16px;font-size:1.13em;border-radius:10px;border:1.5px solid #bbb;">
+                            <button id="add-recipient-btn" style="padding:12px 24px;border-radius:10px;background:#1976d2;color:#fff;border:none;font-weight:bold;font-size:1.13em;">Add</button>
+                        </div>
+                        <div id="recipient-search-results" style="max-height:140px;overflow-y:auto;background:#f7f7f7;border:1.5px solid #bbb;border-radius:10px;margin-top:6px;position:relative;z-index:10021;"></div>
+                        <div id="selected-recipients-list" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;"></div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:18px;align-items:center;margin-top:10px;">
+                    <button id="send-broadcast-btn" style="background:#1976d2;color:#fff;padding:16px 38px;border:none;border-radius:12px;font-weight:bold;font-size:1.18em;letter-spacing:1px;box-shadow:0 2px 12px #1976d233;">Send Broadcast</button>
+                    <button id="save-broadcast-template-btn" style="background:#888;color:#fff;padding:16px 28px;border:none;border-radius:12px;font-weight:bold;font-size:1.13em;">Save as Template</button>
+                </div>
+                <div id="broadcast-templates-list" style="margin-top:18px;"></div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(composer);
+    document.getElementById('close-broadcast-composer').onclick = () => composer.remove();
+
+    // --- Recipient selection logic ---
+    const groupNames = [
+        {label:'All', value:'all', color:'#1976d2'},
+        {label:'Police', value:'police', color:'#1565c0'},
+        {label:'Ambulance', value:'ambulance', color:'#388e3c'},
+        {label:'Fire', value:'fire', color:'#d84315'}
+    ];
+    let selectedRecipients = [];
+    if (prefill.recipients && Array.isArray(prefill.recipients)) {
+        selectedRecipients = [...prefill.recipients];
+    } else if (targetType) {
+        selectedRecipients = [targetType];
+    } else {
+        selectedRecipients = ['all'];
+    }
+    const selectedListDiv = document.getElementById('selected-recipients-list');
+    function renderSelectedRecipients() {
+        selectedListDiv.innerHTML = '';
+        selectedRecipients.forEach(rec => {
+            let tag = document.createElement('span');
+            tag.textContent = rec;
+            tag.style.background = groupNames.find(g=>g.value===rec)?.color || '#888';
+            tag.style.color = '#fff';
+            tag.style.padding = '4px 12px';
+            tag.style.borderRadius = '12px';
+            tag.style.fontWeight = 'bold';
+            tag.style.marginRight = '4px';
+            tag.style.display = 'inline-flex';
+            tag.style.alignItems = 'center';
+            tag.style.gap = '6px';
+            let removeBtn = document.createElement('span');
+            removeBtn.textContent = '×';
+            removeBtn.style.cursor = 'pointer';
+            removeBtn.style.marginLeft = '6px';
+            removeBtn.onclick = () => {
+                selectedRecipients = selectedRecipients.filter(r=>r!==rec);
+                renderSelectedRecipients();
+            };
+            tag.appendChild(removeBtn);
+            selectedListDiv.appendChild(tag);
+        });
+    }
+    renderSelectedRecipients();
+    // Group buttons
+    const groupBtnsDiv = document.getElementById('recipient-group-btns');
+    groupNames.forEach(g => {
+        let btn = document.createElement('button');
+        btn.textContent = g.label;
+        btn.style.background = g.color;
+        btn.style.color = '#fff';
+        btn.style.border = 'none';
+        btn.style.borderRadius = '7px';
+        btn.style.padding = '6px 16px';
+        btn.style.fontWeight = 'bold';
+        btn.style.cursor = 'pointer';
+        btn.style.fontSize = '1em';
+        btn.onclick = () => {
+            if (!selectedRecipients.includes(g.value)) {
+                selectedRecipients.push(g.value);
+                renderSelectedRecipients();
+            }
+        };
+        groupBtnsDiv.appendChild(btn);
+    });
+    // Search logic
+    const searchBox = document.getElementById('recipient-search-box');
+    const addBtn = document.getElementById('add-recipient-btn');
+    const searchResultsDiv = document.getElementById('recipient-search-results');
+    function updateSearchResults() {
+        const val = searchBox.value.trim().toLowerCase();
+        searchResultsDiv.innerHTML = '';
+        if (!val) return;
+        // Only show units not already selected
+        const filtered = allUnits.filter(u => (u.callsign||'').toLowerCase().includes(val) && !selectedRecipients.includes(u.callsign));
+        filtered.slice(0, 20).forEach(u => {
+            let res = document.createElement('div');
+            res.textContent = u.callsign;
+            res.style.padding = '6px 10px';
+            res.style.cursor = 'pointer';
+            res.style.borderBottom = '1px solid #eee';
+            res.onmousedown = () => {
+                if (!selectedRecipients.includes(u.callsign)) {
+                    selectedRecipients.push(u.callsign);
+                    renderSelectedRecipients();
+                }
+                searchBox.value = '';
+                searchResultsDiv.innerHTML = '';
+            };
+            searchResultsDiv.appendChild(res);
+        });
+    }
+    searchBox.addEventListener('input', updateSearchResults);
+    searchBox.addEventListener('blur', () => setTimeout(()=>{searchResultsDiv.innerHTML='';}, 200));
+    searchBox.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+            const val = searchBox.value.trim().toLowerCase();
+            const filtered = allUnits.filter(u => (u.callsign||'').toLowerCase().includes(val) && !selectedRecipients.includes(u.callsign));
+            if (filtered.length === 1) {
+                selectedRecipients.push(filtered[0].callsign);
+                renderSelectedRecipients();
+                searchBox.value = '';
+                searchResultsDiv.innerHTML = '';
+            }
+        }
+    });
+    addBtn.onclick = () => {
+        const val = searchBox.value.trim().toLowerCase();
+        const filtered = allUnits.filter(u => (u.callsign||'').toLowerCase().includes(val) && !selectedRecipients.includes(u.callsign));
+        if (filtered.length === 1) {
+            selectedRecipients.push(filtered[0].callsign);
+            renderSelectedRecipients();
+            searchBox.value = '';
+            searchResultsDiv.innerHTML = '';
+        }
+    };
+
+    document.getElementById('send-broadcast-btn').onclick = async () => {
+        const msg = document.getElementById('broadcast-message').value.trim();
+        const priority = document.getElementById('broadcast-priority').value;
+        if (!msg) { alert('Message required.'); return; }
+        await sendBroadcast({message:msg,priority,recipients:selectedRecipients.length?selectedRecipients:['all']});
+        composer.remove();
+    };
+    document.getElementById('save-broadcast-template-btn').onclick = () => {
+        const msg = document.getElementById('broadcast-message').value.trim();
+        const priority = document.getElementById('broadcast-priority').value;
+        if (!msg) { alert('Message required.'); return; }
+        saveBroadcastTemplate({message:msg,priority,recipients:[...selectedRecipients]});
+        alert('Template saved!');
+        loadBroadcastTemplates();
+    };
+    loadBroadcastTemplates();
+}
+
+// --- Broadcast Templates ---
+function saveBroadcastTemplate(template) {
+    let arr = JSON.parse(localStorage.getItem('broadcastTemplates')||'[]');
+    arr.push(template);
+    localStorage.setItem('broadcastTemplates',JSON.stringify(arr));
+}
+function loadBroadcastTemplates() {
+    let arr = JSON.parse(localStorage.getItem('broadcastTemplates')||'[]');
+    const list = document.getElementById('broadcast-templates-list');
+    if (!list) return;
+    list.innerHTML = '<b>Templates:</b><br>';
+    arr.forEach((t,i)=>{
+        let btn = document.createElement('button');
+        btn.textContent = t.message.slice(0,32)+(t.message.length>32?'...':'');
+        btn.style.margin = '2px 4px 2px 0';
+        btn.style.padding = '3px 8px';
+        btn.style.borderRadius = '5px';
+        btn.style.border = 'none';
+        btn.style.background = t.priority==='urgent'?'#d32f2f':'#1976d2';
+        btn.style.color = '#fff';
+        btn.onclick = ()=>openBroadcastComposer('all',t);
+        list.appendChild(btn);
+        let del = document.createElement('span');
+        del.textContent = '🗑️';
+        del.style.cursor = 'pointer';
+        del.title = 'Delete template';
+        del.onclick = ()=>{ arr.splice(i,1); localStorage.setItem('broadcastTemplates',JSON.stringify(arr)); loadBroadcastTemplates(); };
+        list.appendChild(del);
+    });
+}
+
+// --- Send Broadcast (Firestore) ---
+async function sendBroadcast({message,priority,recipients}) {
+    const sender = getSessionId();
+    // Map callsigns to unitIDs (case-insensitive, trimmed)
+    let mappedRecipients = [];
+    let invalidCallsigns = [];
+    // Allow group names (all, police, ambulance, fire) to pass through
+    const groupNames = ['all','police','ambulance','fire'];
+    if (Array.isArray(recipients)) {
+        recipients.forEach(cs => {
+            const trimmed = cs.trim().toLowerCase();
+            if (groupNames.includes(trimmed)) {
+                mappedRecipients.push(trimmed);
+                return;
+            }
+            // Find unit by callsign (case-insensitive)
+            const match = allUnits.find(u => (u.callsign||'').trim().toLowerCase() === trimmed);
+            if (match && match.id) {
+                mappedRecipients.push(match.id);
+            } else {
+                invalidCallsigns.push(cs);
+            }
+        });
+    }
+    if (mappedRecipients.length === 0 && invalidCallsigns.length > 0) {
+        alert('No valid recipients found. Please check callsigns.');
+        return;
+    }
+    if (invalidCallsigns.length > 0) {
+        showNotification('Some callsigns not found: ' + invalidCallsigns.join(', '), 'warning');
+    }
+    const docData = {
+        message,
+        priority,
+        recipients: mappedRecipients.length ? mappedRecipients : ['all'],
+        sender,
+        timestamp: new Date(),
+        seenBy: [],
+        // Optionally, for debugging/history, include original callsigns
+        originalCallsigns: recipients
+    };
+    await addDoc(collection(db,'broadcasts'),docData);
+}
+
+
+
+// --- Right-click Context Menu for Private Broadcasts ---
+document.addEventListener('DOMContentLoaded',()=>{
+    document.body.addEventListener('contextmenu',function(e){
+        const unitCard = e.target.closest('.unit-card');
+        if (!unitCard) return;
+        e.preventDefault();
+        let menu = document.getElementById('unit-context-menu');
+        if (menu) menu.remove();
+        menu = document.createElement('div');
+        menu.id = 'unit-context-menu';
+        menu.style.position = 'fixed';
+        menu.style.left = e.pageX+'px';
+        menu.style.top = e.pageY+'px';
+        menu.style.background = '#222';
+        menu.style.color = '#fff';
+        menu.style.padding = '8px 18px';
+        menu.style.borderRadius = '8px';
+        menu.style.boxShadow = '0 2px 12px rgba(0,0,0,0.18)';
+        menu.style.zIndex = '10010';
+        menu.style.cursor = 'pointer';
+        menu.innerHTML = '<div id="broadcast-private-btn">Broadcast (Private)</div>';
+        document.body.appendChild(menu);
+        document.getElementById('broadcast-private-btn').onclick = ()=>{
+            // Use callsign instead of unitId
+            openBroadcastComposer('private',{recipients:[unitCard.querySelector('.unit-callsign-box')?.textContent?.trim()||'']});
+            menu.remove();
+        };
+        document.body.onclick = ()=>{if(menu)menu.remove();};
+    });
+});
+
+// --- Multi-Unit Private Broadcasts (Shift+Click to select) ---
+let multiSelectedCallsigns = [];
+document.addEventListener('DOMContentLoaded',()=>{
+    document.body.addEventListener('click',function(e){
+        const unitCard = e.target.closest('.unit-card');
+        if (!unitCard) return;
+        const callsign = unitCard.querySelector('.unit-callsign-box')?.textContent?.trim();
+        if (!callsign) return;
+        if (e.shiftKey) {
+            // Multi-select
+            if (!multiSelectedCallsigns.includes(callsign)) {
+                multiSelectedCallsigns.push(callsign);
+                unitCard.classList.add('multi-selected-unit');
+            } else {
+                multiSelectedCallsigns = multiSelectedCallsigns.filter(cs=>cs!==callsign);
+                unitCard.classList.remove('multi-selected-unit');
+            }
+        } else {
+            // Single select
+            multiSelectedCallsigns.forEach(cs=>{
+                let el = Array.from(document.querySelectorAll('.unit-card')).find(card=>card.querySelector('.unit-callsign-box')?.textContent?.trim()===cs);
+                if (el) el.classList.remove('multi-selected-unit');
+            });
+            multiSelectedCallsigns = [];
+        }
+    });
+    // Remove the old "Broadcast to Select Units" button if present
+    let oldBtn = document.getElementById('broadcast-multiselect-btn');
+    if (oldBtn) oldBtn.remove();
+    // Add a floating Broadcast History button
+    let historyBtn = document.getElementById('broadcast-history-btn');
+    if (!historyBtn) {
+        historyBtn = document.createElement('button');
+        historyBtn.id = 'broadcast-history-btn';
+        historyBtn.textContent = '📢 History';
+        historyBtn.title = 'Show Broadcast History';
+        historyBtn.style.position = 'fixed';
+        historyBtn.style.bottom = '70px';
+        historyBtn.style.right = '24px';
+        historyBtn.style.background = '#1976d2';
+        historyBtn.style.color = '#fff';
+        historyBtn.style.padding = '10px 22px';
+        historyBtn.style.borderRadius = '10px';
+        historyBtn.style.fontWeight = 'bold';
+        historyBtn.style.zIndex = '10011';
+        historyBtn.style.cursor = 'pointer';
+        document.body.appendChild(historyBtn);
+    }
+    historyBtn.onclick = () => openBroadcastHistoryModal();
+// --- Broadcast History Modal (Dispatcher) ---
+function openBroadcastHistoryModal() {
+    let modal = document.getElementById('broadcast-history-modal');
+    if (modal) modal.remove();
+    modal = document.createElement('div');
+    modal.id = 'broadcast-history-modal';
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100vw';
+    modal.style.height = '100vh';
+    modal.style.background = 'rgba(0,0,0,0.38)';
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.style.zIndex = '10020';
+    modal.innerHTML = `
+    <div style="background:linear-gradient(135deg,#e3f2fd 0%,#fce4ec 100%);padding:0;border-radius:20px;min-width:360px;max-width:98vw;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(30,60,90,0.18);position:relative;">
+        <div style="background:linear-gradient(90deg,#1976d2,#388e3c,#d84315,#1565c0);border-radius:20px 20px 0 0;padding:18px 38px 14px 24px;display:flex;align-items:center;gap:14px;">
+            <span style="font-size:2em;">📢</span>
+            <span style="font-size:1.35em;font-weight:700;color:#fff;letter-spacing:1px;text-shadow:0 2px 8px #0002;">Broadcast History</span>
+            <span id="close-broadcast-history-modal" style="margin-left:auto;font-size:2em;cursor:pointer;color:#fff;opacity:0.85;transition:opacity 0.2s;user-select:none;">&times;</span>
+        </div>
+        <div style="padding:24px 32px 18px 32px;">
+            <div id="broadcast-history-list" style="font-size:1.08em;"></div>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    document.getElementById('close-broadcast-history-modal').onclick = ()=>modal.remove();
+    // Load and render broadcast history
+    loadBroadcastHistoryList();
+}
+
+// --- Load and Render Broadcast History List ---
+async function loadBroadcastHistoryList() {
+    const list = document.getElementById('broadcast-history-list');
+    if (!list) return;
+    // Fetch broadcasts from Firestore
+    try {
+        const broadcastsRef = collection(db, 'broadcasts');
+        const snapshot = await getDocs(broadcastsRef);
+        let broadcasts = [];
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            broadcasts.push({id: docSnap.id, ...data});
+        });
+        broadcasts.sort((a,b)=>{
+            const ta = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
+            const tb = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
+            return tb - ta;
+        });
+        // Filter out broadcasts with blank/undefined message or placeholder
+        const filtered = broadcasts.filter(b => {
+            const msg = (b.message||'').trim();
+            return msg && b.placeholder !== true;
+        });
+        if (!filtered.length) {
+            list.innerHTML = '<div style="color:#888;">No broadcasts sent.</div>';
+            return;
+        }
+        list.innerHTML = filtered.map(b=>
+            `<div style="border-bottom:1px solid #eee;padding:10px 0;">
+                <div style="font-size:1.1em;font-weight:bold;">${b.message}</div>
+                <div><b>Priority:</b> ${b.priority||'info'} | <b>From:</b> ${b.sender||'DISPATCH'}</div>
+                <div><b>Recipients:</b> ${(b.recipients||[]).join(', ')}</div>
+                <div><b>Time:</b> ${formatBroadcastTime(b.timestamp)}</div>
+            </div>`
+        ).join('');
+    } catch (err) {
+        list.innerHTML = '<div style="color:#888;">Failed to load broadcast history.</div>';
+    }
+}
+
+function formatBroadcastTime(ts) {
+    if (!ts) return '';
+    let d = ts.toDate ? ts.toDate() : new Date(ts);
+    return d.toLocaleString();
+}
+});
+
+// --- Multi-Unit Callsign Selection Modal ---
+function openUnitMultiSelectModal() {
+    // Remove any existing modal
+    let modal = document.getElementById('unit-multiselect-modal');
+    if (modal) modal.remove();
+    modal = document.createElement('div');
+    modal.id = 'unit-multiselect-modal';
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100vw';
+    modal.style.height = '100vh';
+    modal.style.background = 'rgba(0,0,0,0.38)';
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.style.zIndex = '10020';
+    modal.innerHTML = `
+        <div style="background:#fff;padding:32px 38px;border-radius:16px;min-width:340px;max-width:98vw;box-shadow:0 4px 24px rgba(0,0,0,0.18);position:relative;">
+            <span style="position:absolute;top:10px;right:16px;font-size:1.5em;cursor:pointer;" id="close-unit-multiselect-modal">&times;</span>
+            <h2 style="margin-bottom:10px;">Select Recipients</h2>
+            <div style="margin-bottom:10px;">
+                <input id="callsign-search-box" type="text" placeholder="Enter callsign..." style="width:70%;padding:7px 12px;font-size:1em;border-radius:7px;border:1px solid #bbb;">
+                <button id="add-callsign-btn" style="margin-left:8px;padding:7px 18px;border-radius:7px;background:#1976d2;color:#fff;border:none;font-weight:bold;">Add</button>
+            </div>
+            <div id="selected-callsigns-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;"></div>
+            <button id="save-multiselect-callsigns-btn" style="background:#388e3c;color:#fff;padding:10px 22px;border:none;border-radius:7px;font-weight:bold;font-size:1em;">Save & Compose Message</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    document.getElementById('close-unit-multiselect-modal').onclick = ()=>modal.remove();
+
+    let selectedCallsigns = [];
+    const listDiv = document.getElementById('selected-callsigns-list');
+    function renderSelectedTiles() {
+        listDiv.innerHTML = '';
+        selectedCallsigns.forEach(cs => {
+            const tile = document.createElement('span');
+            tile.textContent = cs;
+            tile.style.background = '#1976d2';
+            tile.style.color = '#fff';
+            tile.style.padding = '6px 14px';
+            tile.style.borderRadius = '16px';
+            tile.style.fontWeight = 'bold';
+            tile.style.fontSize = '1em';
+            tile.style.display = 'inline-block';
+            tile.style.marginRight = '4px';
+            tile.style.cursor = 'pointer';
+            tile.title = 'Remove';
+            tile.onclick = () => {
+                selectedCallsigns = selectedCallsigns.filter(c => c !== cs);
+                renderSelectedTiles();
+            };
+            listDiv.appendChild(tile);
+        });
+    }
+
+    // --- Callsign Search UI ---
+    const searchBox = document.getElementById('callsign-search-box');
+    const addBtn = document.getElementById('add-callsign-btn');
+    // Add a dropdown for search results
+    let searchResultsDiv = document.createElement('div');
+    searchResultsDiv.id = 'callsign-search-results';
+    searchResultsDiv.style.maxHeight = '120px';
+    searchResultsDiv.style.overflowY = 'auto';
+    searchResultsDiv.style.background = '#f7f7f7';
+    searchResultsDiv.style.border = '1px solid #bbb';
+    searchResultsDiv.style.borderRadius = '7px';
+    searchResultsDiv.style.marginTop = '4px';
+    searchResultsDiv.style.position = 'absolute';
+    searchResultsDiv.style.width = '70%';
+    searchResultsDiv.style.zIndex = '10021';
+    searchBox.parentNode.appendChild(searchResultsDiv);
+
+    function updateSearchResults() {
+        const val = searchBox.value.trim().toLowerCase();
+        searchResultsDiv.innerHTML = '';
+        if (!val) return;
+        // Only show units not already selected
+        const filtered = allUnits.filter(u => (u.callsign||'').toLowerCase().includes(val) && !selectedCallsigns.includes(u.callsign));
+        filtered.slice(0, 20).forEach(u => {
+            const res = document.createElement('div');
+            res.textContent = u.callsign;
+            res.style.padding = '6px 12px';
+            res.style.cursor = 'pointer';
+            res.style.borderBottom = '1px solid #eee';
+            res.onmouseenter = () => res.style.background = '#e3e3e3';
+            res.onmouseleave = () => res.style.background = '';
+            res.ondblclick = () => {
+                if (!selectedCallsigns.includes(u.callsign)) {
+                    selectedCallsigns.push(u.callsign);
+                    renderSelectedTiles();
+                }
+                searchBox.value = '';
+                searchResultsDiv.innerHTML = '';
+            };
+            searchResultsDiv.appendChild(res);
+        });
+    }
+    searchBox.addEventListener('input', updateSearchResults);
+    // Hide results on blur (with slight delay for click)
+    searchBox.addEventListener('blur', () => setTimeout(()=>{searchResultsDiv.innerHTML='';}, 200));
+    // Add on double click (already handled above)
+    // Add on Enter if only one result
+    searchBox.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+            const val = searchBox.value.trim().toLowerCase();
+            const filtered = allUnits.filter(u => (u.callsign||'').toLowerCase().includes(val) && !selectedCallsigns.includes(u.callsign));
+            if (filtered.length === 1) {
+                selectedCallsigns.push(filtered[0].callsign);
+                renderSelectedTiles();
+                searchBox.value = '';
+                searchResultsDiv.innerHTML = '';
+            }
+        }
+    });
+    // Add button adds if only one result
+    addBtn.onclick = () => {
+        const val = searchBox.value.trim().toLowerCase();
+        const filtered = allUnits.filter(u => (u.callsign||'').toLowerCase().includes(val) && !selectedCallsigns.includes(u.callsign));
+        if (filtered.length === 1) {
+            selectedCallsigns.push(filtered[0].callsign);
+            renderSelectedTiles();
+            searchBox.value = '';
+            searchResultsDiv.innerHTML = '';
+        } else if (filtered.length > 1) {
+            showNotification('Type more to narrow down to one unit.', 'warning');
+        } else {
+            showNotification('No matching unit found.', 'warning');
+        }
+    };
+    document.getElementById('save-multiselect-callsigns-btn').onclick = () => {
+        if (!selectedCallsigns.length) { alert('Add at least one callsign.'); return; }
+        modal.remove();
+        openBroadcastComposer('private',{recipients:selectedCallsigns});
+    };
+}
+
+// --- Read Receipt/Seen Indicator (for future expansion) ---
+// When modal is shown, mark as seen (add to seenBy array in Firestore)
+// (Implementation for seen indicator in UI can be added in next steps)
+
+// ================== END BROADCAST SYSTEM ADDITIONS ==================
+
 // Remove dispatcher session on page unload (for dispatch page)
 window.addEventListener('beforeunload', () => {
     try {

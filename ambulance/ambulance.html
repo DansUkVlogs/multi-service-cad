@@ -9,22 +9,40 @@
     <link rel="icon" href="../imgs/icon.png" type="image/png">
 </head>
 <body>
-    <!-- Status Gradient Bar at the very top -->
-    <div id="status-gradient-bar"></div>
-    <div class="header-container">
-        <div class="header" style="text-align: center; margin-bottom: 20px;">
-            <div id="status-gradient-bar"></div>
-            <img src="../imgs/logo.png" alt="Logo" class="logo">
-            <div class="header-title-status" style="display: flex; flex-direction: column; align-items: center; position: relative; width: 100%;">
-                <div style="display: flex; flex-direction: row; align-items: center; justify-content: center; width: 100%; position: relative; z-index: 10; gap: 0;">
+    <!-- Broadcast Bar and History (scrolling messages and previous broadcasts) sits at the very top -->
+    <div id="broadcast-bar-container" style="
+        position: relative;
+        width: 100vw;
+        z-index: 20;
+        margin-top: 10;
+    ">
+        <!-- The scrolling bar will be moved here by JS -->
+    </div>
+    <!-- Header with gradient background below, but header content above the gradient -->
+    <div class="header-container" style="position: relative;">
+        <!-- Gradient background absolutely positioned inside header-container -->
+        <div id="status-gradient-bar" style="
+            z-index: 1;
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 150px;
+            min-height: 0; padding: 0; margin: 0;
+            pointer-events: none;
+            background: linear-gradient(90deg, #d32f2f 100%, #ff5252 1%);
+            opacity: 1;
+            display: block;
+        "></div>
+        <div class="header" style="text-align: center; margin-bottom: 20px; position: relative; z-index: 2; background: none;">
+            <img src="../imgs/logo.png" alt="Logo" class="logo" style="z-index: 3; position: relative;">
+            <div class="header-title-status" style="display: flex; flex-direction: column; align-items: center; position: relative; width: 100%; z-index: 3;">
+                <div style="display: flex; flex-direction: row; align-items: center; justify-content: center; width: 100%; position: relative; z-index: 4; gap: 0;">
                     <div style="display: flex; flex-direction: row; align-items: center; justify-content: center; margin: 0 auto;">
-                        <div id="current-status-indicator" style="z-index: 11; margin: 0 0 0 0;">Unavailable</div>
-                        <div id="callsign-display" style="z-index: 12; margin-left: 2px;">SELECT CALLSIGN</div>
+                        <div id="current-status-indicator" style="z-index: 5; margin: 0 0 0 0; position: relative;">Unavailable</div>
+                        <div id="callsign-display" style="z-index: 6; margin-left: 2px; position: relative;">SELECT CALLSIGN</div>
                     </div>
                 </div>
-                <h1 style="z-index: 1; margin-top: 12px; text-align: center;">Ambulance Menu</h1>
+                <h1 style="z-index: 3; margin-top: 12px; text-align: center; position: relative;">Ambulance Menu</h1>
             </div>
-            <div class="button-group">
+            <div class="button-group" style="z-index: 7; position: relative;">
                 <button class="back-button">Back To Home</button>
                 <button class="panic-button">Panic</button>
             </div>
@@ -199,6 +217,10 @@
 
     <!-- Add the modal overlay (always visible, but only active when modal is open) -->
     <div id="modal-overlay" class="modal-overlay" style="display:block; z-index: 2;"></div>
+    
+    <!-- Broadcast History Modal (will be filled by JS) -->
+    <!-- The modal is created by JS, but we can provide a container for clarity if needed -->
+    <div id="broadcast-history-modal-container"></div>
 
     <!-- Display Saved Callsign and IDs -->
     <div id="callsign-display" style="text-align: center; font-weight: bold; margin-top: 0; font-size:1.3rem; color:#004d00; letter-spacing:1px; text-shadow:0 1px 2px #eafbe7;"></div>

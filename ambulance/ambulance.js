@@ -1,5 +1,247 @@
 // --- Real-time listener for dispatcher-driven attach/detach and call updates (Ambulance Page) ---
 document.addEventListener('DOMContentLoaded', () => {
+    // --- BROADCAST LISTENER & UI (AMBULANCE PAGE) ---
+    let callsign = null;
+    function getCallsign() {
+        if (callsign) return callsign;
+        callsign = sessionStorage.getItem('callsign') || document.getElementById('callsign-display')?.textContent?.trim();
+        return callsign;
+    }
+
+    let broadcastHistory = [];
+    let lastBroadcastId = null;
+    let hasLoadedInitialBroadcasts = false;
+
+    // Scrolling bar (now placed under the status gradient bar, not at the bottom)
+    let broadcastBar = document.getElementById('broadcast-bar');
+    let broadcastBarContainer = document.getElementById('broadcast-bar-container');
+    if (!broadcastBar) {
+        broadcastBar = document.createElement('div');
+        broadcastBar.id = 'broadcast-bar';
+        broadcastBar.style.width = '100%';
+        broadcastBar.style.height = '38px';
+        broadcastBar.style.background = 'linear-gradient(90deg,#1976d2,#388e3c,#d84315,#1565c0)';
+        broadcastBar.style.color = '#fff';
+        broadcastBar.style.display = 'flex';
+        broadcastBar.style.alignItems = 'center';
+        broadcastBar.style.overflow = 'hidden';
+        broadcastBar.style.fontWeight = 'bold';
+        broadcastBar.style.fontSize = '1.1em';
+        broadcastBar.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)';
+        broadcastBar.style.zIndex = '10';
+        broadcastBar.style.position = 'relative';
+        broadcastBar.style.left = '0';
+        broadcastBar.style.top = '0';
+        broadcastBar.innerHTML = '<span id="broadcast-bar-message" style="white-space:nowrap;display:inline-block;animation:broadcast-scroll 18s linear infinite;"></span>';
+
+        // Place the bar in the container under the gradient
+        if (broadcastBarContainer) {
+            broadcastBarContainer.appendChild(broadcastBar);
+        } else {
+            // fallback: add to body if container missing
+            document.body.appendChild(broadcastBar);
+        }
+
+        // Add keyframes for scrolling
+        const style = document.createElement('style');
+        style.innerHTML = `@keyframes broadcast-scroll {0%{transform:translateX(100vw);}100%{transform:translateX(-100vw);}}`;
+        document.head.appendChild(style);
+    }
+    // Remove bottom padding if previously set
+    document.body.classList.remove('has-broadcast-bar-bottom');
+    const oldPadStyle = document.getElementById('broadcast-bar-padding-style-bottom');
+    if (oldPadStyle) oldPadStyle.remove();
+    let broadcastBarMsg = document.getElementById('broadcast-bar-message');
+
+    // Broadcast modal (hidden by default)
+    let broadcastModal = document.getElementById('broadcast-modal');
+    if (!broadcastModal) {
+        broadcastModal = document.createElement('div');
+        broadcastModal.id = 'broadcast-modal';
+        broadcastModal.style.position = 'fixed';
+        broadcastModal.style.top = '0';
+        broadcastModal.style.left = '0';
+        broadcastModal.style.width = '100vw';
+        broadcastModal.style.height = '100vh';
+        broadcastModal.style.background = 'rgba(0,0,0,0.38)';
+        broadcastModal.style.display = 'none';
+        broadcastModal.style.alignItems = 'center';
+        broadcastModal.style.justifyContent = 'center';
+        broadcastModal.style.zIndex = '10020';
+        broadcastModal.innerHTML = `
+        <div style="background:linear-gradient(135deg,#e3f2fd 0%,#fce4ec 100%);padding:0;border-radius:20px;min-width:340px;max-width:98vw;box-shadow:0 8px 32px rgba(30,60,90,0.18);position:relative;">
+            <div style="background:linear-gradient(90deg,#1976d2,#388e3c,#d84315,#1565c0);border-radius:20px 20px 0 0;padding:18px 38px 14px 24px;display:flex;align-items:center;gap:14px;">
+                <span style="font-size:2em;">📢</span>
+                <span style="font-size:1.35em;font-weight:700;color:#fff;letter-spacing:1px;text-shadow:0 2px 8px #0002;">Broadcast Received</span>
+                <span id="close-broadcast-modal" style="margin-left:auto;font-size:2em;cursor:pointer;color:#fff;opacity:0.85;transition:opacity 0.2s;user-select:none;">&times;</span>
+            </div>
+            <div id="broadcast-modal-content" style="padding:24px 32px 18px 32px;"></div>
+        </div>`;
+        document.body.appendChild(broadcastModal);
+    }
+    document.getElementById('close-broadcast-modal')?.addEventListener('click',()=>{
+        broadcastModal.style.display = 'none';
+    });
+
+    // Broadcast history floating button
+    let broadcastHistoryBtn = document.getElementById('broadcast-history-btn');
+    if (!broadcastHistoryBtn) {
+        broadcastHistoryBtn = document.createElement('button');
+        broadcastHistoryBtn.id = 'broadcast-history-btn';
+        broadcastHistoryBtn.textContent = '📢';
+        broadcastHistoryBtn.title = 'Show Broadcast History';
+        broadcastHistoryBtn.style.position = 'fixed';
+        broadcastHistoryBtn.style.bottom = '32px';
+        broadcastHistoryBtn.style.right = '32px';
+        broadcastHistoryBtn.style.background = '#1976d2';
+        broadcastHistoryBtn.style.color = '#fff';
+        broadcastHistoryBtn.style.border = 'none';
+        broadcastHistoryBtn.style.borderRadius = '50%';
+        broadcastHistoryBtn.style.width = '54px';
+        broadcastHistoryBtn.style.height = '54px';
+        broadcastHistoryBtn.style.fontSize = '2em';
+        broadcastHistoryBtn.style.boxShadow = '0 2px 12px rgba(0,0,0,0.18)';
+        broadcastHistoryBtn.style.zIndex = '10030';
+        broadcastHistoryBtn.style.cursor = 'pointer';
+        document.body.appendChild(broadcastHistoryBtn);
+    }
+
+    // Broadcast history modal
+    let broadcastHistoryModal = document.getElementById('broadcast-history-modal');
+    if (!broadcastHistoryModal) {
+        broadcastHistoryModal = document.createElement('div');
+        broadcastHistoryModal.id = 'broadcast-history-modal';
+        broadcastHistoryModal.style.position = 'fixed';
+        broadcastHistoryModal.style.top = '0';
+        broadcastHistoryModal.style.left = '0';
+        broadcastHistoryModal.style.width = '100vw';
+        broadcastHistoryModal.style.height = '100vh';
+        broadcastHistoryModal.style.background = 'rgba(0,0,0,0.38)';
+        broadcastHistoryModal.style.display = 'none';
+        broadcastHistoryModal.style.alignItems = 'center';
+        broadcastHistoryModal.style.justifyContent = 'center';
+        broadcastHistoryModal.style.zIndex = '10040';
+        broadcastHistoryModal.innerHTML = `
+        <div style="background:linear-gradient(135deg,#e3f2fd 0%,#fce4ec 100%);padding:0;border-radius:20px;min-width:360px;max-width:98vw;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(30,60,90,0.18);position:relative;">
+            <div style="background:linear-gradient(90deg,#1976d2,#388e3c,#d84315,#1565c0);border-radius:20px 20px 0 0;padding:18px 38px 14px 24px;display:flex;align-items:center;gap:14px;">
+                <span style="font-size:2em;">📢</span>
+                <span style="font-size:1.35em;font-weight:700;color:#fff;letter-spacing:1px;text-shadow:0 2px 8px #0002;">Broadcast History</span>
+                <span id="close-broadcast-history-modal" style="margin-left:auto;font-size:2em;cursor:pointer;color:#fff;opacity:0.85;transition:opacity 0.2s;user-select:none;">&times;</span>
+            </div>
+            <div id="broadcast-history-list" style="padding:24px 32px 18px 32px;font-size:1.08em;"></div>
+        </div>`;
+        document.body.appendChild(broadcastHistoryModal);
+    }
+    document.getElementById('close-broadcast-history-modal')?.addEventListener('click',()=>{
+        broadcastHistoryModal.style.display = 'none';
+    });
+    broadcastHistoryBtn.onclick = ()=>{
+        updateBroadcastHistoryList();
+        broadcastHistoryModal.style.display = 'flex';
+    };
+
+    // --- Firestore Listener for Broadcasts ---
+    // --- Updated Firestore Listener for Broadcasts: match by unitID, callsign, and group names ---
+    const broadcastsRef = collection(db, 'broadcasts');
+    onSnapshot(broadcastsRef, (snapshot) => {
+        const myCallsign = getCallsign();
+        const myUnitId = sessionStorage.getItem('unitId');
+        if (!myCallsign && !myUnitId) return;
+        let relevant = [];
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            if (!data.recipients) return;
+            // Recipients may be unitIDs, group names, or callsigns (legacy)
+            const recips = data.recipients.map(r => (typeof r === 'string' ? r.toLowerCase().trim() : ''));
+            // Accept if:
+            // - 'all' or 'ambulance' group
+            // - matches this unit's unitID
+            // - matches this unit's callsign (legacy)
+            // - matches a group name (future-proof)
+            if (
+                recips.includes('all') ||
+                recips.includes('ambulance') ||
+                (myUnitId && recips.includes(myUnitId.toLowerCase())) ||
+                (myCallsign && recips.includes(myCallsign.toLowerCase()))
+            ) {
+                relevant.push({id:docSnap.id, ...data});
+            }
+        });
+        relevant.sort((a,b)=>{
+            const ta = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
+            const tb = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
+            return tb - ta;
+        });
+        broadcastHistory = relevant;
+        if (relevant.length) {
+            const latest = relevant[0];
+            if (broadcastBarMsg) {
+                broadcastBarMsg.textContent = `[${latest.priority?.toUpperCase()||'INFO'}] ${latest.message}`;
+            }
+            if (!hasLoadedInitialBroadcasts) {
+                // On first load, set lastBroadcastId but do NOT show modal
+                lastBroadcastId = latest.id;
+                hasLoadedInitialBroadcasts = true;
+            } else if (lastBroadcastId !== latest.id) {
+                lastBroadcastId = latest.id;
+                showBroadcastModal(latest);
+            }
+        } else {
+            if (broadcastBarMsg) broadcastBarMsg.textContent = '';
+        }
+    });
+
+    function showBroadcastModal(broadcast) {
+        const content = document.getElementById('broadcast-modal-content');
+        if (!content) return;
+        // If this is a placeholder broadcast, do not display it
+        if (broadcast.placeholder === true) {
+            broadcastModal.style.display = 'none';
+            return;
+        }
+        // Clean up undefined/null/empty fields for display
+        const safe = (v, fallback = '') => (v === undefined || v === null ? fallback : v);
+        const recipients = Array.isArray(broadcast.recipients) ? broadcast.recipients.filter(r => !!r).join(', ') : '';
+        content.innerHTML = `
+            <div style="font-size:1.2em;font-weight:bold;margin-bottom:8px;color:#1976d2;word-break:break-word;">${safe(broadcast.message, '')}</div>
+            <div style="margin-bottom:6px;"><b>Priority:</b> <span style="color:#d84315;">${safe(broadcast.priority, 'info')}</span></div>
+            <div style="margin-bottom:6px;"><b>From:</b> <span style="color:#388e3c;">${safe(broadcast.sender, 'DISPATCH')}</span></div>
+            <div style="margin-bottom:6px;"><b>Recipients:</b> <span style="color:#1565c0;">${recipients}</span></div>
+            <div style="margin-bottom:6px;"><b>Time:</b> <span style="color:#555;">${formatBroadcastTime(broadcast.timestamp)}</span></div>`;
+        broadcastModal.style.display = 'flex';
+        playSoundByKey('tones');
+        setTimeout(()=>{broadcastModal.style.display='none';},10000);
+    }
+
+    function updateBroadcastHistoryList() {
+        const list = document.getElementById('broadcast-history-list');
+        if (!list) return;
+        // Filter out broadcasts with blank/undefined message or placeholder
+        const filtered = broadcastHistory.filter(b => {
+            const msg = (b.message||'').trim();
+            return msg && b.placeholder !== true;
+        });
+        if (!filtered.length) {
+            list.innerHTML = '<div style="color:#888;">No broadcasts received.</div>';
+            return;
+        }
+        list.innerHTML = filtered.map(b=>
+            `<div style="margin-bottom:14px;padding:12px 16px;background:#f7f7fa;border-radius:10px;box-shadow:0 2px 8px #0001;">
+                <div style="font-weight:bold;font-size:1.08em;margin-bottom:4px;color:#1976d2;word-break:break-word;">${b.message}</div>
+                <div style="font-size:0.98em;color:#333;"><b>Priority:</b> <span style="color:#d84315;">${b.priority||'info'}</span> | <b>From:</b> <span style="color:#388e3c;">${b.sender||'DISPATCH'}</span></div>
+                <div style="font-size:0.98em;color:#333;"><b>Recipients:</b> <span style="color:#1565c0;">${(b.recipients||[]).join(', ')}</span></div>
+                <div style="font-size:0.98em;color:#555;"><b>Time:</b> ${formatBroadcastTime(b.timestamp)}</div>
+            </div>`
+        ).join('');
+    }
+
+    function formatBroadcastTime(ts) {
+        if (!ts) return '';
+        let d = ts.toDate ? ts.toDate() : new Date(ts);
+        return d.toLocaleString();
+    }
+
+    // --- END BROADCAST UI ---
     // Avoid duplicate listeners
     if (window._ambulanceAttachListenerActive) return;
     window._ambulanceAttachListenerActive = true;
@@ -13,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Helper: Play attach/detach sounds only if not self-initiated
     function playAttachSound() {
-        playSoundByKey('newambulancecall');
+        playSoundByKey('tones');
     }
     function playDetachSound() {
         playSoundByKey('detach');
