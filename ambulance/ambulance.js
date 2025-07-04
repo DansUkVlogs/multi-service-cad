@@ -1659,6 +1659,9 @@ function clearCallDetailsSection() {
     if (attachedUnitsContainer) attachedUnitsContainer.innerHTML = '';
     
     window.selectedCall = null;
+    
+    // Update close call button visibility
+    updateCloseCallButtonVisibility();
 }
 
 // Utility: Debug log all attachedUnit docs for a call
@@ -1976,6 +1979,9 @@ async function updateDispatcherCount(snapshot) {
             applySelfAttachLock();
         }
     }
+    
+    // Update close call button visibility
+    updateCloseCallButtonVisibility();
 }
 
 // Function to initialize default button states
@@ -2137,6 +2143,409 @@ function setupSelfAttachButton() {
     updateSelfAttachButton();
 }
 
+// Setup close call button functionality
+function setupCloseCallButton() {
+    const closeCallBtn = document.getElementById('close-call-btn');
+    if (!closeCallBtn) return;
+    
+    // Prevent multiple event listeners
+    if (closeCallBtn.dataset.listenerAttached === 'true') return;
+    closeCallBtn.dataset.listenerAttached = 'true';
+    
+    closeCallBtn.addEventListener('click', async function() {
+        // Validate prerequisites
+        if (!window.selectedCall || !window.selectedCall.id) {
+            showNotification('No call selected. Please select a call first.', 'error');
+            return;
+        }
+        
+        if (dispatcherActive) {
+            showNotification('Cannot close call - dispatcher is active.', 'error');
+            return;
+        }
+        
+        showCloseCallConfirmationModal();
+    });
+}
+
+// Function to show close call confirmation modal
+function showCloseCallConfirmationModal() {
+    // Remove any existing modal first
+    const existingModal = document.getElementById('close-call-modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Create background overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'close-call-modal';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.7);
+        border: 3px solid #d32f2f;
+        z-index: 10000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+        box-sizing: border-box;
+    `;
+    
+    // Create modal content
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        background: #fff;
+        border: 3px solid #d32f2f;
+        border-radius: 16px;
+        padding: 32px 40px 24px 40px;
+        min-width: 400px;
+        max-width: 90vw;
+        box-shadow: 0 8px 32px rgba(211, 47, 47, 0.3);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        font-family: inherit;
+    `;
+    
+    // Create warning icon
+    const warningIcon = document.createElement('div');
+    warningIcon.innerHTML = '⚠️';
+    warningIcon.style.cssText = `
+        font-size: 3rem;
+        margin-bottom: 10px;
+    `;
+    
+    // Create title
+    const title = document.createElement('div');
+    title.textContent = 'CLOSE CALL - WARNING';
+    title.style.cssText = `
+        font-size: 1.8rem;
+        color: #d32f2f;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 10px;
+    `;
+    
+    // Create warning message
+    const message = document.createElement('div');
+    message.innerHTML = `
+        <p style="color: #d32f2f; font-weight: bold; font-size: 1.1rem; text-align: center; margin: 0 0 15px 0;">
+            Are you sure you wish to close this call?
+        </p>
+        <p style="color: #333; font-size: 1rem; text-align: center; margin: 0 0 10px 0;">
+            <strong>This action will:</strong>
+        </p>
+        <ul style="color: #d32f2f; font-size: 1rem; text-align: left; margin: 0 0 15px 0; padding-left: 20px;">
+            <li>Detach ALL units from this call</li>
+            <li>Permanently delete the call</li>
+            <li>Make the call inaccessible forever</li>
+        </ul>
+        <p style="color: #d32f2f; font-weight: bold; font-size: 1.1rem; text-align: center; margin: 0;">
+            THIS CANNOT BE UNDONE!
+        </p>
+    `;
+    
+    // Create checkbox container
+    const checkboxContainer = document.createElement('div');
+    checkboxContainer.style.cssText = `
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 15px 0;
+        padding: 12px;
+        background: #ffebee;
+        border: 2px solid #d32f2f;
+        border-radius: 8px;
+        width: 100%;
+        box-sizing: border-box;
+    `;
+    
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = 'close-call-confirm-checkbox';
+    checkbox.style.cssText = `
+        transform: scale(1.2);
+        margin-right: 5px;
+    `;
+    
+    const checkboxLabel = document.createElement('label');
+    checkboxLabel.setAttribute('for', 'close-call-confirm-checkbox');
+    checkboxLabel.textContent = 'I understand this action cannot be undone';
+    checkboxLabel.style.cssText = `
+        color: #d32f2f;
+        font-weight: bold;
+        cursor: pointer;
+        user-select: none;
+    `;
+    
+    checkboxContainer.appendChild(checkbox);
+    checkboxContainer.appendChild(checkboxLabel);
+    
+    // Create button container
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.cssText = `
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        width: 100%;
+        margin-top: 10px;
+    `;
+    
+    // Create No button
+    const noBtn = document.createElement('button');
+    noBtn.textContent = 'No, Cancel';
+    noBtn.style.cssText = `
+        padding: 12px 24px;
+        border: 2px solid #666;
+        background: #fff;
+        color: #666;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 1rem;
+        min-width: 120px;
+    `;
+    
+    // Create Yes button
+    const yesBtn = document.createElement('button');
+    yesBtn.textContent = 'Yes, Close Call';
+    yesBtn.style.cssText = `
+        padding: 12px 24px;
+        border: none;
+        background: #d32f2f;
+        color: #fff;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 1rem;
+        min-width: 120px;
+    `;
+    
+    // Assemble modal
+    buttonContainer.appendChild(noBtn);
+    buttonContainer.appendChild(yesBtn);
+    
+    modal.appendChild(warningIcon);
+    modal.appendChild(title);
+    modal.appendChild(message);
+    modal.appendChild(checkboxContainer);
+    modal.appendChild(buttonContainer);
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    // Event handlers
+    function closeModal() {
+        overlay.remove();
+    }
+    
+    // No button - close modal
+    noBtn.addEventListener('click', closeModal);
+    
+    // Yes button - validate checkbox and proceed
+    yesBtn.addEventListener('click', async () => {
+        if (!checkbox.checked) {
+            showNotification('Please check the confirmation checkbox to proceed.', 'error');
+            return;
+        }
+        
+        // Close modal and proceed with closing the call
+        closeModal();
+        await executeCloseCall();
+    });
+    
+    // Click outside to cancel
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            closeModal();
+        }
+    });
+    
+    // ESC key to cancel
+    document.addEventListener('keydown', function escHandler(e) {
+        if (e.key === 'Escape') {
+            closeModal();
+            document.removeEventListener('keydown', escHandler);
+        }
+    });
+}
+
+// Function to execute the close call operation
+async function executeCloseCall() {
+    if (!window.selectedCall || !window.selectedCall.id) {
+        showNotification('No call selected to close.', 'error');
+        return;
+    }
+    
+    const callId = window.selectedCall.id;
+    const detachedUnits = []; // Track detached units for rollback
+    
+    try {
+        showNotification('Closing call...', 'info');
+        
+        // Step 1: Get all units attached to this call
+        console.log(`[CLOSE CALL] Getting attached units for call ${callId}`);
+        const attachedUnitQuery = query(
+            collection(db, "attachedUnit"),
+            where("callID", "==", callId)
+        );
+        const attachedUnitSnapshot = await getDocs(attachedUnitQuery);
+        
+        if (attachedUnitSnapshot.empty) {
+            console.log(`[CLOSE CALL] No units attached to call ${callId}`);
+        }
+        
+        // Step 2: Detach all units and move them to availableUnits
+        for (const attachedDoc of attachedUnitSnapshot.docs) {
+            const unitData = attachedDoc.data();
+            const unitId = unitData.unitID;
+            
+            if (!unitId) {
+                console.warn(`[CLOSE CALL] Skipping attachment with missing unitID:`, unitData);
+                continue;
+            }
+            
+            try {
+                // Get unit details to check status
+                const unitRef = doc(db, "units", unitId);
+                const unitSnap = await getDoc(unitRef);
+                
+                if (!unitSnap.exists()) {
+                    console.warn(`[CLOSE CALL] Unit ${unitId} not found in units collection`);
+                    continue;
+                }
+                
+                const unit = unitSnap.data();
+                const unitStatus = unit.status || 'Unknown';
+                
+                // Remove from attachedUnit collection
+                await deleteDoc(attachedDoc.ref);
+                console.log(`[CLOSE CALL] Detached unit ${unitId} from call ${callId}`);
+                
+                // Add to availableUnits only if status is not "Unavailable"
+                if (unitStatus !== "Unavailable") {
+                    const availableUnitDocRef = doc(db, "availableUnits", unitId);
+                    await setDoc(availableUnitDocRef, {
+                        unitId: unitId
+                    });
+                    console.log(`[CLOSE CALL] Added unit ${unitId} to availableUnits (status: ${unitStatus})`);
+                } else {
+                    console.log(`[CLOSE CALL] Unit ${unitId} has status "Unavailable", not adding to availableUnits`);
+                }
+                
+                // Track for potential rollback
+                detachedUnits.push({
+                    unitId: unitId,
+                    attachedDocId: attachedDoc.id,
+                    callId: callId,
+                    unitStatus: unitStatus,
+                    originalAttachedData: unitData
+                });
+                
+            } catch (unitError) {
+                console.error(`[CLOSE CALL] Error detaching unit ${unitId}:`, unitError);
+                
+                // Rollback: Re-attach all previously detached units
+                console.log(`[CLOSE CALL] Rolling back detached units due to error`);
+                await rollbackDetachedUnits(detachedUnits);
+                
+                showNotification('Failed to detach units from call. Operation cancelled.', 'error');
+                return;
+            }
+        }
+        
+        console.log(`[CLOSE CALL] Successfully detached ${detachedUnits.length} units from call ${callId}`);
+        
+        // Step 3: Delete the call from calls collection
+        try {
+            const callDocRef = doc(db, "calls", callId);
+            await deleteDoc(callDocRef);
+            console.log(`[CLOSE CALL] Successfully deleted call ${callId}`);
+            
+            // Step 4: Clear call details section (no rollback needed past this point)
+            clearCallDetailsSection();
+            
+            // Clean up selected call listener
+            if (selectedCallListener) {
+                selectedCallListener();
+                selectedCallListener = null;
+            }
+            
+            showNotification(`Call closed successfully. ${detachedUnits.length} units were detached.`, 'success');
+            
+        } catch (deleteError) {
+            console.error(`[CLOSE CALL] Error deleting call ${callId}:`, deleteError);
+            
+            // Rollback: Re-attach all detached units
+            console.log(`[CLOSE CALL] Rolling back detached units due to call deletion error`);
+            await rollbackDetachedUnits(detachedUnits);
+            
+            showNotification('Failed to delete call. All units have been re-attached.', 'error');
+            return;
+        }
+        
+    } catch (error) {
+        console.error(`[CLOSE CALL] Unexpected error in executeCloseCall:`, error);
+        
+        // Rollback: Re-attach all detached units
+        if (detachedUnits.length > 0) {
+            console.log(`[CLOSE CALL] Rolling back detached units due to unexpected error`);
+            await rollbackDetachedUnits(detachedUnits);
+        }
+        
+        showNotification('Failed to close call due to unexpected error. Operation cancelled.', 'error');
+    }
+}
+
+// Function to rollback detached units in case of error
+async function rollbackDetachedUnits(detachedUnits) {
+    console.log(`[CLOSE CALL] Starting rollback for ${detachedUnits.length} units`);
+    
+    for (const unitInfo of detachedUnits) {
+        try {
+            // Re-add to attachedUnit collection
+            await addDoc(collection(db, "attachedUnit"), unitInfo.originalAttachedData);
+            
+            // Remove from availableUnits if we added them
+            if (unitInfo.unitStatus !== "Unavailable") {
+                const availableUnitDocRef = doc(db, "availableUnits", unitInfo.unitId);
+                const availableUnitSnap = await getDoc(availableUnitDocRef);
+                if (availableUnitSnap.exists()) {
+                    await deleteDoc(availableUnitDocRef);
+                }
+            }
+            
+            console.log(`[CLOSE CALL] Rolled back unit ${unitInfo.unitId}`);
+            
+        } catch (rollbackError) {
+            console.error(`[CLOSE CALL] Error rolling back unit ${unitInfo.unitId}:`, rollbackError);
+            // Continue with other units even if one fails
+        }
+    }
+    
+    console.log(`[CLOSE CALL] Rollback completed`);
+}
+
+// Function to update close call button visibility
+function updateCloseCallButtonVisibility() {
+    const closeCallBtn = document.getElementById('close-call-btn');
+    if (!closeCallBtn) return;
+    
+    // Show button only if:
+    // 1. No dispatcher is active
+    // 2. A valid call is selected
+    const shouldShow = !dispatcherActive && window.selectedCall && window.selectedCall.id;
+    
+    closeCallBtn.style.display = shouldShow ? 'inline-block' : 'none';
+}
+
 // Function to select a call and update the call details panel
 async function selectCall(call) {
     try {
@@ -2195,6 +2604,9 @@ async function selectCall(call) {
         if (selectedCard) {
             selectedCard.classList.add('selected');
         }
+
+        // Update close call button visibility
+        updateCloseCallButtonVisibility();
 
         // Dispatch custom event to notify that call details have changed
        
@@ -2383,6 +2795,9 @@ document.addEventListener("DOMContentLoaded", () => {
     
     // Initialize self attach/detach button
     setupSelfAttachButton();
+    
+    // Initialize close call button
+    setupCloseCallButton();
     
     // Set up Load Saved Character button event listener
     const loadCharacterBtn = document.getElementById('load-character-btn');
