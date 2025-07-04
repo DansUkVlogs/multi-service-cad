@@ -21,5 +21,20 @@
         "Sandy Shores Fuel Station", 
         "Big Bank Fuel Station", 
         "Airport Fuel Station"
+    ],
+    "police-custody": [
+        "Sinner Street PD Custody",
+        "Big Police Custody"
+    ],
+    "police-stations": [
+        "Sinner Street PD", 
+        "Sandy Shores PD", 
+        "Legion Square PD"
+
+    ],
+    "fire-stations": [
+        "Sinner Street Fire Station",
+        "Sandy Shores Fire Station",
+        "Airport Fire Station"
     ]
 }

@@ -1,0 +1,1498 @@
+/* --- All Calls attached units container and unit pills (All Calls list only) --- */
+.all-calls-attached-units-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 48px; /* Adjust as needed for 2 rows of pills */
+  overflow-y: auto;
+  min-height: 24px;
+  align-items: flex-start;
+  width: 100%;
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
+
+.all-calls-unit-pill {
+  display: flex;
+  align-items: center;
+  background: #eafbe7;
+  color: #004d00;
+  border-radius: 16px;
+  font-size: 1.18em;
+  font-weight: 600;
+  padding: 10px 22px;
+  margin: 0 0 10px 0;
+  border: 1.5px solid #b2d8b2;
+  box-shadow: 0 2px 6px rgba(0,77,0,0.10);
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+  transition: background 0.15s;
+}
+
+.all-calls-unit-pill-abbr {
+  display: inline-block;
+  border-radius: 10px;
+  padding: 4px 16px;
+  margin-right: 18px;
+  font-weight: bold;
+  font-size: 1.08em;
+  min-width: 48px;
+  text-align: center;
+  background: #b2d8b2;
+  color: #004d00;
+  box-shadow: 0 1px 2px rgba(0,77,0,0.07);
+}
+
+.all-calls-unit-pill-callsign {
+  flex: 1;
+  text-align: left;
+  font-weight: bold;
+  font-size: 1.10em;
+  margin-left: 6px;
+  letter-spacing: 0.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.all-calls-unit-pill[data-service="Ambulance"] {
+  background: #eafbe7;
+  color: #004d00;
+  border-color: #b2d8b2;
+}
+.all-calls-unit-pill[data-service="Fire"] {
+  background: #fff3e0;
+  color: #d84315;
+  border-color: #ffccbc;
+}
+.all-calls-unit-pill[data-service="Police"] {
+  background: #e3f2fd;
+  color: #1565c0;
+  border-color: #90caf9;
+}
+.all-calls-unit-pill[data-service="Civilian"] {
+  background: #f3e5f5;
+  color: #6a1b9a;
+  border-color: #ce93d8;
+}
+.all-calls-unit-pill[data-service="Multiple"] {
+  background: #fffde7;
+  color: #fbc02d;
+  border-color: #ffe082;
+}
+
+/* Hide scrollbars for Chrome, Edge, Safari */
+.all-calls-attached-units-container::-webkit-scrollbar {
+  height: 6px;
+  background: transparent;
+}
+.all-calls-attached-units-container::-webkit-scrollbar-thumb {
+  background: #b2d8b2;
+  border-radius: 6px;
+}
+/* Hide scrollbars for Firefox */
+.all-calls-attached-units-container {
+  scrollbar-width: thin;
+  scrollbar-color: #b2d8b2 #eafbe7;
+}
+html, body {
+    height: 100%;
+    min-height: 100%;
+    overflow: hidden; /* Prevent page scrolling */
+}
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(135deg, #e3f2fd 0%, #90caf9 100%); /* Soft modern blue gradient */
+    height: 100vh;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.header-container {
+    width: 100%;
+    /* Remove align-items: center and flex-direction: column for full width */
+}
+.header {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    background: linear-gradient(135deg, #90caf9 0%, #e3f2fd 100%); /* Soft modern blue gradient */
+    color: #222;
+    padding: 5px 20px;
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    margin-bottom: 10px;
+    width: 100%;
+    box-sizing: border-box;
+    justify-content: space-between;
+    gap: 20px;
+    border-bottom: 1.5px solid #90caf9;
+    box-shadow: 0 2px 12px rgba(21, 101, 192, 0.08);
+}
+
+/* Add logo styling for top left */
+.header .logo {
+    width: 100px;
+    height: 100px;
+    object-fit: contain;
+    margin-right: 18px;
+    margin-left: 0 auto;
+    align-self: flex-start;
+    display: block;
+    border: 1px solid black;
+    border-radius: 15px;
+    justify-content: center;
+}
+
+.header img {
+    position: relative;
+    z-index: 2;
+    margin-right: 0;
+    margin-left: 0;
+}
+.header-title-status {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-width: 220px;
+    flex: 1 1 0;
+    margin: 0;
+}
+.header-title-status h1 {
+    margin-bottom: 0.2em;
+}
+#current-status-indicator {
+    display: inline-block;
+    margin: 8px auto 0 auto;
+    padding: 8px 28px;
+    border-radius: 24px;
+    background: #D32F2F;
+    color: #fff;
+    font-weight: bold;
+    font-size: 1.2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    border: 2px solid #b71c1c;
+    transition: background 0.3s, color 0.3s;
+}
+.header .button-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+    position: relative;
+    z-index: 2;
+}
+
+.self-attach {
+    width: 100%;
+    margin-bottom: 15px;
+    position: absolute;
+}
+
+.back-button, .panic-button, .status-buttons button, .calls-list .self-attach, .open-modal-button, .extra-button {
+    padding: 10px 15px;
+    border: none;
+    cursor: pointer;
+    border-radius: 10px; /* Increased rounding for all buttons */
+}
+
+.panic-button {
+    background-color: red;
+    color: white;
+}
+
+/* Legacy styles - now handled by JavaScript selection system
+.selected-status {
+    background-color: #ffd900;
+    color: black;
+}
+*/
+
+.status-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding: 10px;
+    background: linear-gradient(90deg, #1976d2 0%, #42a5f5 100%); /* Blue gradient */
+    justify-content: space-between;
+    border-bottom: 1px solid #90caf9;
+}
+
+.status-buttons .right-buttons {
+    display: flex;
+    gap: 10px; /* Adds spacing between the right-docked buttons */
+}
+
+/* Legacy styles - now handled by JavaScript selection system
+.status-buttons button.selected-status {
+    background-color: #4caf50;
+    color: white;
+    font-weight: bold;
+    border: 2px solid #388e3c;
+}
+*/
+
+.main-content {
+    display: flex;
+    gap: 20px;
+    padding: 20px;
+    width: 100%; /* Ensures the container takes up full width */
+    flex: 1; /* Take remaining space after header and status buttons */
+    min-height: 0; /* Allow shrinking */
+    box-sizing: border-box;
+    overflow: hidden; /* Prevent any overflow */
+}
+
+.details-container {
+    display: flex;
+    gap: 20px;
+    width: 100%;
+    height: 100%; /* Ensure both columns fill the parent */
+    align-items: stretch; /* Make children the same height */
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    border-radius: 18px;
+    box-shadow: 0 4px 24px rgba(21, 101, 192, 0.07);
+    padding: 18px 12px;
+}
+
+.call-details, .calls-list {
+    flex: 0.5;
+    height: 100%; /* Use available height in flex container */
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+/* Calls List Header (title, active dispatchers, self attach) sticky at the top */
+.calls-list-header {
+    position: sticky;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 2;
+    background: linear-gradient(90deg, #e3f2fd 0%, #bbdefb 100%);
+    padding-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    border-bottom: 1px solid #b6f0c1;
+}
+
+/* Calls List Content scrolls */
+#calls-container {
+    flex: 1 1 0;
+    overflow-y: auto;
+    overflow-x: hidden; /* Prevent horizontal scrolling */
+    min-height: 0;
+    position: relative;
+    border-radius: 15px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.calls-fade-top {
+    top: 23%;
+}
+
+.calls-fade-top, .calls-fade-bottom {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 36px;
+    min-height: 24px;
+    max-height: 48px;
+    pointer-events: none;
+    z-index: 20;
+    transition: opacity 0.3s;
+    background: linear-gradient(to bottom, black 70%, transparent 100%);
+    opacity: 1;
+}
+.calls-fade-bottom {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 48px;
+    min-height: 48px;
+    max-height: 48px;
+    pointer-events: none;
+    z-index: 20;
+    transition: opacity 0.3s;
+    bottom: 5px;
+    background: linear-gradient(to top, black 70%, transparent 100%);
+    opacity: 1;
+}
+.calls-fade-top.hidden, .calls-fade-bottom.hidden {
+    opacity: 0;
+}
+
+.call-details {
+    background: linear-gradient(135deg, #90caf9 0%, #e3f2fd 100%); /* Soft modern blue gradient */
+    color: #222;
+    padding: 20px;
+    border-radius: 20px; /* Rounded corners */
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* Space between elements */
+    position: relative; /* Ensure positioning for child elements */
+    flex: 0.5; /* Adjust width to take up half the page, same as calls-list */
+    height: 100%;
+    min-height: 100%;
+    box-sizing: border-box;
+    box-shadow: 0 2px 12px rgba(21, 101, 192, 0.08);
+    border: 1.5px solid #90caf9;
+}
+
+.call-details h2 {
+    font-size: 2.2rem; /* Slightly larger font size for the title */
+    margin: 0;
+}
+
+.call-details .description {
+    display: flex;
+    flex-direction: column;
+    gap: 5px; /* Add spacing between the title and the textbox */
+}
+
+.call-details .descriptionText {
+    white-space: pre-wrap; /* Ensures long descriptions wrap properly */
+    max-width: 400px; /* Limit the width of the description box */
+    margin: 0; /* Remove centering */
+    text-align: left; /* Align text to the left */
+    overflow-y: auto; /* Add vertical scrolling if content overflows */
+    padding: 10px; /* Add padding for better readability */
+    background-color: #d6f5e3; /* Light green background for contrast */
+    color: #222; /* Ensure text is visible */
+    border-radius: 5px; /* Add rounded corners */
+    font-size: 1.2rem; /* Slightly larger font size for description */
+}
+
+.attached-units-title {
+    margin-top: 5px; /* Further reduced margin for a smaller gap */
+    font-size: 1.2rem;
+    color: #218838; /* Modern green for visibility */
+    margin-bottom: 0; /* Remove bottom margin to reduce space */
+}
+
+.call-details .attached-units {
+    margin-top: 3px; /* Further reduced margin for a smaller gap */
+    padding: 10px;
+    background-color: #b6f0c1; /* Light green for the units container */
+    border-radius: 10px; /* Rounded corners for the container */
+    color: #222; /* Ensure text is visible */
+}
+
+#attached-units-container {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 5px; /* Spacing between units for call details */
+    align-items: flex-start;
+    width: 100%;
+}
+
+/* For calls list attached units container */
+.attached-units > div {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 2px; /* Further reduced spacing for calls list */
+    align-items: flex-start;
+    width: 100%;
+    overflow: hidden; /* Prevent overflow in calls list */
+}
+
+.unit {
+    padding: 5px 10px;
+    border-radius: 5px;
+    margin-bottom: 5px;
+    font-weight: bold;
+    display: inline-block;
+}
+
+/* Styling for attached units in call details section */
+.attached-unit-detail {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.attached-unit-detail:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
+}
+
+/* Styling for attached units in calls list */
+.attached-unit {
+    transition: transform 0.2s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 5px; /* Less rounded appearance for pills */
+    text-align: left;
+    padding: 6px 12px 6px 10px;
+    font-size: 1.18rem;
+    min-height: 38px;
+    min-width: 70px;
+    display: flex;
+    align-items: center;
+    margin: 2px 0;
+    background: #eafbe7;
+    box-shadow: 0 2px 8px rgba(0,77,0,0.06);
+    font-weight: 600;
+}
+
+.attached-unit:hover {
+    transform: scale(1.02);
+}
+
+.timestamp {
+    position: absolute; /* Dock the timestamp */
+    bottom: 2px; /* Make it lower spacing from the bottom */
+    left: 20px; /* Align it to the left with some padding */
+    font-size: 1.3rem; 
+    font-weight: bold;
+    text-align: left;
+}
+
+.call-details .incident {
+    position: static;
+    display: block;
+    top: unset;
+    left: unset;
+    max-width: 100%;
+    font-size: 1.2rem;
+    font-weight: bold;
+    text-align: left;
+    word-wrap: normal;
+    overflow-wrap: normal;
+    line-height: 1.2;
+    align-self: flex-start;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px; /* Add a small gap below incident */
+}
+
+.call-details .location {
+    position: static;
+    display: block;
+    top: unset;
+    right: unset;
+    max-width: 100%;
+    font-size: 1.1rem;
+    font-weight: bold;
+    text-align: left;
+    word-wrap: normal;
+    overflow-wrap: normal;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 0; /* Remove extra spacing above location */
+}
+
+/* Fix for incident/location alignment in call details */
+.call-details-section.incident-location {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.call-details-section.incident-location > div {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background-color: #003300;
+    border-radius: 15px;
+    padding: 5px;
+}
+.incident, .location {
+    display: inline;
+    font-weight: normal;
+    margin-left: 0;
+    position: static !important;
+    float: none !important;
+}
+
+/* --- Improved Incident/Location Row Styling --- */
+.incident-location-row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    font-size: 1.08rem;
+    margin-bottom: 4px;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+}
+.incident-block, .location-block {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+}
+.incident-label, .location-label {
+    color: #004d00;
+    font-weight: 600;
+    min-width: 80px;
+}
+.incident, .location {
+    color: #222;
+    font-weight: 500;
+    min-width: 60px;
+    word-break: break-word;
+    max-width: 180px;
+    display: inline-block;
+}
+@media (max-width: 700px) {
+    .incident-location-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    .incident, .location {
+        max-width: 95vw;
+    }
+}
+
+.calls-list {
+    background: #eafbe7; /* Light green */
+    color: #222;
+    padding: 20px;
+    border-radius: 10px;
+    flex: 0.5; /* Adjust width to take up half the page */
+    height: 100%;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Prevent overflow */
+    position: relative; /* Make fade overlays position relative to this container */
+}
+
+.details-container {
+    display: flex;
+    gap: 20px;    width: 100%; /* Ensures the combined width of both sections is 100% */
+}
+
+.attached-units {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    overflow: hidden;
+}
+
+/* Style for call cards - Compact horizontal layout matching original design */
+.call-card {
+    width: 100%;
+    height: 80px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin: 10px 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    font-size: 35px; /* Main container font size as per original */
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    position: relative;
+    align-items: stretch;
+    overflow: hidden;
+    box-sizing: border-box; /* Ensure borders/padding don't add to width */
+}
+
+.call-card:hover {
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transform: translateY(-1px);
+}
+
+/* Create the main sections for the new layout */
+.call-card .call-info {
+    display: flex;
+    width: calc(100% - 300px); /* Increased space for the end section to prevent overflow */
+    height: 100%;
+    align-items: stretch;
+}
+
+/* Service section (leftmost) - show first 3 letters only */
+.call-card .call-service-section {
+    width: 45px;
+    min-width: 45px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: #4CAF50;
+    color: white;
+    font-size: 11px;
+    font-weight: bold;
+    text-align: center;
+    border-radius: 8px 0 0 8px;
+    text-transform: uppercase;
+}
+
+/* Status section - expanded to show full call type */
+.call-card .call-status-section {
+    width: 240px;
+    min-width: 240px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 4px 8px;
+    background-color: #f9f9f9;
+}
+
+.call-card .call-status-section .call-status {
+    font-size: 13px;
+    font-weight: bold;
+    color: #333;
+    margin: 0 0 3px 0;
+    line-height: 1.1;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    max-height: 32px;
+    overflow: hidden;
+}
+
+.call-card .call-status-section .caller-name {
+    font-size: 11px;
+    color: #666;
+    margin: 0 0 2px 0;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.call-card .call-status-section .call-location {
+    font-size: 10px;
+    color: #888;
+    margin: 0;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Call end section - contains attached units and timestamp side by side */
+.call-card .call-end-section {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Attached units section with grey background - positioned at end */
+.call-card .attached-units-section {
+    min-width: 150px;
+    max-width: 220px;
+    padding: 3px;
+    background-color: #e8e8e8;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.call-card .attached-units-compact {
+    max-height: 100px;
+    overflow-y: auto;
+    font-size: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+/* Timestamp positioned next to attached units */
+.call-card .call-timestamp {
+    font-size: 9px;
+    color: #666;
+    text-align: right;
+    margin: 0;
+    line-height: 1.2;
+    font-weight: 500;
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 3px 6px;
+    border-radius: 3px;
+    border: 1px solid #ddd;
+    white-space: nowrap;
+}
+
+/* Unit cards within attached units compact section */
+.call-card .attached-units-compact .unit-card {
+    display: block;
+    margin-bottom: 2px;
+    padding: 4px 6px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: bold;
+    color: white;
+    text-align: left;
+    white-space: nowrap;
+    line-height: 1.2;
+    min-height: 18px;
+    overflow: hidden;
+}
+
+.call-card .attached-units-compact .unit-card .unit-callsign {
+    font-size: 11px;
+    font-weight: bold;
+    margin-bottom: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.call-card .attached-units-compact .unit-card .unit-service-type {
+    font-size: 9px;
+    opacity: 0.9;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.call-card .attached-units-compact .unit-card:last-child {
+    margin-bottom: 0;
+}
+
+/* Highlight selected call */
+.call-card.selected {
+    border: 2px solid #4CAF50;
+    background-color: #e8f5e8;
+    box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+}
+
+.call-card.call-disabled {
+    filter: grayscale(0.7);
+    opacity: 0.5 !important;
+    pointer-events: none !important;
+    transition: opacity 0.2s;
+}
+
+.call-card.selected-call-locked {
+    outline: 2.5px solid #4caf50;
+    box-shadow: 0 0 0 3px #b2f7c1;
+    z-index: 2;
+}
+
+.call-details p {
+    margin-bottom: 5px; /* Reduced space between paragraphs */
+}
+
+/* Modal Styling */
+#setup-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(135deg, #3a7bd5 0%, #00d2ff 100%);
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    padding: 10px; /* blue gradient border */
+    width: 650px;
+    max-width: 98vw;
+    min-width: 340px;
+    height: auto;
+    min-height: unset;
+    /* Make modal less tall and more box-like */
+    padding: 6px 6px 6px 6px;
+    aspect-ratio: 2.2/1;
+    /* Ensure perfect centering */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    animation: fadeInModal 0.3s;
+    z-index: 1200 !important;
+}
+#setup-modal .modal-content {
+    background: rgba(255,255,255,0.97);
+    border: 1px solid #3a7bd5;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px 0 rgba(58,123,213,0.08);
+    padding: 16px 32px 12px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+}
+#setup-modal h2.modal-title {
+    font-size: 1.7rem;
+    font-weight: bold;
+    color: #2563eb;
+    text-align: center;
+    margin-bottom: 10px;
+    letter-spacing: 0.5px;
+}
+.profile-picture-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.profile-picture-container img {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 2px solid #3a7bd5;
+    object-fit: cover;
+    border: 3px solid #3a7bd5;
+    box-shadow: 0 2px 12px rgba(58,123,213,0.10);
+}
+
+.slot-selection {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.slot-selection label {
+    font-weight: bold;
+    font-size: 14px;
+    color: #333;
+}
+
+.slot-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    margin: 18px 0 0 0;
+}
+
+.slot-controls select,
+.slot-controls button {
+    width: 220px;
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+.slot-controls select {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color 0.3s ease;
+    flex: 1;
+}
+
+.slot-controls select:focus {
+    border-color: #4CAF50;
+    outline: none;
+    box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+}
+
+.slot-controls button {
+    background: linear-gradient(90deg, #3a7bd5 0%, #00d2ff 100%);
+    color: #fff;
+    border-radius: 8px;
+    transition: background 0.2s, box-shadow 0.2s;
+    font-weight: 600;
+    font-size: 1.08rem;
+    padding: 10px 0;
+}
+
+.slot-controls button:hover {
+    background: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%);
+    box-shadow: 0 4px 16px rgba(58,123,213,0.18);
+}
+
+.character-details {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.character-details .form-row {
+    display: flex;
+    gap: 15px;
+}
+
+.character-details .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex: 1;
+}
+
+.character-details .form-group label {
+    font-weight: bold;
+    font-size: 14px;
+    color: #333;
+}
+
+.character-details .form-group input {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    font-size: 14px;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.character-details .form-group input:focus {
+    border-color: #4CAF50;
+    box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+    outline: none;
+}
+
+.unit-details {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.unit-details .form-row {
+    display: flex;
+    gap: 15px;
+}
+
+.unit-details .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex: 1;
+}
+
+.unit-details .form-group label {
+    font-weight: bold;
+    font-size: 14px;
+    color: #333;
+}
+
+.unit-details .form-group input {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    font-size: 14px;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.unit-details .form-group input:focus {
+    border-color: #4CAF50;
+    box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+    outline: none;
+}
+
+.save-details-btn {
+    width: 100%;
+    background: #004d00;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 0;
+    font-weight: 700;
+    font-size: 1.08rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.save-details-btn:hover {
+    background: #006600;
+}
+
+/* --- Call Details Flex Row for Description and Attached Units --- */
+.call-details-flex-row {
+
+    display: flex;
+    flex-direction: row;
+    gap: 18px;
+    width: 100%;
+    align-items: flex-start;
+    margin-bottom: 0;
+}
+
+.dispatcher-counter-display {
+    display: block;
+    align-items: center;
+    background-color: rgb(0, 72, 255);
+    border: 1px solid darkblue;
+    border-radius: 15px;
+    margin: 0 auto;
+    padding: 10px;
+    color: white;
+    margin-bottom: 5px;
+}
+
+@media (max-width: 900px) {
+    .call-details-flex-row {
+        flex-direction: column;
+        gap: 10px;
+    }
+    .call-details-section.attached-units-section {
+        margin-left: 0 !important;
+    }
+}
+@media (max-width: 900px) {
+    .call-details-card {
+        max-width: 98vw;
+        width: 98vw;
+        padding: 8px 2vw;
+        font-size: 0.98rem;
+    }
+    .incident, .location {
+        max-width: 95vw;
+        align-items: left;
+    }
+}
+
+#status-gradient-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 18px;
+    pointer-events: none;
+    z-index: 2;
+    background: linear-gradient(90deg, #388e3c 0%, #fbc02d 50%, #D32F2F 100%);
+    opacity: 1;
+    transition: opacity 0.7s;
+}
+#status-gradient-bar.flashing {
+    animation: status-gradient-flash 0.25s linear 0s 2;
+}
+@keyframes status-gradient-flash {
+    0%   { opacity: 1; }
+    40%  { opacity: 0.2; }
+    60%  { opacity: 1; }
+    100% { opacity: 1; }
+}
+
+#current-status-indicator {
+    display: inline-block;
+    margin: 8px auto 0 auto;
+    padding: 8px 28px;
+    border-radius: 24px;
+    background: #D32F2F;
+    color: #fff;
+    font-weight: bold;
+    font-size: 1.2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    border: 2px solid #b71c1c;
+    transition: background 0.3s, color 0.3s;
+}
+
+/* Gradient bar at the top of the page */
+#status-gradient-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100px;
+    pointer-events: none;
+    z-index: 1; /* gradient is behind header content */
+    background: linear-gradient(to bottom, transparent, transparent);
+    opacity: 1;
+    transition: opacity 1.5s;
+}
+#status-gradient-bar.flashing {
+    transition: none;
+}
+.header {
+    position: relative;
+    z-index: 1; /* header content is above gradient */
+}
+
+/* --- Call Details Section: No Timestamp, No Scroll, Left-Aligned --- */
+.call-details-card {
+    background: linear-gradient(135deg, #90caf9 0%, #e3f2fd 100%); /* Soft modern blue gradient */
+    color: #222;
+    border-radius: 22px;
+    box-shadow: 0 6px 32px rgba(0,0,0,0.13);
+    padding: 24px 24px 18px 24px;
+    max-width: 50vw;
+    min-width: 340px;
+    width: 50vw;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    position: relative;
+    font-size: 1.08rem;
+    align-self: flex-start;
+    overflow: visible;
+}
+
+/* Make all text in call-details-card dark by default */
+.call-details-card,
+.call-details-card * {
+    color: #222;
+}
+
+/* Highlight labels and important info in a modern green for contrast */
+.call-details-card .incident-label,
+.call-details-card .location-label,
+.call-details-card .caller-info strong,
+.call-details-card .description strong {
+    color: #1565c0;
+}
+
+.call-details-card .attached-units-title {
+    color: #1565c0;
+}
+
+/* Make incident/location values a deeper green for visibility */
+.call-details-card .incident,
+.call-details-card .location {
+    color: #1565c0;
+    font-weight: bold;
+}
+
+/* Description textarea: keep contrast but use a lighter green background */
+.call-details-card .descriptionText {
+    background: #bbdefb;
+    color: #222;
+    border: 1px solid #90caf9;
+}
+
+/* Attached units section: use a soft green background for contrast */
+.call-details-card .attached-units-section {
+    background: #90caf9;
+    color: #222;
+}
+
+/* Remove previous color overrides for .call-details-section, .incident-label, .location-label, .incident, .location, .descriptionText, .attached-units-title if present */
+@media (max-width: 900px) {
+    .call-details-card {
+        max-width: 98vw;
+        width: 98vw;
+        padding: 8px 2vw;
+        font-size: 0.98rem;
+    }
+    .incident, .location {
+        max-width: 95vw;
+        align-items: left;
+    }
+}
+
+/* --- Modal Overlay and Modal Improvements --- */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 1150 !important;
+    display: none;
+    pointer-events: auto;
+}
+.modal[style*="display: block"], .modal[style*="display:block"] {
+    z-index: 1200 !important;
+}
+.modal[style*="display: block"], .modal[style*="display:block"] ~ .modal-overlay {
+    display: block !important;
+}
+/* --- Modal Overlay: Block All Interaction When Modal is Open --- */
+body.modal-active {
+    overflow: hidden;
+    pointer-events: none;
+}
+body.modal-active * {
+    pointer-events: none !important;
+}
+body.modal-active .modal, body.modal-active .modal * {
+    pointer-events: auto !important;
+}
+body.modal-active .modal-overlay {
+    display: block !important;
+}
+
+/* --- Modal Styles for All Modals --- */
+.modal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    z-index: 1100;
+    min-width: 320px;
+    max-width: 95vw;
+    padding: 0;
+    animation: fadeInModal 0.2s;
+}
+.modal.active {
+    display: flex !important;
+}
+.modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 32px 28px 24px 28px;
+    align-items: stretch;
+    text-align: center;
+}
+
+#hospital-modal h2, #base-modal h2, #standby-modal h2, #refuel-modal h2, #refuel-price-modal h2 {
+    margin: 0 0 10px 0;
+    font-size: 1.5rem;
+    color: #004d00;
+    text-align: center;
+    font-weight: bold;
+}
+#hospital-modal label, #base-modal label, #standby-modal label, #refuel-modal label, #refuel-price-modal label {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 6px;
+    margin-top: 6px;
+    font-size: 1rem;
+}
+#hospital-modal select, #base-modal select, #standby-modal select, #refuel-modal select, #refuel-price-modal input[type="text"] {
+    padding: 10px;
+    border-radius: 8px;
+    border: 1.5px solid #4caf50;
+    font-size: 1rem;
+    margin-bottom: 8px;
+    background: #f6fff6;
+    transition: border-color 0.2s;
+    text-align: center;
+}
+#hospital-modal select:focus, #base-modal select:focus, #standby-modal select:focus, #refuel-modal select:focus, #refuel-price-modal input[type="text"]:focus {
+    border-color: #388e3c;
+    outline: none;
+}
+#hospital-modal .modal-buttons, #base-modal .modal-buttons, #standby-modal .modal-buttons, #refuel-modal .modal-buttons, #refuel-price-modal .modal-buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 10px;
+}
+#hospital-modal .modal-buttons button, #base-modal .modal-buttons button, #standby-modal .modal-buttons button, #refuel-modal .modal-buttons button, #refuel-price-modal .modal-buttons button {
+    flex: 1 1 0;
+    padding: 10px 0;
+    border-radius: 8px;
+    border: none;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+#hospital-modal #confirm-hospital-btn, #base-modal #confirm-base-btn, #standby-modal #confirm-standby-btn, #refuel-modal #confirm-refuel-btn, #refuel-price-modal #confirm-refuel-price-btn {
+    background: #4caf50;
+    color: #fff;
+    margin-right: 6px;
+}
+#hospital-modal #confirm-hospital-btn:hover, #base-modal #confirm-base-btn:hover, #standby-modal #confirm-standby-btn:hover, #refuel-modal #confirm-refuel-btn:hover, #refuel-price-modal #confirm-refuel-price-btn:hover {
+    background: #388e3c;
+}
+#hospital-modal #cancel-hospital-btn, #base-modal #cancel-base-btn, #standby-modal #cancel-standby-btn, #refuel-modal #cancel-refuel-btn {
+    background: #f44336;
+    color: #fff;
+    margin-left: 6px;
+}
+#hospital-modal #cancel-hospital-btn:hover, #base-modal #cancel-base-btn:hover, #standby-modal #cancel-standby-btn:hover, #refuel-modal #cancel-refuel-btn:hover {
+    background: #b71c1c;
+}
+@keyframes fadeInModal {
+    from { opacity: 0; transform: translate(-50%, -60%);}
+    to   { opacity: 1; transform: translate(-50%, -50%);}
+}
+
+#self-attach-btn {
+    width: 100%;
+}
+#self-attach-btn.self-attach-btn {
+    background: linear-gradient(90deg, #2e8b57 0%, #4caf50 100%);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 4px 18px;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    margin-left: 8px;
+}
+#self-attach-btn.self-attach-btn:hover:not(:disabled) {
+    background: linear-gradient(90deg, #388e3c 0%, #66bb6a 100%);
+    box-shadow: 0 4px 12px rgba(76,175,80,0.12);
+}
+#self-attach-btn.self-attach-btn:disabled {
+    background: #bbb;
+    color: #eee;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* Add new style for the saved callsign box next to the status indicator */
+#callsign-display {
+    display: inline-block;
+    margin-left: 2px !important;
+    padding: 8px 24px;
+    border-radius: 24px;
+    background: #388e3c;
+    color: #fff;
+    font-weight: bold;
+    font-size: 1.1rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    border: 2px solid #256029;
+    vertical-align: middle;
+    transition: background 0.3s, color 0.3s; 
+}
+
+@media (max-width: 700px) {
+    #callsign-display {
+        display: block;
+        margin: 8px auto 0 auto;
+        width: fit-content;
+        font-size: 1rem;
+        padding: 7px 12px;
+    }
+}
+
+.calls-fade-top, .calls-fade-bottom {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 30px;
+    min-height: 24px;
+    max-height: 48px;
+    pointer-events: none;
+    z-index: 20;
+    transition: opacity 0.3s;
+    background: linear-gradient(to bottom, #004d00 70%, transparent 100%);
+    opacity: 1;
+}
+.calls-fade-bottom {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 36px;
+    min-height: 24px;
+    max-height: 48px;
+    pointer-events: none;
+    z-index: 20;
+    transition: opacity 0.3s;
+    bottom: 0;
+    background: linear-gradient(to top, #004d00 70%, transparent 100%);
+    opacity: 1;
+}
+.calls-fade-top.hidden, .calls-fade-bottom.hidden {
+    opacity: 0;
+}
+
+/* Define a CSS variable for the calls list header height at the top of the file or in :root */
+:root {
+    --calls-list-header-height: 54px;
+}
+
+/* Scrollbar styling for attached units */
+.call-card .attached-units-compact::-webkit-scrollbar {
+    width: 4px;
+}
+
+.call-card .attached-units-compact::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 2px;
+}
+
+.call-card .attached-units-compact::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 2px;
+}
+
+.call-card .attached-units-compact::-webkit-scrollbar-thumb:hover {
+    background: #999;
+}
+
+/* Improve text hierarchy and spacing */
+.call-card .call-service strong,
+.call-card .call-status strong,
+.call-card .call-timestamp strong {
+    font-weight: 600;
+    margin-right: 4px;
+}
+
+/* Make location text stand out more */
+.call-card .call-location {
+    font-weight: 500;
+    color: #2c5282;
+}
+
+/* Ensure proper text wrapping for long descriptions */
+.call-card p {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* Panic button flash animation */
+@keyframes flash {
+    0%, 50% {
+        background-color: #ff0000 !important;
+        box-shadow: 0 0 10px #ff0000;
+    }
+    25%, 75% {
+        background-color: #cc0000 !important;
+        box-shadow: 0 0 20px #ff0000;
+    }
+}
+
+.sticky-form-footer {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    width: 100vw;
+    background: linear-gradient(90deg, #eafbe7 0%, #b6f0c1 100%);
+    box-shadow: 0 -2px 16px rgba(0,0,0,0.08);
+    padding: 18px 0 10px 0;
+    z-index: 100;
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+}
+
+.styled-form-btn {
+    background: linear-gradient(90deg, #4caf50 0%, #388e3c 100%);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 28px;
+    font-size: 1.13rem;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(44, 62, 80, 0.08);
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
+    letter-spacing: 0.5px;
+}
+.styled-form-btn:hover, .styled-form-btn:focus {
+    background: linear-gradient(90deg, #388e3c 0%, #4caf50 100%);
+    box-shadow: 0 4px 16px rgba(44, 62, 80, 0.16);
+    transform: translateY(-2px) scale(1.04);
+    outline: none;
+}
+
+@media (max-width: 700px) {
+    .sticky-form-footer {
+        flex-direction: column;
+        gap: 10px;
+        padding: 12px 0 8px 0;
+    }
+    .styled-form-btn {
+        width: 90vw;
+        max-width: 400px;
+        margin: 0 auto;
+        font-size: 1rem;
+        padding: 10px 0;
+    }
+}
+
