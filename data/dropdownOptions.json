@@ -142,6 +142,7 @@
     { "id": "P140", "type": "Exploding mailbox incident" },
     { "id": "P141", "type": "Mysterious clown sighting (not causing traffic disruption)" },
     { "id": "P142", "type": "Loitering with intent to dance" },
+    { "id": "P000", "type": "Panic Unit" },
     { "id": "P999", "type": "Other Police call" }
   ],
     "Fire": [
@@ -244,6 +245,8 @@
     { "id": "F097", "type": "Fire at a theater" },
     { "id": "F098", "type": "Fire at a concert venue" },
     { "id": "F099", "type": "Fire involving a drone" },
+    { "id": "F100", "type": "Cat Stuck In Tree" },
+    { "id": "F101", "type": "Panic Unit" },
     { "id": "F999", "type": "Other Fire Call" }
   ],
     "Ambulance": [
@@ -387,6 +390,7 @@
     { "id": "M098", "type": "Collapse - Shopping mall" },
     { "id": "M099", "type": "Hurricane - Emergency evacuation" },
     { "id": "M100", "type": "Nuclear explosion - Rescue and recovery" },
+    { "id": "M101", "type": "Panic Unit" },
     { "id": "M999", "type": "Other Multi Service Call" }
   ]
   }

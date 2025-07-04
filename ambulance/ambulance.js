@@ -1111,6 +1111,41 @@ function setupPanicButton() {
     let panicDocId = null;
     let panicBlinkInterval = null;
 
+    // Function to check if this unit has an active panic alert
+    async function checkPanicState() {
+        const unitId = sessionStorage.getItem('unitId');
+        if (!unitId) return false;
+        
+        try {
+            // Check for panic alert using the predictable document ID
+            const panicDocRef = doc(db, 'panicAlerts', `panic_${unitId}`);
+            const panicDoc = await getDoc(panicDocRef);
+            
+            if (panicDoc.exists()) {
+                panicDocId = panicDoc.id;
+                panicActive = true;
+                console.log('[PANIC DEBUG] Found existing panic alert for this unit:', panicDocId);
+                return true;
+            } else {
+                // Also check using query as fallback
+                const existingPanicQuery = query(collection(db, 'panicAlerts'), where('unitId', '==', unitId));
+                const existingPanicSnap = await getDocs(existingPanicQuery);
+                if (!existingPanicSnap.empty) {
+                    panicDocId = existingPanicSnap.docs[0].id;
+                    panicActive = true;
+                    console.log('[PANIC DEBUG] Found existing panic alert via query:', panicDocId);
+                    return true;
+                }
+            }
+        } catch (error) {
+            console.error('[PANIC DEBUG] Error checking panic state:', error);
+        }
+        
+        panicActive = false;
+        panicDocId = null;
+        return false;
+    }
+
     async function activatePanic() {
         console.log('[PANIC DEBUG] activatePanic called. panicActive:', panicActive);
         if (panicActive) return; // Prevent double execution
@@ -1172,17 +1207,56 @@ function setupPanicButton() {
             panicDocId = existingPanicSnap.docs[0].id;
             console.log('[PANIC DEBUG] Panic alert already exists for this unit, not creating duplicate.');
         } else {
-            // Add to panicAlerts collection
-            const panicDoc = await addDoc(collection(db, 'panicAlerts'), {
-                unitId,
-                callsign: unitData.callsign || 'Unknown',
-                service: unitData.unitType || 'Unknown',
-                callLocation: callLocation || null,
-                timestamp: new Date(),
-            });
-            panicDocId = panicDoc.id;
+            // Double-check with a more robust approach to prevent race conditions
+            // Use a unique document ID based on the unit ID for atomic operations
+            const panicDocRef = doc(db, 'panicAlerts', `panic_${unitId}`);
+            try {
+                // Check if document already exists first
+                const existingDoc = await getDoc(panicDocRef);
+                if (existingDoc.exists()) {
+                    panicDocId = existingDoc.id;
+                    console.log('[PANIC DEBUG] Panic alert already exists (found during second check), using existing one.');
+                } else {
+                    // Try to create the document atomically
+                    await setDoc(panicDocRef, {
+                        unitId,
+                        callsign: unitData.callsign || 'Unknown',
+                        service: unitData.unitType || 'Unknown',
+                        callLocation: callLocation || null,
+                        timestamp: new Date(),
+                        createdBy: 'system'
+                    });
+                    
+                    panicDocId = panicDocRef.id;
+                    console.log('[PANIC DEBUG] Successfully created new panic alert for unit:', unitId);
+                }
+            } catch (error) {
+                console.error('[PANIC DEBUG] Error creating panic alert:', error);
+                // Try to get the existing document as a fallback
+                try {
+                    const existingDoc = await getDoc(panicDocRef);
+                    if (existingDoc.exists()) {
+                        panicDocId = existingDoc.id;
+                        console.log('[PANIC DEBUG] Used existing panic alert after creation error.');
+                    } else {
+                        showNotification('Failed to create panic alert.', 'error');
+                        panicActive = false;
+                        return;
+                    }
+                } catch (getError) {
+                    console.error('[PANIC DEBUG] Error getting existing document:', getError);
+                    showNotification('Failed to create panic alert.', 'error');
+                    panicActive = false;
+                    return;
+                }
+            }
         }
         panicActive = true;
+        console.log('[PANIC DEBUG] Panic activation completed successfully, panicDocId:', panicDocId);
+        
+        // Create a panic call
+        await createPanicCall(unitId, unitData.callsign, callLocation);
+        
         // Change status to PANIC and start blinking
         updateStatusIndicator('PANIC');
         startPanicBlink();
@@ -1191,12 +1265,29 @@ function setupPanicButton() {
     async function deactivatePanic() {
         console.log('[PANIC DEBUG] Deactivating panic, panicDocId:', panicDocId);
         
+        const unitId = sessionStorage.getItem('unitId');
+        
+        // Delete the panic call first
+        if (unitId) {
+            await deletePanicCall(unitId);
+        }
+        
         if (panicDocId) {
             try {
                 await deleteDoc(doc(db, 'panicAlerts', panicDocId));
                 console.log('[PANIC DEBUG] Successfully deleted panic alert from Firestore');
             } catch (error) {
                 console.error('[PANIC DEBUG] Error deleting panic alert:', error);
+            }
+        } else {
+            // Fallback: try to delete using the unit-based ID format
+            if (unitId) {
+                try {
+                    await deleteDoc(doc(db, 'panicAlerts', `panic_${unitId}`));
+                    console.log('[PANIC DEBUG] Successfully deleted panic alert using unit-based ID');
+                } catch (error) {
+                    console.error('[PANIC DEBUG] Error deleting panic alert using unit-based ID:', error);
+                }
             }
         }
         
@@ -1268,12 +1359,32 @@ function setupPanicButton() {
     }
 
     panicBtn.addEventListener('click', async () => {
-        if (!panicActive) {
+        // Always check current state first to ensure we have the latest information
+        const currentlyPanicked = await checkPanicState();
+        
+        console.log('[PANIC DEBUG] Panic button clicked. Current state check result:', currentlyPanicked, 'panicActive:', panicActive);
+        
+        if (!currentlyPanicked && !panicActive) {
+            console.log('[PANIC DEBUG] Activating panic...');
             await activatePanic();
         } else {
+            console.log('[PANIC DEBUG] Deactivating panic...');
             await deactivatePanic();
         }
     });
+
+    // Initialize panic state on page load
+    async function initializePanicState() {
+        const currentlyPanicked = await checkPanicState();
+        if (currentlyPanicked) {
+            console.log('[PANIC DEBUG] Unit has active panic alert on page load, starting blink');
+            updateStatusIndicator('PANIC');
+            startPanicBlink();
+        }
+    }
+
+    // Initialize state when the function is called
+    initializePanicState();
 }
 
 // Ensure setupPanicButton is called on DOMContentLoaded
@@ -1281,6 +1392,82 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', setupPanicButton);
 } else {
     setupPanicButton();
+}
+
+// --- Panic Call Management Functions ---
+async function createPanicCall(unitId, callsign, location) {
+    try {
+        console.log('[PANIC DEBUG] Creating panic call for unit:', unitId, 'at location:', location);
+        
+        const callData = {
+            callerName: `PANIC - ${callsign}`,
+            description: `PANIC ALERT - Unit ${callsign} requires immediate assistance`,
+            location: location,
+            service: 'Ambulance',
+            callType: 'PANIC',
+            status: 'PANIC-Emergency',
+            timestamp: new Date(),
+            unitId: unitId,
+            isPanicCall: true
+        };
+
+        const docRef = await addDoc(collection(db, "calls"), callData);
+        console.log('[PANIC DEBUG] Successfully created panic call with ID:', docRef.id);
+        return docRef.id;
+    } catch (error) {
+        console.error('[PANIC DEBUG] Error creating panic call:', error);
+        throw error;
+    }
+}
+
+async function deletePanicCall(unitId) {
+    try {
+        console.log('[PANIC DEBUG] Deleting panic call for unit:', unitId);
+        
+        // Query for panic calls associated with this unit
+        const callsRef = collection(db, "calls");
+        const q = query(callsRef, where("unitId", "==", unitId), where("isPanicCall", "==", true));
+        const querySnapshot = await getDocs(q);
+        
+        // Delete all panic calls for this unit
+        const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
+        await Promise.all(deletePromises);
+        
+        console.log('[PANIC DEBUG] Successfully deleted', querySnapshot.docs.length, 'panic call(s) for unit:', unitId);
+    } catch (error) {
+        console.error('[PANIC DEBUG] Error deleting panic call:', error);
+        throw error;
+    }
+}
+
+async function updatePanicLocation(unitId, newLocation) {
+    try {
+        console.log('[PANIC DEBUG] Updating panic location for unit:', unitId, 'to:', newLocation);
+        
+        // Update the panic alert document
+        const panicRef = doc(db, 'panicAlerts', `panic_${unitId}`);
+        await updateDoc(panicRef, {
+            callLocation: newLocation,
+            updatedAt: new Date()
+        });
+        
+        // Update any associated panic calls
+        const callsRef = collection(db, "calls");
+        const q = query(callsRef, where("unitId", "==", unitId), where("isPanicCall", "==", true));
+        const querySnapshot = await getDocs(q);
+        
+        const updatePromises = querySnapshot.docs.map(doc => 
+            updateDoc(doc.ref, { location: newLocation })
+        );
+        await Promise.all(updatePromises);
+        
+        console.log('[PANIC DEBUG] Successfully updated panic location for unit:', unitId);
+        showNotification('Panic location updated successfully.', 'success');
+    } catch (error) {
+        console.error('[PANIC DEBUG] Error updating panic location:', error);
+        showNotification('Failed to update panic location.', 'error');
+        throw error;
+    }
 }
 
 // --- Dispatcher Counter and Calls List Logic ---
@@ -2162,6 +2349,7 @@ function updateStatusGradientBar(status, flashing) {
     let lastSelectedTab = 0;
 
     onSnapshot(panicAlertsRef, (snapshot) => {
+        console.log('[PANIC DEBUG] Panic alerts listener triggered, snapshot size:', snapshot.size);
         // Gather all valid panic alerts except placeholders
         const panicUnits = [];
         const currentPanicDocIds = [];
@@ -2322,7 +2510,20 @@ function updateStatusGradientBar(status, flashing) {
         contentHtml += '<div style="font-size:2rem;color:#ff2222;font-weight:bold;">PANIC ALERT</div>';
         contentHtml += '<div style="font-size:1.1rem;color:#b71c1c;">Unit: <b>' + (unit.callsign || 'Unknown') + '</b></div>';
         contentHtml += '<div style="font-size:1.1rem;color:#b71c1c;">Service: <b>' + (unit.service || 'Unknown') + '</b></div>';
-        contentHtml += '<div style="font-size:1.1rem;color:#b71c1c;">Location: <b>' + (unit.callLocation || 'Unknown') + '</b></div>';
+        
+        // Location with edit button (if this is the current user's unit)
+        const currentUnitId = sessionStorage.getItem('unitId');
+        const isCurrentUser = unit.unitId === currentUnitId;
+        
+        if (isCurrentUser) {
+            contentHtml += '<div style="font-size:1.1rem;color:#b71c1c;display:flex;align-items:center;gap:10px;">';
+            contentHtml += 'Location: <b>' + (unit.callLocation || 'Unknown') + '</b>';
+            contentHtml += '<button id="panic-edit-location-btn" style="padding:4px 8px;font-size:0.85rem;background:#0074d9;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:bold;" title="Edit Location">Edit</button>';
+            contentHtml += '</div>';
+        } else {
+            contentHtml += '<div style="font-size:1.1rem;color:#b71c1c;">Location: <b>' + (unit.callLocation || 'Unknown') + '</b></div>';
+        }
+        
         contentHtml += '<button id="panic-popup-minimize" style="margin-top:10px;padding:8px 18px;border-radius:8px;background:#ff2222;color:#fff;font-weight:bold;border:none;cursor:pointer;">Minimize</button>';
         popup.innerHTML = tabsHtml + contentHtml;
         document.body.appendChild(popup);
@@ -2336,6 +2537,14 @@ function updateStatusGradientBar(status, flashing) {
                     showPanicPopupTabs(panicUnits, idx);
                 };
             });
+        }
+
+        // Edit location button (if present)
+        const editLocationBtn = document.getElementById('panic-edit-location-btn');
+        if (editLocationBtn) {
+            editLocationBtn.onclick = () => {
+                showPanicLocationEditModal(unit);
+            };
         }
 
         // Minimize button
@@ -2530,4 +2739,209 @@ async function updateSelfAttachButton() {
         selfAttachBtn.style.backgroundColor = '';
         selfAttachBtn.style.color = '';
     }
+}
+
+// Function to show panic location edit modal
+function showPanicLocationEditModal(unit) {
+    console.log('[PANIC DEBUG] showPanicLocationEditModal called for unit:', unit);
+    
+    // Remove any existing panic location edit modal first
+    const existingModal = document.getElementById('panic-location-edit-modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Create background overlay with red border
+    const overlay = document.createElement('div');
+    overlay.id = 'panic-location-edit-modal';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.5);
+        border: 3px solid #ff2222;
+        z-index: 10000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+        box-sizing: border-box;
+    `;
+    
+    // Create modal content
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        background: #fff;
+        border: 3px solid #ff2222;
+        border-radius: 16px;
+        padding: 28px 36px 18px 36px;
+        min-width: 320px;
+        max-width: 90vw;
+        box-shadow: 0 8px 32px rgba(255,0,0,0.18);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        font-family: inherit;
+    `;
+    
+    // Create title
+    const title = document.createElement('div');
+    title.textContent = 'Edit Panic Location';
+    title.style.cssText = `
+        font-size: 1.5rem;
+        color: #ff2222;
+        font-weight: bold;
+        margin-bottom: 10px;
+    `;
+    
+    // Create unit info
+    const unitInfo = document.createElement('div');
+    unitInfo.innerHTML = `<strong>Unit:</strong> ${unit.callsign || 'Unknown'}`;
+    unitInfo.style.cssText = `
+        font-size: 1.1rem;
+        color: #b71c1c;
+        margin-bottom: 15px;
+    `;
+    
+    // Create input label
+    const label = document.createElement('div');
+    label.textContent = 'Current Location:';
+    label.style.cssText = `
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 8px;
+        align-self: flex-start;
+    `;
+    
+    // Create input element
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = unit.callLocation || '';
+    input.placeholder = 'Enter current location...';
+    input.maxLength = 50;
+    input.style.cssText = `
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #ddd;
+        border-radius: 6px;
+        font-size: 1rem;
+        box-sizing: border-box;
+        margin-bottom: 15px;
+    `;
+    
+    // Create button container
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.cssText = `
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        width: 100%;
+    `;
+    
+    // Create cancel button
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.style.cssText = `
+        padding: 10px 20px;
+        border: 2px solid #ccc;
+        background: #fff;
+        color: #666;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+    `;
+    
+    // Create save button
+    const saveBtn = document.createElement('button');
+    saveBtn.textContent = 'Save Location';
+    saveBtn.style.cssText = `
+        padding: 10px 20px;
+        border: none;
+        background: #ff2222;
+        color: #fff;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+    `;
+    
+    // Assemble modal
+    buttonContainer.appendChild(cancelBtn);
+    buttonContainer.appendChild(saveBtn);
+    
+    modal.appendChild(title);
+    modal.appendChild(unitInfo);
+    modal.appendChild(label);
+    modal.appendChild(input);
+    modal.appendChild(buttonContainer);
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    // Focus the input
+    setTimeout(() => input.focus(), 100);
+    
+    // Event handlers
+    function closeModal() {
+        overlay.remove();
+    }
+    
+    // Cancel button
+    cancelBtn.addEventListener('click', closeModal);
+    
+    // Save button
+    saveBtn.addEventListener('click', async () => {
+        const newLocation = input.value.trim();
+        
+        // Validation
+        if (newLocation.length < 4) {
+            showNotification('Location must be at least 4 characters long.', 'error');
+            return;
+        }
+        
+        if (newLocation.length > 50) {
+            showNotification('Location cannot exceed 50 characters.', 'error');
+            return;
+        }
+        
+        // Disable buttons during save
+        saveBtn.disabled = true;
+        cancelBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+        saveBtn.style.background = '#999';
+        
+        try {
+            // Use existing function for real-time updates
+            await updatePanicLocation(unit.unitId, newLocation);
+            closeModal(); // Auto-close on successful save
+        } catch (error) {
+            console.error('[PANIC DEBUG] Error saving location:', error);
+            showNotification('Failed to save panic location.', 'error');
+            // Re-enable buttons on error
+            saveBtn.disabled = false;
+            cancelBtn.disabled = false;
+            saveBtn.textContent = 'Save Location';
+            saveBtn.style.background = '#ff2222';
+        }
+    });
+    
+    // Enter key to save
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            saveBtn.click();
+        }
+    });
+    
+    // Click outside to cancel
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            closeModal();
+        }
+    });
+    
+    console.log('[PANIC DEBUG] Modal created and displayed');
 }
