@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Police Menu</title>
-    <link rel="stylesheet" href="police.css">
-    <script type="module" src="police.js"></script>
+    <title>Fire Menu</title>
+    <link rel="stylesheet" href="fire.css">
+    <script type="module" src="fire.js"></script>
     <link rel="icon" href="../imgs/icon.png" type="image/png">
 </head>
 <body>
@@ -14,7 +14,7 @@
         position: relative;
         width: 100vw;
         z-index: 20;
-        margin-top: 10;
+        margin-top: 10px;
     ">
         <!-- The scrolling bar will be moved here by JS -->
     </div>
@@ -27,32 +27,31 @@
             top: 0; left: 0; width: 100%; height: 110px;
             min-height: 0; padding: 0; margin: 0;
             pointer-events: none;
-            background: linear-gradient(180deg, #b71c1c 0%, rgba(229,57,53,0.7) 60%, rgba(229,57,53,0.0) 100%);
+            background: linear-gradient(180deg, #b71c1c 0%, #ff7043 60%, rgba(229,57,53,0.0) 100%);
             opacity: 1;
             display: block;
         "></div>
         <div class="header" style="text-align: center; margin-bottom: 20px; position: relative; z-index: 2; background: none;">
-            <img src="../imgs/logo.png" alt="Logo" class="logo" style="z-index: 3; position: relative;">
+            <img src="../imgs/logo.png" alt="Logo" class="logo" style="z-index: 3; position: relative; filter: drop-shadow(0 0 8px #b71c1c66);">
             <div class="header-title-status" style="display: flex; flex-direction: column; align-items: center; position: relative; width: 100%; z-index: 3;">
                 <div style="display: flex; flex-direction: row; align-items: center; justify-content: center; width: 100%; position: relative; z-index: 4; gap: 0;">
                     <div style="display: flex; flex-direction: row; align-items: center; justify-content: center; margin: 0 auto;">
                         <div id="current-status-indicator" style="z-index: 5; margin: 0 0 0 0; position: relative;">Unavailable</div>
-                        <div id="callsign-display">SELECT CALLSIGN</div>
+                        <div id="callsign-display" style="background: linear-gradient(90deg, #b71c1c 0%, #ff7043 100%); color: #fff; border: 2px solid #b71c1c;">SELECT CALLSIGN</div>
                     </div>
                 </div>
-                <h1 style="z-index: 3; margin-top: 12px; text-align: center; position: relative;">Police Menu</h1>
+                <h1 style="z-index: 3; margin-top: 12px; text-align: center; position: relative; color: #b71c1c; text-shadow: 0 2px 8px #ff704355;">Fire Menu</h1>
             </div>
             <div class="button-group" style="z-index: 7; position: relative;">
-                <button class="back-button">Back To Home</button>
-                <button class="panic-button">Panic</button>
+                <button class="back-button" style="background: #fff; color: #b71c1c; border: 2px solid #b71c1c;">Back To Home</button>
+                <button class="panic-button" style="background: #ff1744; color: #fff; border: none; box-shadow: 0 0 12px #ff174488;">Panic</button>
             </div>
         </div>
     </div>
-    <div class="status-buttons" style="background: linear-gradient(90deg, #1976d2 0%, #42a5f5 100%); border-radius: 12px; box-shadow: 0 2px 12px rgba(21,101,192,0.10); padding: 12px 0; margin-bottom: 18px;">
+    <div class="status-buttons" style="background: linear-gradient(90deg, #b71c1c 0%, #ff7043 100%); border-radius: 12px; box-shadow: 0 2px 12px #b71c1c22; padding: 12px 0; margin-bottom: 18px;">
         <button data-status="Available">Available</button>
         <button data-status="En Route">En Route</button>
         <button data-status="On Scene">On Scene</button>
-        <button data-status="Transporting To Custody">Transporting To Custody</button>
         <button data-status="Going To Base">Going To Base</button>
         <button data-status="Unavailable">Unavailable</button>
         <button data-status="Busy">Busy</button>
@@ -60,39 +59,39 @@
         <button data-status="Meal Break">Meal Break</button>
     </div>
     <div class="main-content">
-        <div class="details-container" style="display: flex; gap: 20px;">
+        <div class="details-container" style="display: flex; gap: 20px; background: #fff; border-radius: 18px; box-shadow: 0 2px 18px #b71c1c22; padding: 18px 0 18px 0;">
             <div class="call-details call-details-card">
                 <div class="call-details-header" style="display: flex; align-items: center; gap: 10px;">
                     <h2>Call Details</h2>
                     <button id="close-call-btn" class="close-call-btn" style="font-size: 0.95em; padding: 2px 10px; background: #d32f2f; color: white; border: none; border-radius: 4px; cursor: pointer; display: none;">Close Call</button>
                 </div>
-                <div class="call-details-section incident-location" style="background:linear-gradient(90deg, #1976d2 0%, #42a5f5 100%); border-radius:10px; padding:12px 16px; margin-bottom:10px;">
-                    <div class="incident-location-row" style="background: linear-gradient(90deg, #e3f2fd 0%, #bbdefb 100%); border-radius: 10px; padding: 8px 12px; display: flex; gap: 18px; align-items: center;">
+                <div class="call-details-section incident-location" style="background:linear-gradient(90deg, #b71c1c 0%, #ff7043 100%); border-radius:10px; padding:12px 16px; margin-bottom:10px;">
+                    <div class="incident-location-row" style="background: linear-gradient(90deg, #ffcdd2 0%, #ffebee 100%); border-radius: 10px; padding: 8px 12px; display: flex; gap: 18px; align-items: center;">
                         <div class="incident-block">
-                            <span class="incident-label" style="color:#1565c0; font-weight:700; font-size:1.13rem;">Incident:</span>
-                            <span class="incident" style="color:#1565c0; font-weight:700; font-size:1.13rem;"></span>
+                            <span class="incident-label" style="color:#b71c1c; font-weight:700; font-size:1.13rem;">Incident:</span>
+                            <span class="incident" style="color:#b71c1c; font-weight:700; font-size:1.13rem;"></span>
                         </div>
                         <div class="location-block">
-                            <span class="location-label" style="color:#1565c0; font-weight:700; font-size:1.13rem;">Location:</span>
-                            <span class="location" style="color:#1565c0; font-weight:700; font-size:1.13rem;"></span>
+                            <span class="location-label" style="color:#b71c1c; font-weight:700; font-size:1.13rem;">Location:</span>
+                            <span class="location" style="color:#b71c1c; font-weight:700; font-size:1.13rem;"></span>
                         </div>
                     </div>
                 </div>
                 <div class="call-details-section caller-info">
-                    <div><strong>Caller Name:</strong> <span class="callerName"></span></div>
+                    <div><strong style="color:#b71c1c;">Caller Name:</strong> <span class="callerName"></span></div>
                 </div>
                 <div class="call-details-flex-row">
-                    <div class="call-details-section description" style="flex:1; min-width:180px; background:linear-gradient(90deg, #e3f2fd 0%, #bbdefb 100%); border-radius:10px; padding:12px 16px;">
-                        <div><strong>Description:</strong></div>
-                        <textarea class="descriptionText" style="width:100%; min-height:70px; background:#e3f2fd; border-radius:8px; border:1px solid #1565c0; color:#1565c0; font-size:1.08rem; margin-top:4px; padding:8px 10px; resize: none;"></textarea>
-                        <button class="save-details-btn" style="margin-top:10px; width:100%; background:linear-gradient(135deg, #1976d2, #1565c0); color:#fff; border:none; border-radius:8px; padding:10px 0; font-weight:700; font-size:1.08rem; cursor:pointer; box-shadow: 0 2px 8px rgba(21,101,192,0.10);">Save Details</button>
+                    <div class="call-details-section description" style="flex:1; min-width:180px; background:linear-gradient(90deg, #ffcdd2 0%, #ffebee 100%); border-radius:10px; padding:12px 16px;">
+                        <div><strong style="color:#b71c1c;">Description:</strong></div>
+                        <textarea class="descriptionText" style="width:100%; min-height:70px; background:#ffebee; border-radius:8px; border:1px solid #b71c1c; color:#b71c1c; font-size:1.08rem; margin-top:4px; padding:8px 10px; resize: none;"></textarea>
+                        <button class="save-details-btn" style="margin-top:10px; width:100%; background:linear-gradient(135deg, #b71c1c, #ff7043); color:#fff; border:none; border-radius:8px; padding:10px 0; font-weight:700; font-size:1.08rem; cursor:pointer; box-shadow: 0 2px 8px #b71c1c22;">Save Details</button>
                     </div>
-                    <div class="call-details-section attached-units-section" style="flex:1; min-width:100px; max-height: 100%; height: 100%; margin-left:18px; background:#e3f2fd; border-radius:10px; padding:12px 10px 10px 10px; display:flex; flex-direction:column; height:160px;">
+                    <div class="call-details-section attached-units-section" style="flex:1; min-width:100px; max-height: 100%; height: 100%; margin-left:18px; background:#ffcdd2; border-radius:10px; padding:12px 10px 10px 10px; display:flex; flex-direction:column; height:160px;">
                         <div class="attached-units-title-row" style="display: flex; align-items: center; gap: 10px;">
-                            <span class="attached-units-title" style="color:#1565c0;">Attached Units</span>
+                            <span class="attached-units-title" style="color:#b71c1c;">Attached Units</span>
                             <button id="self-attach-btn" class="self-attach-btn" style="margin-left: 8px; font-size: 0.95em; padding: 2px 10px; background: #1565c0; color: #fff; border: none; border-radius: 4px;">Self Attach</button>
                         </div>
-                        <div class="attached-units" style="flex:1; display:flex; flex-direction:column; background:#1565c0; color:#fff; border-radius:10px;">
+                        <div class="attached-units" style="flex:1; display:flex; flex-direction:column; background:#b71c1c; color:#fff; border-radius:10px;">
                             <div id="attached-units-container" style="flex:1; min-height:0; max-height:110px; overflow-y:auto;">
                                 <!-- Units will be dynamically populated here -->
                             </div>
@@ -100,11 +99,11 @@
                     </div>
                 </div>
             </div>
-                <div class="calls-list" style="background: linear-gradient(90deg, #e3f2fd 0%, #bbdefb 100%); border-radius: 14px; box-shadow: 0 2px 12px rgba(21,101,192,0.10); padding: 18px 12px 12px 12px;">
-                <div class="calls-list-header" style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                <div class="calls-list" style="background: linear-gradient(90deg, #ffcdd2 0%, #ffebee 100%); border-radius: 14px; box-shadow: 0 2px 12px #b71c1c22; padding: 18px 12px 12px 12px;">
+                <div class="calls-list-header" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; background: linear-gradient(90deg, #b71c1c 0%, #ff7043 100%); border-radius: 12px 12px 0 0; box-shadow: 0 2px 12px #b71c1c22;">
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <h2 style="margin-bottom: 0;">All Calls</h2>
-                        <button id="new-call-btn" class="new-call" style="background: linear-gradient(135deg, #1976d2, #1565c0); color: white; border: none; padding: 12px 18px; border-radius: 12px; font-size: 1em; font-weight: bold; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 6px 20px rgba(21, 101, 192, 0.18);">New Call</button>
+                        <h2 style="margin-bottom: 0; color: #fff;">All Calls</h2>
+                        <button id="new-call-btn" class="new-call" style="background: linear-gradient(135deg, #fff, #ffe082 80%); color: #b71c1c; border: 2px solid #b71c1c; padding: 12px 18px; border-radius: 12px; font-size: 1em; font-weight: bold; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 6px 20px #b71c1c22, 0 0 0 4px #fffbe6; transition: box-shadow 0.2s;">New Call</button>
                     </div>
                     <div id="dispatcher-counter-display" class="dispatcher-counter-display">Active Dispatchers: ?</div>
                 </div>
@@ -115,12 +114,12 @@
             <h2 style="color: #004d00; text-align: center; margin: 0 0 15px 0; font-size: 1.5rem; text-shadow: 1px 1px 3px rgba(0,77,0,0.12); width: 100%;">Create New Call</h2>
             <form id="newCallForm" style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 12px;">
                 <div class="form-group" style="width: 90%; display: flex; flex-direction: column; align-items: center; margin-bottom: 0;">
-                    <label for="callerName" style="color: #004d00; font-weight: bold; width: 100%; text-align: center;">Caller Name</label>
+                    <label for="callerName" style="color: #b71c1c; font-weight: bold; width: 100%; text-align: center;">Caller Name</label>
                     <input type="text" id="callerName" name="callerName" value="AMBULANCE DISPATCH" readonly style="border: 2px solid #004d00; border-radius: 8px; padding: 10px; width: 100%; background: rgba(255,255,255,0.9);">
                 </div>
                 <div class="form-group" style="width: 90%; display: flex; flex-direction: column; align-items: center; margin-bottom: 0;">
-                    <label for="description" style="color: #004d00; font-weight: bold; width: 100%; text-align: center;">Description</label>
-                    <textarea id="description" name="description" required style="border: 2px solid #004d00; border-radius: 8px; padding: 10px; width: 100%; background: rgba(255,255,255,0.9); resize: none; min-height: 60px;"></textarea>
+                    <label for="description" style="color: #b71c1c; font-weight: bold; width: 100%; text-align: center;">Description</label>
+                    <textarea id="description" name="description" required style="border: 2px solid #b71c1c; border-radius: 8px; padding: 10px; width: 100%; background: #ffebee; resize: none; min-height: 60px; color: #b71c1c;"></textarea>
                 </div>
                 <div class="form-group" style="width: 90%; display: flex; flex-direction: column; align-items: center; margin-bottom: 0;">
                     <label for="location" style="color: #004d00; font-weight: bold; width: 100%; text-align: center;">Location</label>
@@ -135,7 +134,7 @@
                         <option value="Ambulance">Ambulance</option>
                     </select>
                 </div>
-                <button type="submit" class="submit-call" style="background: linear-gradient(135deg, #004d00, #009933); color: white; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; width: 90%; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 15px rgba(0,77,0,0.18);">Place Call</button>
+                <button type="submit" class="submit-call" style="background: linear-gradient(135deg, #b71c1c, #ff7043); color: white; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; width: 90%; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 15px #b71c1c22;">Place Call</button>
             </form>
         </div>
     </div>
@@ -149,7 +148,7 @@
     </div>
 
     <!-- Setup Modal -->
-    <div id="setup-modal" class="modal" style="z-index: 999;">
+    <div id="setup-modal" class="modal" style="z-index: 999; background: linear-gradient(135deg, #b71c1c 0%, #ff7043 100%);">
         <div class="modal-content">
             <button id="modal-back-home" class="back-button" style="margin-bottom: 10px; width: 100%;">Back To Home</button>
             <h2 class="modal-title">Unit Details</h2>
@@ -202,7 +201,7 @@
                     </div>
                     <div class="form-group">
                         <label for="unit-type">Unit Type</label>
-                        <input type="text" id="unit-type" value="Police" readonly>
+                        <input type="text" id="unit-type" value="Fire" readonly>
                     </div>
                     <div class="form-group">
                         <label for="specific-type">Specific Type</label>
@@ -210,7 +209,7 @@
                     </div>
                 </div>
             </div>
-            <button id="save-details-btn" class="save-details-btn" style="background: linear-gradient(135deg, #1976d2, #1565c0); color: #fff; border: none; border-radius: 8px; padding: 12px 0; font-weight: 700; font-size: 1.08rem; cursor: pointer; width: 100%; margin-top: 12px; box-shadow: 0 2px 8px rgba(21,101,192,0.10);">Save Details</button>
+            <button id="save-details-btn" class="save-details-btn" style="background: linear-gradient(135deg, #b71c1c, #ff7043); color: #fff; border: none; border-radius: 8px; padding: 12px 0; font-weight: 700; font-size: 1.08rem; cursor: pointer; width: 100%; margin-top: 12px; box-shadow: 0 2px 8px #b71c1c22;">Save Details</button>
         </div>
     </div>
 
@@ -222,10 +221,10 @@
     <div id="broadcast-history-modal-container"></div>
 
     <!-- Display Saved Callsign and IDs -->
-    <div id="callsign-display"></div>
-    <div id="ids-display" style="display:flex; justify-content:center; gap:24px; margin-top:8px; opacity:0.7; font-size:1.02rem;">
-        <span id="civilian-id-display" style="background:#e3f2fd; border-radius:8px; padding:4px 12px;">Civilian ID: <span id="civilian-id-value"></span></span>
-        <span id="unit-id-display" style="background:#e3f2fd; border-radius:8px; padding:4px 12px;">Unit ID: <span id="unit-id-value"></span></span>
+    <div id="callsign-display" style="background: #fff;"></div>
+    <div id="ids-display" style="display:flex; justify-content:center; gap:24px; margin-top:8px; opacity:0.7; font-size:1.02rem; border-top: 3px solid #b71c1c; padding-top: 8px; background: #fff;">
+        <span id="civilian-id-display" style="background:#fff; border-radius:8px; padding:4px 12px;">Civilian ID: <span id="civilian-id-value"></span></span>
+        <span id="unit-id-display" style="background:#fff; border-radius:8px; padding:4px 12px;">Unit ID: <span id="unit-id-value"></span></span>
     </div>
 
     <!-- Hospital Selection Modal -->

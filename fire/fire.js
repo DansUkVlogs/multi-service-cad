@@ -1,4 +1,4 @@
-// --- Real-time listener for dispatcher-driven attach/detach and call updates (Ambulance Page) ---
+// --- Real-time listener for dispatcher-driven attach/detach and call updates (Fire Page) ---
 document.addEventListener('DOMContentLoaded', () => {
     // --- PATCH: BROADCAST UNIT SELECTION LOGIC ---
     // Replace any logic that populates the broadcast unit selection dropdown to use ALL units, not just available
@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // If you have a broadcast modal with a unit dropdown, use:
     // const units = await getAllUnitsForBroadcast();
     // ...populate dropdown with units...
-    // --- BROADCAST LISTENER & UI (AMBULANCE PAGE) ---
+    // --- BROADCAST LISTENER & UI (Fire PAGE) ---
     let callsign = null;
     function getCallsign() {
         if (callsign) return callsign;
@@ -164,13 +164,13 @@ document.addEventListener('DOMContentLoaded', () => {
             // Recipients may be unitIDs, group names, or callsigns (legacy)
             const recips = data.recipients.map(r => (typeof r === 'string' ? r.toLowerCase().trim() : ''));
             // Accept if:
-            // - 'all' or 'ambulance' group
+            // - 'all' or 'Fire' group
             // - matches this unit's unitID
             // - matches this unit's callsign (legacy)
             // - matches a group name (future-proof)
             if (
                 recips.includes('all') ||
-                recips.includes('ambulance') ||
+                recips.includes('Fire') ||
                 (myUnitId && recips.includes(myUnitId.toLowerCase())) ||
                 (myCallsign && recips.includes(myCallsign.toLowerCase()))
             ) {
@@ -253,8 +253,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- END BROADCAST UI ---
     // Avoid duplicate listeners
-    if (window._ambulanceAttachListenerActive) return;
-    window._ambulanceAttachListenerActive = true;
+    if (window._FireAttachListenerActive) return;
+    window._FireAttachListenerActive = true;
 
     const unitId = sessionStorage.getItem('unitId');
     if (!unitId || unitId === 'None') return;
@@ -265,7 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Helper: Play attach/detach sounds only if not self-initiated
     function playAttachSound() {
-        playSoundByKey('tones');
+        playSoundByKey('newcall');
     }
     function playDetachSound() {
         playSoundByKey('detach');
@@ -359,7 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.classList.add('modal-active');
             // Reset form fields
             newCallForm.reset();
-            document.getElementById('callerName').value = 'AMBULANCE DISPATCH';
+            document.getElementById('callerName').value = 'Fire DISPATCH';
         });
         // Close modal
         closeNewCallModalBtn.addEventListener('click', () => {
@@ -389,17 +389,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             try {
                 const callData = {
-                    callerName: 'AMBULANCE DISPATCH',
+                    callerName: 'Fire DISPATCH',
                     description,
                     location,
                     service,
                     status: 'New',
                     timestamp: new Date(),
-                    createdBy: 'ambulance',
+                    createdBy: 'Fire',
                 };
                 await addDoc(collection(db, 'calls'), callData);
                 showNotification('New call placed successfully.', 'success');
-                playSoundByKey('newambulancecall');
+                playSoundByKey("newcall");
                 newCallModal.style.display = 'none';
                 document.body.classList.remove('modal-active');
             } catch (err) {
@@ -866,7 +866,7 @@ async function saveDetails() {
             callsign: callsignInput,
             specificType,
             status: "Unavailable",
-            unitType: "Ambulance",
+            unitType: "Fire",
             timestamp: new Date(),
         };
         const civilianData = {
@@ -1023,65 +1023,59 @@ function showHospitalModal(onConfirm, onCancel) {
     confirmBtn.addEventListener("click", confirmHandler);
     cancelBtn.addEventListener("click", cancelHandler);
 }
-function showBaseModal(onConfirm, onCancel) {
-    const modal = document.getElementById("base-modal");
-    const select = document.getElementById("base-select");
-    const baseTypeSelect = document.getElementById("base-type-select");
-
-    // Populate base dropdown
-    loadBaseLocations().then(locations => {
-        select.innerHTML = '<option value="" disabled selected>--Select Base--</option>';
-        locations.forEach(loc => {
-            const opt = document.createElement("option");
-            opt.value = loc;
-            opt.textContent = loc;
-            select.appendChild(opt);
+function loadPoliceStationLocations() {
+    return fetch('../data/location.json')
+        .then(response => response.json())
+        .then(data => {
+            return data['police-stations'] || [];
+        })
+        .catch(error => {
+            console.error('Error loading police stations:', error);
+            return ['Sinner Street PD', 'Sandy Shores PD', 'Legion Square PD'];
         });
-    });
-
-    modal.style.display = "block";
-    document.body.classList.add('modal-active');
-
-    const confirmBtn = document.getElementById("confirm-base-btn");
-    const cancelBtn = document.getElementById("cancel-base-btn");
-
-    function cleanup() {
-        modal.style.display = "none";
-        document.body.classList.remove('modal-active');
-        confirmBtn.removeEventListener("click", confirmHandler);
-        cancelBtn.removeEventListener("click", cancelHandler);
-    }
-
-    function confirmHandler() {
-        const location = select.value;
-        const baseType = baseTypeSelect.value;
-        if (!location) {
-            showNotification("Please select a base location.", "error");
-            return;
-        }
-        cleanup();
-        // Clear other locations
-        sessionStorage.removeItem('hospitalButton_lastHospital');
-        sessionStorage.removeItem('standbyButton_lastStandby');
-        sessionStorage.setItem('baseButton_lastBase', location);
-        setTimeout(displayCurrentIDs, 0);
-        onConfirm(location, baseType);
-    }
-    function cancelHandler() {
-        cleanup();
-        if (onCancel) onCancel();
-    }
-
-    confirmBtn.addEventListener("click", confirmHandler);
-    cancelBtn.addEventListener("click", cancelHandler);
 }
-function showStandbyModal(onConfirm, onCancel) {
-    const modal = document.getElementById("standby-modal");
-    const select = document.getElementById("standby-select");
-
-    // Populate standby dropdown
-    loadStandbyLocations().then(locations => {
-        select.innerHTML = '<option value="" disabled selected>--Select Standby--</option>';
+function showBaseModal(onConfirm, onCancel) {
+    let modal = document.getElementById("base-modal");
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'base-modal';
+        modal.className = 'modal';
+        modal.setAttribute('data-modal', 'base');
+        modal.innerHTML = `
+            <div class="modal-content">
+                <h2 style="margin:0 0 10px 0;font-size:1.5rem;color:#b71c1c;text-align:center;font-weight:bold;">Go to Base</h2>
+                <label for="base-location-select" style="font-weight:600;color:#b71c1c;margin-bottom:6px;margin-top:6px;font-size:1rem;">Select Fire Station:</label>
+                <select id="base-location-select"></select>
+                <div class="modal-buttons">
+                    <button id="confirm-base-btn">Confirm</button>
+                    <button id="cancel-base-btn">Cancel</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    // Always get the select after modal is in DOM
+    let select = modal.querySelector('#base-location-select');
+    // If select is missing, recreate modal content and re-query
+    if (!select) {
+        modal.innerHTML = `
+            <div class="modal-content">
+                <h2 style="margin:0 0 10px 0;font-size:1.5rem;color:#b71c1c;text-align:center;font-weight:bold;">Go to Base</h2>
+                <label for="base-location-select" style="font-weight:600;color:#b71c1c;margin-bottom:6px;margin-top:6px;font-size:1rem;">Select Fire Station:</label>
+                <select id="base-location-select"></select>
+                <div class="modal-buttons">
+                    <button id="confirm-base-btn">Confirm</button>
+                    <button id="cancel-base-btn">Cancel</button>
+                </div>
+            </div>
+        `;
+        select = modal.querySelector('#base-location-select');
+    }
+    if (!select) return; // If still missing, abort
+    // Remove any previous options and repopulate
+    select.innerHTML = '';
+    loadBaseLocations().then(locations => {
+        select.innerHTML = '<option value="" disabled selected>--Select Fire Station--</option>';
         locations.forEach(loc => {
             const opt = document.createElement("option");
             opt.value = loc;
@@ -1090,13 +1084,12 @@ function showStandbyModal(onConfirm, onCancel) {
         });
     });
 
-    // Show the modal (ensure both display and .active for compatibility)
     modal.style.display = "block";
     modal.classList.add("active");
     document.body.classList.add('modal-active');
 
-    const confirmBtn = document.getElementById("confirm-standby-btn");
-    const cancelBtn = document.getElementById("cancel-standby-btn");
+    const confirmBtn = modal.querySelector("#confirm-base-btn");
+    const cancelBtn = modal.querySelector("#cancel-base-btn");
 
     function cleanup() {
         modal.style.display = "none";
@@ -1109,16 +1102,16 @@ function showStandbyModal(onConfirm, onCancel) {
     function confirmHandler() {
         const location = select.value;
         if (!location) {
-            showNotification("Please select a standby location.", "error");
+            showNotification("Please select a fire station.", "error");
             return;
         }
         cleanup();
         // Clear other locations
         sessionStorage.removeItem('hospitalButton_lastHospital');
-        sessionStorage.removeItem('baseButton_lastBase');
-        sessionStorage.setItem('standbyButton_lastStandby', location);
+        sessionStorage.removeItem('standbyButton_lastStandby');
+        sessionStorage.setItem('baseButton_lastBase', location);
         setTimeout(displayCurrentIDs, 0);
-        onConfirm(location);
+        if (onConfirm) onConfirm(location);
     }
     function cancelHandler() {
         cleanup();
@@ -1128,6 +1121,7 @@ function showStandbyModal(onConfirm, onCancel) {
     confirmBtn.addEventListener("click", confirmHandler);
     cancelBtn.addEventListener("click", cancelHandler);
 }
+
 function showRefuelModal(onConfirm, onCancel) {
     const modal = document.getElementById("refuel-modal");
     const select = document.getElementById("refuel-location-select");
@@ -1236,25 +1230,14 @@ function loadBaseLocations() {
     return fetch('../data/location.json')
         .then(response => response.json())
         .then(data => {
-            return data.base || [];
+            return data['fire-stations'] || [];
         })
         .catch(error => {
-            console.error('Error loading base locations:', error);
-            return ['Main Base', 'Secondary Base'];
+            console.error('Error loading fire station locations:', error);
+            return ['Sinner Street Fire Station', 'Sandy Shores Fire Station', 'Airport Fire Station'];
         });
 }
 
-function loadStandbyLocations() {
-    return fetch('../data/location.json')
-        .then(response => response.json())
-        .then(data => {
-            return data.standby || [];
-        })
-        .catch(error => {
-            console.error('Error loading standby locations:', error);
-            return ['Standby Point A', 'Standby Point B'];
-        });
-}
 function loadRefuelLocations() {
     return fetch('../data/location.json')
         .then(response => response.json())
@@ -1265,6 +1248,104 @@ function loadRefuelLocations() {
             console.error('Error loading refuel locations:', error);
             return ['Shell Station', 'BP Station', 'Texaco Station'];
         });
+}
+
+function loadCustodyLocations() {
+    return fetch('../data/location.json')
+        .then(response => response.json())
+        .then(data => {
+            return data['police-custody'] || [];
+        })
+        .catch(error => {
+            console.error('Error loading custody locations:', error);
+            return ['Sinner Street PD Custody', 'Big Police Custody'];
+        });
+}
+
+function showCustodyModal(onConfirm, onCancel) {
+    let modal = document.getElementById("custody-modal");
+    let select = document.getElementById("custody-location-select");
+
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'custody-modal';
+        modal.className = 'modal'; // <-- This is the key fix!
+        // Inline styles to match other modals (e.g., refuel, standby)
+        modal.style.display = 'none';
+        modal.style.position = 'fixed';
+        modal.style.top = '50%';
+        modal.style.left = '50%';
+        modal.style.transform = 'translate(-50%, -50%)';
+        modal.style.background = '#fff';
+        modal.style.borderRadius = '14px';
+        modal.style.boxShadow = '0 8px 32px rgba(0,0,0,0.25)';
+        modal.style.zIndex = '1100';
+        modal.style.minWidth = '320px';
+        modal.style.maxWidth = '95vw';
+        modal.style.padding = '0';
+        modal.setAttribute('data-modal', 'custody');
+        modal.innerHTML = `
+            <div style="display:flex;flex-direction:column;gap:18px;padding:32px 28px 24px 28px;align-items:stretch;text-align:center;">
+                <h2 style="margin:0 0 10px 0;font-size:1.5rem;color:#004d00;text-align:center;font-weight:bold;">Transport to Custody</h2>
+                <label for="custody-location-select" style="font-weight:600;color:#333;margin-bottom:6px;margin-top:6px;font-size:1rem;">Select Custody Location:</label>
+                <select id="custody-location-select" style="padding:10px;border-radius:8px;border:1.5px solid #4caf50;font-size:1rem;margin-bottom:8px;background:#f6fff6;transition:border-color 0.2s;text-align:center;"></select>
+                <div style="display:flex;justify-content:space-between;gap:16px;margin-top:10px;">
+                    <button id="confirm-custody-btn" style="flex:1 1 0;padding:10px 0;border-radius:8px;border:none;font-size:1rem;font-weight:600;cursor:pointer;transition:background 0.2s,color 0.2s;background:#4caf50;color:#fff;margin-right:6px;">Confirm</button>
+                    <button id="cancel-custody-btn" style="flex:1 1 0;padding:10px 0;border-radius:8px;border:none;font-size:1rem;font-weight:600;cursor:pointer;transition:background 0.2s,color 0.2s;background:#f44336;color:#fff;margin-left:6px;">Cancel</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        select = modal.querySelector('#custody-location-select');
+    }
+
+    loadCustodyLocations().then(locations => {
+        select.innerHTML = '<option value="" disabled selected>--Select Custody--</option>';
+        locations.forEach(loc => {
+            const opt = document.createElement("option");
+            opt.value = loc;
+            opt.textContent = loc;
+            select.appendChild(opt);
+        });
+    });
+
+    modal.style.display = "block";
+    modal.classList.add("active");
+    document.body.classList.add('modal-active');
+
+    const confirmBtn = modal.querySelector("#confirm-custody-btn");
+    const cancelBtn = modal.querySelector("#cancel-custody-btn");
+
+    function cleanup() {
+        modal.style.display = "none";
+        modal.classList.remove("active");
+        document.body.classList.remove('modal-active');
+        confirmBtn.removeEventListener("click", confirmHandler);
+        cancelBtn.removeEventListener("click", cancelHandler);
+    }
+
+    function confirmHandler() {
+        const location = select.value;
+        if (!location) {
+            showNotification("Please select a custody location.", "error");
+            return;
+        }
+        cleanup();
+        // Clear other locations
+        sessionStorage.removeItem('hospitalButton_lastHospital');
+        sessionStorage.removeItem('baseButton_lastBase');
+        sessionStorage.removeItem('standbyButton_lastStandby');
+        sessionStorage.setItem('custodyButton_lastCustody', location);
+        setTimeout(displayCurrentIDs, 0);
+        if (onConfirm) onConfirm(location);
+    }
+    function cancelHandler() {
+        cleanup();
+        if (onCancel) onCancel();
+    }
+
+    confirmBtn.addEventListener("click", confirmHandler);
+    cancelBtn.addEventListener("click", cancelHandler);
 }
 
 // Two-stage button logic for Hospital, Base, and Standby buttons
@@ -1280,31 +1361,24 @@ function setupStatusButtons() {
             btn.addEventListener('click', async function hospitalBtnHandler() {
                 const currentLocation = sessionStorage.getItem('hospitalButton_lastHospital');
                 const currentStatus = btn.textContent.trim();
-                
-                // Check if we're in stage 1 (no location selected) or stage 2 (location already selected)
+                // ...existing code...
                 if (!currentLocation || currentStatus === 'Transporting To Hospital') {
-                    // Stage 1: Show modal to select location
                     showHospitalModal(async function(location, transportType) {
-                        // Clear other locations and save hospital location
                         sessionStorage.removeItem('baseButton_lastBase');
                         sessionStorage.removeItem('standbyButton_lastStandby');
                         sessionStorage.setItem('hospitalButton_lastHospital', location);
                         sessionStorage.setItem('hospitalTransportType', transportType);
                         displayCurrentIDs();
-                        
-                        // Set status based on transport type
                         let newStatus;
                         if (transportType === 'Standby') {
                             newStatus = `Going to Standby - ${location}`;
                         } else {
                             newStatus = `Transporting To Hospital - ${location}`;
                         }
-                        
                         await updateStatusAndButton(newStatus, btn, 'At Hospital');
                         showNotification(`Selected hospital: ${location}`, 'success');
                     });
                 } else {
-                    // Stage 2: Use saved location, change to "At Hospital"
                     const transportType = sessionStorage.getItem('hospitalTransportType') || 'Transport';
                     let finalStatus;
                     if (transportType === 'Standby') {
@@ -1312,9 +1386,33 @@ function setupStatusButtons() {
                     } else {
                         finalStatus = `At Hospital - ${currentLocation}`;
                     }
-                    
                     await updateStatusAndButton(finalStatus, btn, 'Transporting To Hospital', true);
                     showNotification(`Now at hospital: ${currentLocation}`, 'success');
+                }
+            });
+        // Custody button logic - two stage
+        } else if (status === 'Transporting To Custody') {
+            btn.addEventListener('click', async function custodyBtnHandler() {
+                const currentLocation = sessionStorage.getItem('custodyButton_lastCustody');
+                const currentStatus = btn.textContent.trim();
+                // Stage 1: Show modal to select custody location
+                if (!currentLocation || currentStatus === 'Transporting To Custody' || currentStatus === 'Transporting to Custody') {
+                    showCustodyModal(async function(location) {
+                        // Clear other locations and save custody location
+                        sessionStorage.removeItem('hospitalButton_lastHospital');
+                        sessionStorage.removeItem('baseButton_lastBase');
+                        sessionStorage.removeItem('standbyButton_lastStandby');
+                        sessionStorage.setItem('custodyButton_lastCustody', location);
+                        displayCurrentIDs();
+                        const newStatus = `Transporting to Custody - ${location}`;
+                        await updateStatusAndButton(newStatus, btn, 'Booking at Custody');
+                        showNotification(`Transporting to custody: ${location}`, 'success');
+                    });
+                } else {
+                    // Stage 2: Use saved location, change to "Booking at Custody"
+                    const finalStatus = `Booking at Custody - ${currentLocation}`;
+                    await updateStatusAndButton(finalStatus, btn, 'Transporting to Custody', true);
+                    showNotification(`Now booking at custody: ${currentLocation}`, 'success');
                 }
             });
         // Standby button logic - two stage
@@ -1350,40 +1448,24 @@ function setupStatusButtons() {
             btn.addEventListener('click', async function baseBtnHandler() {
                 const currentLocation = sessionStorage.getItem('baseButton_lastBase');
                 const currentStatus = btn.textContent.trim();
-                
                 // Check if we're in stage 1 (no location selected) or stage 2 (location already selected)
-                if (!currentLocation || currentStatus === 'Going To Base') {
+                if (!currentLocation || currentStatus === 'Going To Base' || currentStatus === 'Going to base') {
                     // Stage 1: Show modal to select location
-                    showBaseModal(async function(location, baseType) {
+                    showBaseModal(async function(location) {
                         // Clear other locations and save base location
                         sessionStorage.removeItem('hospitalButton_lastHospital');
                         sessionStorage.removeItem('standbyButton_lastStandby');
                         sessionStorage.setItem('baseButton_lastBase', location);
-                        sessionStorage.setItem('baseType', baseType);
                         displayCurrentIDs();
-                        
-                        // Set status based on base type
-                        let newStatus;
-                        if (baseType === 'Standby') {
-                            newStatus = `Going to Standby - ${location}`;
-                        } else {
-                            newStatus = `Going to replenish at base - ${location}`;
-                        }
-                        
+                        // Set status for base
+                        let newStatus = `Going to base - ${location}`;
                         await updateStatusAndButton(newStatus, btn, 'At Base');
                         showNotification(`Going to base: ${location}`, 'success');
                     });
                 } else {
                     // Stage 2: Use saved location, change to "At Base"
-                    const baseType = sessionStorage.getItem('baseType') || 'Replenishing';
-                    let finalStatus;
-                    if (baseType === 'Standby') {
-                        finalStatus = `At Standby - ${currentLocation}`;
-                    } else {
-                        finalStatus = `at base - replenishing - ${currentLocation}`;
-                    }
-                    
-                    await updateStatusAndButton(finalStatus, btn, 'Going To Base', true);
+                    const finalStatus = `At Base - ${currentLocation}`;
+                    await updateStatusAndButton(finalStatus, btn, 'Going to base', true);
                     showNotification(`Now at base: ${currentLocation}`, 'success');
                 }
             });
@@ -1395,43 +1477,74 @@ function setupStatusButtons() {
                     // Set status to Refueling at LOCATION before price modal
                     const refuelStatus = `Refueling at ${location}`;
                     const refuelBtn = document.querySelector('[data-status="Refueling"]');
-                    // Set status before price modal (no await outside async)
                     if (refuelBtn) {
-                        updateStatusAndButton(refuelStatus, refuelBtn, 'Available');
-                    }
-                    // Then show price modal
-                    showRefuelPriceModal(location, async function(price) {
-                        try {
-                            // Save refuel log to Firebase
-                            const unitId = sessionStorage.getItem('unitId');
-                            const civilianName = sessionStorage.getItem('civilianName') || 'Unknown';
-                            if (!unitId) {
-                                showNotification('No UnitID found. Cannot save refuel log.', 'error');
-                                return;
-                            }
-                            // Get unit callsign from Firebase
-                            const unitSnap = await getDoc(doc(db, 'units', unitId));
-                            const callsign = unitSnap.exists() ? unitSnap.data().callsign : 'Unknown';
-                            // Save to refuelLogs collection
-                            await addDoc(collection(db, 'refuelLogs'), {
-                                unitId: unitId,
-                                callsign: callsign,
-                                civilianName: civilianName,
-                                location: location,
-                                price: price,
-                                timestamp: serverTimestamp()
+                        // Call updateStatusAndButton, but since we're not in async, use a promise
+                        updateStatusAndButton(refuelStatus, refuelBtn, 'Available').then(() => {
+                            // Then show price modal
+                            showRefuelPriceModal(location, async function(price) {
+                                try {
+                                    // Save refuel log to Firebase
+                                    const unitId = sessionStorage.getItem('unitId');
+                                    const civilianName = sessionStorage.getItem('civilianName') || 'Unknown';
+                                    if (!unitId) {
+                                        showNotification('No UnitID found. Cannot save refuel log.', 'error');
+                                        return;
+                                    }
+                                    // Get unit callsign from Firebase
+                                    const unitSnap = await getDoc(doc(db, 'units', unitId));
+                                    const callsign = unitSnap.exists() ? unitSnap.data().callsign : 'Unknown';
+                                    // Save to refuelLogs collection
+                                    await addDoc(collection(db, 'refuelLogs'), {
+                                        unitId: unitId,
+                                        callsign: callsign,
+                                        civilianName: civilianName,
+                                        location: location,
+                                        price: price,
+                                        timestamp: serverTimestamp()
+                                    });
+                                    showNotification(`Refueling completed at ${location} for ${price}`, 'success');
+                                    // Return to Available status
+                                    const availableBtn = document.querySelector('[data-status="Available"]');
+                                    if (availableBtn) {
+                                        await handleStatusChange('Available', availableBtn);
+                                    }
+                                } catch (error) {
+                                    console.error('Error saving refuel log:', error);
+                                    showNotification('Error saving refuel log', 'error');
+                                }
                             });
-                            showNotification(`Refueling completed at ${location} for ${price}`, 'success');
-                            // Return to Available status
-                            const availableBtn = document.querySelector('[data-status="Available"]');
-                            if (availableBtn) {
-                                await handleStatusChange('Available', availableBtn);
+                        });
+                    } else {
+                        // If no refuelBtn, just show price modal
+                        showRefuelPriceModal(location, async function(price) {
+                            try {
+                                const unitId = sessionStorage.getItem('unitId');
+                                const civilianName = sessionStorage.getItem('civilianName') || 'Unknown';
+                                if (!unitId) {
+                                    showNotification('No UnitID found. Cannot save refuel log.', 'error');
+                                    return;
+                                }
+                                const unitSnap = await getDoc(doc(db, 'units', unitId));
+                                const callsign = unitSnap.exists() ? unitSnap.data().callsign : 'Unknown';
+                                await addDoc(collection(db, 'refuelLogs'), {
+                                    unitId: unitId,
+                                    callsign: callsign,
+                                    civilianName: civilianName,
+                                    location: location,
+                                    price: price,
+                                    timestamp: serverTimestamp()
+                                });
+                                showNotification(`Refueling completed at ${location} for ${price}`, 'success');
+                                const availableBtn = document.querySelector('[data-status="Available"]');
+                                if (availableBtn) {
+                                    await handleStatusChange('Available', availableBtn);
+                                }
+                            } catch (error) {
+                                console.error('Error saving refuel log:', error);
+                                showNotification('Error saving refuel log', 'error');
                             }
-                        } catch (error) {
-                            console.error('Error saving refuel log:', error);
-                            showNotification('Error saving refuel log', 'error');
-                        }
-                    });
+                        });
+                    }
                 }, function() {
                     // Cancel callback - do nothing
                 });
@@ -1876,7 +1989,7 @@ async function createPanicCall(unitId, callsign, location) {
             callerName: `PANIC - ${callsign}`,
             description: `PANIC ALERT - Unit ${callsign} requires immediate assistance`,
             location: location,
-            service: 'Ambulance',
+            service: 'Fire',
             callType: 'PANIC',
             status: 'PANIC-Emergency',
             timestamp: new Date(),
@@ -1959,17 +2072,17 @@ onSnapshot(dispatchersRef, (snapshot) => {
     updateDispatcherCount(null);
 });
 
-// Listen for calls changes (Ambulance & Multiple)
+// Listen for calls changes (Fire & Multiple)
 const callsRef = collection(db, 'calls');
-const q = query(callsRef, where('service', 'in', ['Ambulance', 'Multiple']));
+const q = query(callsRef, where('service', 'in', ['Fire', 'Multiple']));
 onSnapshot(q, (snapshot) => {
     const calls = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     // --- Play sound for new call if dispatcher is NOT active ---
     const newCalls = calls.filter(call => !previousCallsMap.has(call.id));
     if (newCalls.length > 0 && !dispatcherActive) {
         // Only play for truly new calls
-        console.log('[AUDIO] New call sound should play (newambulancecall)');
-        playSoundByKey('newambulancecall');
+        console.log('[AUDIO] New call sound should play (newcall)');
+        playSoundByKey("newcall");
     }
     // --- Play sound for updated call info (not new) ---
     let playedUpdate = false;
@@ -2265,7 +2378,7 @@ async function renderAttachedUnitsForSelectedCall(callId, container) {
                 continue;
             }
             const unitData = unitSnap.data();
-            // Card style inspired by dispatch, but using ambulance page colors
+            // Card style inspired by dispatch
             const unitDiv = document.createElement('div');
             unitDiv.classList.add('attached-unit');
             unitDiv.style.display = 'flex';
@@ -2292,8 +2405,8 @@ async function renderAttachedUnitsForSelectedCall(callId, container) {
 
             const abbr = document.createElement('span');
             abbr.textContent = (unitData.unitType ? unitData.unitType.substring(0, 3).toUpperCase() : 'UNK');
-            abbr.style.background = getUnitTypeColor(unitData.unitType || 'Ambulance');
-            abbr.style.color = getContrastingTextColor(getUnitTypeColor(unitData.unitType || 'Ambulance'));
+            abbr.style.background = getUnitTypeColor(unitData.unitType || 'Fire');
+            abbr.style.color = getContrastingTextColor(getUnitTypeColor(unitData.unitType || 'Fire'));
             abbr.style.borderRadius = '6px';
             abbr.style.padding = '2px 8px';
             abbr.style.marginRight = '12px';
@@ -2346,7 +2459,7 @@ async function renderAttachedUnitsForSelectedCall(callId, container) {
     }
 }
 
-// Function to display calls in the ambulance interface
+// Function to display calls in the Fire interface
 async function displayCalls(calls) {
     console.log('[DEBUG] displayCalls called with', calls.length, 'calls');
     
@@ -3121,7 +3234,7 @@ onSnapshot(dispatchersRef2, (snapshot) => {
 // Initial population of calls and setup real-time listener
 try {
     const callsRef = collection(db, 'calls');
-    const q = query(callsRef, where('service', 'in', ['Ambulance', 'Multiple']));
+    const q = query(callsRef, where('service', 'in', ['Fire', 'Multiple']));
 
     // Set up real-time listener for calls (this will also handle initial load)
     onSnapshot(q, (snapshot) => {
