@@ -1890,6 +1890,36 @@ async function sendBroadcast({message,priority,recipients}) {
     let invalidCallsigns = [];
     // Allow group names (all, police, ambulance, fire) to pass through
     const groupNames = ['all','police','ambulance','fire'];
+
+    // Fetch both available and attached units for mapping
+    let allUnitsForBroadcast = [];
+    try {
+        // Fetch available units
+        const availableSnapshot = await getDocs(collection(db, 'units'));
+        allUnitsForBroadcast = availableSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Fetch attached units (from attachedUnit collection)
+        const attachedSnapshot = await getDocs(collection(db, 'attachedUnit'));
+        for (const docSnap of attachedSnapshot.docs) {
+            const attachedData = docSnap.data();
+            const unitId = attachedData.unitID || attachedData.unitId;
+            if (!unitId) continue;
+            // Fetch the unit details from 'units' collection
+            try {
+                const unitRef = doc(db, 'units', unitId);
+                const unitSnap = await getDoc(unitRef);
+                if (unitSnap.exists()) {
+                    // Only add if not already in the list
+                    if (!allUnitsForBroadcast.some(u => u.id === unitId)) {
+                        allUnitsForBroadcast.push({ id: unitId, ...unitSnap.data() });
+                    }
+                }
+            } catch (e) { /* ignore */ }
+        }
+    } catch (e) {
+        // fallback: just use allUnits if fetch fails
+        allUnitsForBroadcast = allUnits;
+    }
+
     if (Array.isArray(recipients)) {
         recipients.forEach(cs => {
             const trimmed = cs.trim().toLowerCase();
@@ -1898,7 +1928,7 @@ async function sendBroadcast({message,priority,recipients}) {
                 return;
             }
             // Find unit by callsign (case-insensitive)
-            const match = allUnits.find(u => (u.callsign||'').trim().toLowerCase() === trimmed);
+            const match = allUnitsForBroadcast.find(u => (u.callsign||'').trim().toLowerCase() === trimmed);
             if (match && match.id) {
                 mappedRecipients.push(match.id);
             } else {
@@ -1925,7 +1955,6 @@ async function sendBroadcast({message,priority,recipients}) {
     };
     await addDoc(collection(db,'broadcasts'),docData);
 }
-
 
 
 // --- Right-click Context Menu for Private Broadcasts ---
