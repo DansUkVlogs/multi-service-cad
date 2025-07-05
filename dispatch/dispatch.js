@@ -182,10 +182,7 @@ async function loadCalls() {
         allCalls = calls; // Store all calls globally
         displayCalls(allCalls); // Render the fetched calls
 
-        // Render attached units for each call in the "All Calls" list
-        for (const call of allCalls) {
-            await renderAttachedUnitsForCall(call.id);
-        }
+        // Do not render attached units here; handled by real-time listeners
     } catch (error) {
         console.error("Error fetching calls collection:", error);
         callsList.innerHTML = '<p>Error loading calls. Please try again later.</p>';
@@ -202,7 +199,7 @@ async function renderAttachedUnitsForCall(callId) {
     try {
         const attachedUnitQuery = query(
             collection(db, "attachedUnit"),
-            where("callID", "==", callId) // Fetch units attached to the specific call
+            where("callID", "==", callId)
         );
         const attachedUnitSnapshot = await getDocs(attachedUnitQuery);
 
@@ -221,49 +218,65 @@ async function renderAttachedUnitsForCall(callId) {
             return;
         }
 
-        const renderedUnitIds = new Set(); // Track rendered unit IDs to prevent duplicates
-
+        // Deduplicate by unitID: only one pill per unique unitID
+        const seenUnitIDs = new Set();
+        const pillsArr = [];
         for (const docSnap of attachedUnitSnapshot.docs) {
             const { unitID } = docSnap.data();
-
-            if (!unitID || renderedUnitIds.has(unitID)) {
-                continue; // Skip missing unit IDs or duplicates
-            }
-
+            if (!unitID || seenUnitIDs.has(unitID)) continue;
+            seenUnitIDs.add(unitID);
             const unitRef = doc(db, "units", unitID);
             const unitSnap = await getDoc(unitRef);
-
             if (!unitSnap.exists()) {
                 console.warn(`Unit with ID ${unitID} not found.`);
                 continue;
             }
-
             const unitData = unitSnap.data();
-            const callsign = unitData.callsign || 'N/A';
-            const unitType = unitData.unitType || 'Unknown';
-            const status = unitData.status || 'Unknown';
-            const statusColor = getStatusColor(status);
-            // Render horizontally, color by status
-            const unitDiv = document.createElement('div');
-            unitDiv.classList.add('attached-unit');
-            unitDiv.innerHTML = `${callsign} (${unitType})`;
-            unitDiv.style.background = statusColor;
-            unitDiv.style.color = getContrastingTextColor(statusColor);
-            unitDiv.style.padding = '6px 14px';
-            unitDiv.style.borderRadius = '8px';
-            unitDiv.style.fontWeight = 'bold';
-            unitDiv.style.fontSize = '1em';
-            unitDiv.style.whiteSpace = 'nowrap';
-            unitDiv.style.overflow = 'hidden';
-            unitDiv.style.textOverflow = 'ellipsis';
-            unitDiv.style.maxWidth = '200px'; // Increased width to fit more text
-            unitDiv.style.flex = '0 0 auto'; // Prevent shrinking
-            attachedUnitsContainer.appendChild(unitDiv);
-            renderedUnitIds.add(unitID); // Mark this unit as rendered
+            const callsign = (unitData.callsign || 'N/A').trim();
+            pillsArr.push({ callsign, unitData });
         }
 
-        if (renderedUnitIds.size === 0) {
+        if (pillsArr.length === 0) {
             attachedUnitsContainer.innerHTML = '<p>No Attached Units</p>';
+            return;
+        }
+
+        // Sort by service, then callsign
+        pillsArr.sort((a, b) => {
+            const serviceA = (a.unitData.unitType || '').toLowerCase();
+            const serviceB = (b.unitData.unitType || '').toLowerCase();
+            if (serviceA < serviceB) return -1;
+            if (serviceA > serviceB) return 1;
+            return (a.callsign || '').localeCompare(b.callsign || '');
+        });
+        for (const { callsign, unitData } of pillsArr) {
+            const service = unitData.unitType ? unitData.unitType : '';
+            const pill = document.createElement('div');
+            pill.className = 'all-calls-unit-pill';
+            pill.textContent = service ? `${callsign} (${service})` : callsign;
+            if (unitData.unitType) pill.setAttribute('data-service', unitData.unitType);
+            if (unitData.status) {
+                try {
+                    const statusColor = getStatusColor(unitData.status);
+                    const textColor = getContrastingTextColor(statusColor);
+                    pill.style.backgroundColor = statusColor;
+                    pill.style.color = textColor;
+                    pill.style.padding = '8px 18px';
+                    pill.style.borderRadius = '16px';
+                    pill.style.whiteSpace = 'nowrap';
+                    pill.style.overflow = 'visible';
+                    pill.style.textOverflow = 'unset';
+                    pill.style.minWidth = 'fit-content';
+                    pill.style.width = 'fit-content';
+                    pill.style.maxWidth = '100%';
+                    pill.style.display = 'inline-block';
+                    pill.style.textAlign = 'center';
+                    pill.style.verticalAlign = 'middle';
+                } catch (e) {
+                    // fallback: do nothing
+                }
+            }
+            attachedUnitsContainer.appendChild(pill);
         }
     } catch (error) {
         console.error(`Error fetching attached units for call ID ${callId}:`, error);
@@ -276,7 +289,7 @@ async function displayCalls(calls) {
     callsList.innerHTML = ''; // Clear existing calls
 
     if (calls.length === 0) {
-        callsList.innerHTML = '<p>No calls available.</p>'; // Show a message if no calls are available
+        callsList.innerHTML = '<p>No calls available.</p>';
         return;
     }
 
@@ -284,10 +297,11 @@ async function displayCalls(calls) {
     calls.sort((a, b) => {
         const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
         const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
-        return dateB - dateA; // Newest first
+        return dateB - dateA;
     });
 
-    calls.forEach((call) => {
+    let firstCallId = null;
+    calls.forEach((call, idx) => {
         const callCard = document.createElement('div');
         callCard.classList.add('call-card');
         callCard.dataset.callId = call.id;
@@ -319,8 +333,17 @@ async function displayCalls(calls) {
         callCard.addEventListener('click', () => selectCall(call));
 
         callsList.appendChild(callCard);
+        if (idx === 0) firstCallId = call.id;
     });
+
+    // Manually trigger attached units render for the first call only (fixes first call not showing units)
+    if (firstCallId) {
+        renderAttachedUnitsForCall(firstCallId);
+    }
 }
+
+// Helper to refresh all attached units for all calls (can be called after DOM is ready)
+// Removed refreshAllAttachedUnits; all attached units are now handled by the real-time listener only.
 
 // Add a real-time listener for the selected call's details
 function listenForSelectedCallUpdates() {
@@ -474,12 +497,12 @@ async function renderAttachedUnits(callId) {
         }
 
         const renderedUnitIds = new Set(); // Track rendered unit IDs to prevent duplicates
-
         for (const docSnap of attachedUnitSnapshot.docs) {
             const { unitID } = docSnap.data();
             if (!unitID || renderedUnitIds.has(unitID)) {
-                continue; // Skip missing unit IDs or duplicates
+                continue; // Skip missing unit IDs or duplicates by ID
             }
+            renderedUnitIds.add(unitID);
             const unitRef = doc(db, "units", unitID);
             const unitSnap = await getDoc(unitRef);
             if (!unitSnap.exists()) {
@@ -487,7 +510,7 @@ async function renderAttachedUnits(callId) {
                 continue;
             }
             const unitData = unitSnap.data();
-            const callsign = unitData.callsign || 'N/A';
+            const callsign = (unitData.callsign || 'N/A').trim();
             const unitType = unitData.unitType || 'Unknown';
             const specificType = unitData.specificType || '';
             const status = unitData.status || 'Unknown';
@@ -513,7 +536,6 @@ async function renderAttachedUnits(callId) {
             `;
             unitDiv.addEventListener('click', () => selectUnit(unitDiv, 'attached'));
             attachedUnitsContainer.appendChild(unitDiv);
-            renderedUnitIds.add(unitID); // Mark this unit as rendered
         }
 
         if (renderedUnitIds.size === 0) {
@@ -729,10 +751,7 @@ function listenForCallUpdates() {
                 console.log(`New calls detected: ${newCallIds.join(", ")}`);
             }
 
-            // Re-render attached units for all calls in the "All Calls" list
-            for (const call of allCalls) {
-                await renderAttachedUnitsForCall(call.id);
-            }
+            // Do not re-render attached units for all calls here; handled by listenForAttachedUnitsUpdates
 
             // Ensure the selected call details are updated if it is still selected
             if (selectedCallId) {
@@ -848,6 +867,11 @@ function listenForAttachedUnitsUpdates() {
     // Listen for changes in the "attachedUnit" collection
     onSnapshot(attachedUnitsRef, async () => {
         try {
+            // Remove all previous units from all calls before re-rendering
+            for (const call of allCalls) {
+                const container = document.getElementById(`attached-units-${call.id}`);
+                if (container) container.innerHTML = '';
+            }
             // Refresh attached units for all calls in the "All Calls" section
             for (const call of allCalls) {
                 await renderAttachedUnitsForCall(call.id);
@@ -862,22 +886,8 @@ function listenForAttachedUnitsUpdates() {
         }
     });
 
-    // Listen for changes in the "units" collection to update attached units in real-time
-    const unitsRef = collection(db, "units");
-    onSnapshot(unitsRef, async () => {
-        try {
-            // Re-render attached units for all calls in the "All Calls" section
-            for (const call of allCalls) {
-                await renderAttachedUnitsForCall(call.id);
-            }
-            // Re-render attached units for the selected call
-            if (selectedCallId) {
-                await renderAttachedUnits(selectedCallId);
-            }
-        } catch (error) {
-            console.error("Error updating attached units on unit status change:", error);
-        }
-    });
+    // The units listener is no longer responsible for updating attached units in the All Calls section.
+    // Only the attachedUnit listener above will update attached units for all calls.
 }
 
 // --- Dispatcher Duty Modal Logic ---
