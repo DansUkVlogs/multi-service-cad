@@ -2,7 +2,34 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebas
 import { getFirestore, doc, deleteDoc, setDoc, addDoc, getDoc, getDocs, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { getStatusColor, getUnitTypeColor, getContrastingTextColor } from "./statusColor.js";
 
-// Firebase configuration
+// --- Sound Mute Control for Startup Modal ---
+let muteSounds = true; // Mute all sounds until modal is closed
+
+// Only wrap playSound if it hasn't been wrapped yet
+if (typeof window !== 'undefined' && typeof window.playSound === 'function' && !window._playSoundOriginal) {
+    window._playSoundOriginal = window.playSound;
+    window.playSound = function(soundName) {
+        if (muteSounds) return;
+        try {
+            window._playSoundOriginal(soundName);
+        } catch (e) {
+            // Suppress all NotAllowedError and autoplay policy errors (all variations)
+            const isNotAllowed = e && (e.name === 'NotAllowedError' || e.code === 20);
+            const isAutoplayPolicy = e && typeof e.message === 'string' && (
+                e.message.includes("play() failed because the user didn't interact") ||
+                e.message.includes('play() failed') ||
+                e.message.includes('autoplay policy') ||
+                e.message.includes('The play() request was interrupted') ||
+                e.message.includes('The play() request was prevented')
+            );
+            if (!isNotAllowed && !isAutoplayPolicy) {
+                // Log all other errors
+                console.error('Error playing sound for', soundName + ':', e);
+            }
+            // Otherwise, suppress error (do not log)
+        }
+    };
+}
 const firebaseConfig = {
     apiKey: "AIzaSyBWM3d9NXDzItCM4z3lZK2LC0z41tPw-bE",
     authDomain: "emergencycad-561d4.firebaseapp.com",
@@ -902,6 +929,7 @@ function getSessionId() {
 }
 
 function showDispatcherDutyModal() {
+    muteSounds = true; // Ensure sounds are muted when modal is shown
     // Create modal HTML
     const modal = document.createElement('div');
     modal.id = 'dispatcher-duty-modal';
@@ -924,12 +952,62 @@ function showDispatcherDutyModal() {
             <button id="dispatcher-modal-back-home" style="padding: 10px 24px; font-size: 1em; background: #b71c1c; color: #fff; border: none; border-radius: 8px; cursor: pointer;">Back to Home</button>
         </div>
     `;
+    // Block all interaction with broadcast history and the 📢History button while modal is open
+    // Place a blocker overlay above the history button and broadcast history
+    let broadcastBlocker = document.getElementById('broadcast-blocker');
+    if (!broadcastBlocker) {
+        broadcastBlocker = document.createElement('div');
+        broadcastBlocker.id = 'broadcast-blocker';
+        broadcastBlocker.style.position = 'fixed';
+        broadcastBlocker.style.top = '0';
+        broadcastBlocker.style.left = '0';
+        broadcastBlocker.style.width = '100vw';
+        broadcastBlocker.style.height = '100vh';
+        broadcastBlocker.style.background = 'transparent';
+        broadcastBlocker.style.zIndex = '9998';
+        broadcastBlocker.style.pointerEvents = 'auto';
+        broadcastBlocker.tabIndex = -1;
+        document.body.appendChild(broadcastBlocker);
+    }
+    // Blur and fade broadcast history visually
+    const broadcastHistory = document.getElementById('broadcast-history');
+    if (broadcastHistory) {
+        broadcastHistory.style.filter = 'blur(2px)';
+        broadcastHistory.style.opacity = '0.5';
+    }
+    // Also blur and fade the 📢History button if it exists
+    const historyButton = document.querySelector('.history-button, #history-button, button[aria-label="History"], button[title*="History"]');
+    if (historyButton) {
+        historyButton.style.filter = 'blur(2px)';
+        historyButton.style.opacity = '0.5';
+        historyButton.style.pointerEvents = 'none';
+        historyButton.style.zIndex = '9997'; // ensure it's below the blocker
+    }
+    // Ensure modal is appended last so it is on top
     document.body.appendChild(modal);
     document.body.classList.add('modal-open');
     document.getElementById('start-dispatch-duty-btn').onclick = async function() {
         await addDispatcherSession();
         modal.remove();
         document.body.classList.remove('modal-open');
+        muteSounds = false; // Unmute sounds after modal is closed
+        // Restore broadcast history and history button interactivity
+        const broadcastHistory = document.getElementById('broadcast-history');
+        if (broadcastHistory) {
+            broadcastHistory.style.filter = '';
+            broadcastHistory.style.opacity = '';
+        }
+        const historyButton = document.querySelector('.history-button, #history-button, button[aria-label="History"], button[title*="History"]');
+        if (historyButton) {
+            historyButton.style.filter = '';
+            historyButton.style.opacity = '';
+            historyButton.style.pointerEvents = '';
+            historyButton.style.zIndex = '';
+        }
+        const blocker = document.getElementById('broadcast-blocker');
+        if (blocker && blocker.parentNode) {
+            blocker.parentNode.removeChild(blocker);
+        }
     };
 }
 
@@ -1600,7 +1678,21 @@ const audioPaths = {
 // Helper function to play a sound
 function playSound(soundKey) {
     const audio = new Audio(audioPaths[soundKey]);
-    audio.play().catch(error => console.error(`Error playing sound for ${soundKey}:`, error));
+    audio.play().catch(error => {
+        // Suppress NotAllowedError and autoplay policy errors (all variations)
+        const isNotAllowed = error && (error.name === 'NotAllowedError' || error.code === 20);
+        const isAutoplayPolicy = error && typeof error.message === 'string' && (
+            error.message.includes("play() failed because the user didn't interact") ||
+            error.message.includes('play() failed') ||
+            error.message.includes('autoplay policy') ||
+            error.message.includes('The play() request was interrupted') ||
+            error.message.includes('The play() request was prevented')
+        );
+        if (!isNotAllowed && !isAutoplayPolicy) {
+            console.error(`Error playing sound for ${soundKey}:`, error);
+        }
+        // Otherwise, suppress error (do not log)
+    });
 }
 
 // ================== BROADCAST SYSTEM ADDITIONS ==================
