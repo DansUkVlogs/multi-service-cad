@@ -177,6 +177,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 relevant.push({id:docSnap.id, ...data});
             }
         });
+        // Only show broadcasts from the last 24 hours
+        const now = Date.now();
+        const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
+        relevant = relevant.filter(b => {
+            let ts = b.timestamp;
+            if (ts && ts.toDate) ts = ts.toDate().getTime();
+            else if (ts instanceof Date) ts = ts.getTime();
+            else if (typeof ts === 'string' || typeof ts === 'number') ts = new Date(ts).getTime();
+            else ts = 0;
+            return ts >= twentyFourHoursAgo;
+        });
         relevant.sort((a,b)=>{
             const ta = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
             const tb = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
