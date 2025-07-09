@@ -327,8 +327,7 @@ async function displayCalls(calls) {
         return dateB - dateA;
     });
 
-    let firstCallId = null;
-    calls.forEach((call, idx) => {
+    calls.forEach((call) => {
         const callCard = document.createElement('div');
         callCard.classList.add('call-card');
         callCard.dataset.callId = call.id;
@@ -360,13 +359,10 @@ async function displayCalls(calls) {
         callCard.addEventListener('click', () => selectCall(call));
 
         callsList.appendChild(callCard);
-        if (idx === 0) firstCallId = call.id;
-    });
 
-    // Manually trigger attached units render for the first call only (fixes first call not showing units)
-    if (firstCallId) {
-        renderAttachedUnitsForCall(firstCallId);
-    }
+        // Render attached units for every call card immediately
+        renderAttachedUnitsForCall(call.id);
+    });
 }
 
 // Helper to refresh all attached units for all calls (can be called after DOM is ready)
