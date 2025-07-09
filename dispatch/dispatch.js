@@ -2074,7 +2074,37 @@ async function sendBroadcast({message,priority,recipients}) {
         // Optionally, for debugging/history, include original callsigns
         originalCallsigns: recipients
     };
-    await addDoc(collection(db,'broadcasts'),docData);
+    // Remove broadcasts older than 24 hours before adding new one
+    const now = Date.now();
+    const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
+    const broadcastsRef = collection(db, 'broadcasts');
+    let deletedAny = false;
+    try {
+        const oldBroadcasts = await getDocs(broadcastsRef);
+        for (const docSnap of oldBroadcasts.docs) {
+            const data = docSnap.data();
+            let ts = data.timestamp;
+            if (ts && ts.toDate) ts = ts.toDate().getTime();
+            else if (ts instanceof Date) ts = ts.getTime();
+            else if (typeof ts === 'string' || typeof ts === 'number') ts = new Date(ts).getTime();
+            else ts = 0;
+            if (ts < twentyFourHoursAgo) {
+                await deleteDoc(doc(db, 'broadcasts', docSnap.id));
+                deletedAny = true;
+            }
+        }
+        // If all records were deleted (collection is now empty), re-add a placeholder
+        const afterDelete = await getDocs(broadcastsRef);
+        if (afterDelete.empty) {
+            await addDoc(broadcastsRef, {
+                placeholder: true,
+                timestamp: new Date()
+            });
+        }
+    } catch (e) {
+        console.warn('Failed to clean up old broadcasts:', e);
+    }
+    await addDoc(broadcastsRef, docData);
 }
 
 
