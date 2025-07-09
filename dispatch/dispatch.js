@@ -812,6 +812,7 @@ function listenForUnitStatusUpdates() {
             // Only update units that are currently in availableUnits
             const availableUnitIds = new Set(allUnits.map(unit => unit.id));
             let updated = false;
+            let changedUnitIds = new Set();
             for (const docSnap of snapshot.docs) {
                 const unitData = docSnap.data();
                 const unitId = docSnap.id;
@@ -821,11 +822,33 @@ function listenForUnitStatusUpdates() {
                     if (idx !== -1) {
                         allUnits[idx] = { id: unitId, ...unitData };
                         updated = true;
+                        changedUnitIds.add(unitId);
                     }
+                } else {
+                    // Track all changed units for attached units update
+                    changedUnitIds.add(unitId);
                 }
             }
             if (updated) {
                 renderUnitCards(allUnits);
+            }
+
+            // If a unit's status changed, and it is attached to the selected call, re-render attached units
+            if (selectedCallId && changedUnitIds.size > 0) {
+                // Query attachedUnit for this call
+                const attachedUnitQuery = query(collection(db, "attachedUnit"), where("callID", "==", selectedCallId));
+                const attachedUnitSnapshot = await getDocs(attachedUnitQuery);
+                let shouldUpdate = false;
+                for (const docSnap of attachedUnitSnapshot.docs) {
+                    const { unitID } = docSnap.data();
+                    if (changedUnitIds.has(unitID)) {
+                        shouldUpdate = true;
+                        break;
+                    }
+                }
+                if (shouldUpdate) {
+                    await renderAttachedUnits(selectedCallId);
+                }
             }
         } catch (error) {
             console.error("Error processing units snapshot:", error);
