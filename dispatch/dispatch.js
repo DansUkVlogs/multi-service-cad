@@ -855,12 +855,13 @@ function listenForUnitStatusUpdates() {
 
 // Ensure all real-time listeners are initialized on page load
 document.addEventListener("DOMContentLoaded", async () => {
+    // Ensure allCalls is populated before listeners that depend on it
+    await loadAvailableUnits(); // Load available units initially
+    await loadCalls(); // Load calls (populates allCalls)
     listenForCallUpdates(); // Start listening for real-time updates to calls
     listenForAvailableUnitsUpdates(); // Start listening for real-time updates to available units
     listenForAttachedUnitsUpdates(); // Start listening for real-time updates to attached units
     listenForUnitStatusUpdates(); // Start listening for real-time updates to unit status
-    await loadAvailableUnits(); // Load available units initially
-    await loadCalls(); // Load calls
 });
 
 function listenForAvailableUnitsUpdates() {
