@@ -209,11 +209,6 @@ async function loadCalls() {
         allCalls = calls; // Store all calls globally
         displayCalls(allCalls); // Render the fetched calls
 
-        // Immediately render attached units for all calls on initial load
-        for (const call of allCalls) {
-            await renderAttachedUnitsForCall(call.id);
-        }
-
         // Real-time listeners will keep attached units up-to-date after this
     } catch (error) {
         console.error("Error fetching calls collection:", error);
