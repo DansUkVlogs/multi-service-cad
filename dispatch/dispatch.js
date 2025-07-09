@@ -360,8 +360,7 @@ async function displayCalls(calls) {
 
         callsList.appendChild(callCard);
 
-        // Render attached units for every call card immediately
-        renderAttachedUnitsForCall(call.id);
+        // Do NOT render attached units here; handled by real-time listener only
     });
 }
 
