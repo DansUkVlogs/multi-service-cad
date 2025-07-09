@@ -271,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
         playSoundByKey('detach');
     }
     function playUpdateSound() {
-        playSoundByKey('newnote');
+        playSoundByKey('callupdate');
     }
 
     // Listen for changes in attachedUnit for this unit
@@ -318,12 +318,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     // Play update sound if any of the following changed:
                     // location, description, status, attached/detached unit, or status
-                    const fields = ['description', 'status', 'location', 'callerName'];
-                    let changed = false;
-                    for (const f of fields) {
-                        if (callData[f] !== lastCallData[f]) { changed = true; break; }
-                    }
-                    if (changed || attachedChanged) {
+                    // Play newnote sound ONLY if description changed
+                    if (callData['description'] !== lastCallData['description']) {
+                        playSoundByKey('newnote');
+                    } else if (
+                        callData['status'] !== lastCallData['status'] ||
+                        callData['location'] !== lastCallData['location'] ||
+                        callData['callerName'] !== lastCallData['callerName'] ||
+                        callData['callType'] !== lastCallData['callType'] ||
+                        attachedChanged
+                    ) {
                         playUpdateSound();
                     }
                     updateCallDetailsSection(callData);

@@ -293,7 +293,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     const callData = { id: docSnap.id, ...docSnap.data() };
                     // Listen for attached/detached units for this call
                     const attachedUnitCallQuery = query(collection(db, 'attachedUnit'), where('callID', '==', attachedCallId));
-                    // Track previous attached unit IDs
                     if (!window._prevAttachedUnitIds) window._prevAttachedUnitIds = new Set();
                     let prevUnitIds = new Set(window._prevAttachedUnitIds);
                     let currUnitIds = new Set();
@@ -316,15 +315,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         lastCallData = callData;
                         return;
                     }
-                    // Play update sound if any of the following changed:
-                    // location, description, status, attached/detached unit, or status
-                    const fields = ['description', 'status', 'location', 'callerName'];
-                    let changed = false;
-                    for (const f of fields) {
-                        if (callData[f] !== lastCallData[f]) { changed = true; break; }
-                    }
-                    if (changed || attachedChanged) {
-                        playUpdateSound();
+                    // Play newnote sound ONLY if description changed
+                    if (callData['description'] !== lastCallData['description']) {
+                        playSoundByKey('newnote');
+                    } else if (
+                        callData['status'] !== lastCallData['status'] ||
+                        callData['location'] !== lastCallData['location'] ||
+                        callData['callerName'] !== lastCallData['callerName'] ||
+                        callData['callType'] !== lastCallData['callType'] ||
+                        attachedChanged
+                    ) {
+                        playSoundByKey('callupdate');
                     }
                     updateCallDetailsSection(callData);
                     lastCallData = callData;
