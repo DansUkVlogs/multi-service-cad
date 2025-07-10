@@ -1,67 +1,105 @@
 // --- Real-time listener for dispatcher-driven attach/detach and call updates (Fire Page) ---
-document.addEventListener('DOMContentLoaded', () => {
-    // --- PATCH: BROADCAST UNIT SELECTION LOGIC ---
-    // Replace any logic that populates the broadcast unit selection dropdown to use ALL units, not just available
-    // Example: If you have a function like getAvailableUnitsForBroadcast, replace it with getAllUnitsForBroadcast below
-    async function getAllUnitsForBroadcast() {
-        const unitsSnap = await getDocs(collection(db, 'units'));
-        return unitsSnap.docs.map(docu => ({ id: docu.id, ...docu.data() }));
+//
+// NOTE: Only ONE main DOMContentLoaded handler should be used for all db logic and UI setup.
+// Move all code that uses db (including getAllUnitsForBroadcast, listeners, etc.) into the main handler below.
+
+// --- IMPORTS (must be at the very top of the file) ---
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getFirestore, doc, deleteDoc, getDoc, collection, addDoc, updateDoc, getDocs, setDoc, onSnapshot, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { getStatusColor, getContrastingTextColor } from "../dispatch/statusColor.js";
+import { getUnitTypeColor } from '../dispatch/statusColor.js';
+
+// Firebase configuration
+const firebaseConfig = {
+    apiKey: "AIzaSyBWM3d9NXDzItCM4z3lZK2LC0z41tPw-bE",
+    authDomain: "emergencycad-561d4.firebaseapp.com",
+    projectId: "emergencycad-561d4",
+    storageBucket: "emergencycad-561d4.firebasestorage.app",
+    messagingSenderId: "573720799939",
+    appId: "1:573720799939:web:5828efc1893892a4929076",
+    measurementId: "G-XQ55M4GC92"
+};
+
+let app, db;
+try {
+    app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+} catch (e) {
+    showNotification("Failed to initialize Firebase. Check your internet connection.", "error");
+    throw e;
+}
+
+
+
+// --- Global State Variables for Self-Attach/Detach System ---
+let isUserAttachedToCall = false;
+let userAttachedCallId = null;
+let selfAttachLockActive = false;
+let dispatcherLockActive = false;
+
+// Utility: Check network connectivity (keep for UI, not for DB ops)
+function checkNetworkAndNotify() {
+    const isLocal = location.hostname === "localhost" || location.protocol === "file:";
+    console.log("navigator.onLine:", navigator.onLine, "isLocal:", isLocal, "location:", location.href);
+    if (!isLocal && !navigator.onLine) {
+        showNotification("You are offline. Please check your internet connection.", "error");
+        return false;
     }
-    // If you have a broadcast modal with a unit dropdown, use:
-    // const units = await getAllUnitsForBroadcast();
-    // ...populate dropdown with units...
-    // --- BROADCAST LISTENER & UI (Fire PAGE) ---
-    let callsign = null;
-    function getCallsign() {
-        if (callsign) return callsign;
-        callsign = sessionStorage.getItem('callsign') || document.getElementById('callsign-display')?.textContent?.trim();
-        return callsign;
+    return true;
+}
+
+let callsign = null;
+function getCallsign() {
+    if (callsign) return callsign;
+    callsign = sessionStorage.getItem('callsign') || document.getElementById('callsign-display')?.textContent?.trim();
+    return callsign;
+}
+
+let broadcastHistory = [];
+let lastBroadcastId = null;
+let hasLoadedInitialBroadcasts = false;
+
+// Scrolling bar (now placed under the status gradient bar, not at the bottom)
+let broadcastBar = document.getElementById('broadcast-bar');
+let broadcastBarContainer = document.getElementById('broadcast-bar-container');
+if (!broadcastBar) {
+    broadcastBar = document.createElement('div');
+    broadcastBar.id = 'broadcast-bar';
+    broadcastBar.style.width = '100%';
+    broadcastBar.style.height = '38px';
+    broadcastBar.style.background = 'linear-gradient(90deg,#1976d2,#388e3c,#d84315,#1565c0)';
+    broadcastBar.style.color = '#fff';
+    broadcastBar.style.display = 'flex';
+    broadcastBar.style.alignItems = 'center';
+    broadcastBar.style.overflow = 'hidden';
+    broadcastBar.style.fontWeight = 'bold';
+    broadcastBar.style.fontSize = '1.1em';
+    broadcastBar.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)';
+    broadcastBar.style.zIndex = '10';
+    broadcastBar.style.position = 'relative';
+    broadcastBar.style.left = '0';
+    broadcastBar.style.top = '0';
+    broadcastBar.innerHTML = '<span id="broadcast-bar-message" style="white-space:nowrap;display:inline-block;animation:broadcast-scroll 18s linear infinite;"></span>';
+
+    // Place the bar in the container under the gradient
+    if (broadcastBarContainer) {
+        broadcastBarContainer.appendChild(broadcastBar);
+    } else {
+        // fallback: add to body if container missing
+        document.body.appendChild(broadcastBar);
     }
 
-    let broadcastHistory = [];
-    let lastBroadcastId = null;
-    let hasLoadedInitialBroadcasts = false;
-
-    // Scrolling bar (now placed under the status gradient bar, not at the bottom)
-    let broadcastBar = document.getElementById('broadcast-bar');
-    let broadcastBarContainer = document.getElementById('broadcast-bar-container');
-    if (!broadcastBar) {
-        broadcastBar = document.createElement('div');
-        broadcastBar.id = 'broadcast-bar';
-        broadcastBar.style.width = '100%';
-        broadcastBar.style.height = '38px';
-        broadcastBar.style.background = 'linear-gradient(90deg,#1976d2,#388e3c,#d84315,#1565c0)';
-        broadcastBar.style.color = '#fff';
-        broadcastBar.style.display = 'flex';
-        broadcastBar.style.alignItems = 'center';
-        broadcastBar.style.overflow = 'hidden';
-        broadcastBar.style.fontWeight = 'bold';
-        broadcastBar.style.fontSize = '1.1em';
-        broadcastBar.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)';
-        broadcastBar.style.zIndex = '10';
-        broadcastBar.style.position = 'relative';
-        broadcastBar.style.left = '0';
-        broadcastBar.style.top = '0';
-        broadcastBar.innerHTML = '<span id="broadcast-bar-message" style="white-space:nowrap;display:inline-block;animation:broadcast-scroll 18s linear infinite;"></span>';
-
-        // Place the bar in the container under the gradient
-        if (broadcastBarContainer) {
-            broadcastBarContainer.appendChild(broadcastBar);
-        } else {
-            // fallback: add to body if container missing
-            document.body.appendChild(broadcastBar);
-        }
-
-        // Add keyframes for scrolling
-        const style = document.createElement('style');
-        style.innerHTML = `@keyframes broadcast-scroll {0%{transform:translateX(100vw);}100%{transform:translateX(-100vw);}}`;
-        document.head.appendChild(style);
-    }
-    // Remove bottom padding if previously set
-    document.body.classList.remove('has-broadcast-bar-bottom');
-    const oldPadStyle = document.getElementById('broadcast-bar-padding-style-bottom');
-    if (oldPadStyle) oldPadStyle.remove();
-    let broadcastBarMsg = document.getElementById('broadcast-bar-message');
+    // Add keyframes for scrolling
+    const style = document.createElement('style');
+    style.innerHTML = `@keyframes broadcast-scroll {0%{transform:translateX(100vw);}100%{transform:translateX(-100vw);}}`;
+    document.head.appendChild(style);
+}
+// removed extraneous closing brace
+// Remove bottom padding if previously set
+document.body.classList.remove('has-broadcast-bar-bottom');
+const oldPadStyle = document.getElementById('broadcast-bar-padding-style-bottom');
+if (oldPadStyle) oldPadStyle.remove();
+let broadcastBarMsg = document.getElementById('broadcast-bar-message');
 
     // Broadcast modal (hidden by default)
     let broadcastModal = document.getElementById('broadcast-modal');
@@ -262,9 +300,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return d.toLocaleString();
     }
 
-    // --- END BROADCAST UI ---
+// --- END BROADCAST UI ---
+
+// All Firestore attach/detach/callclosed/standown logic must be initialized after Firebase and DOM are ready
+document.addEventListener('DOMContentLoaded', function() {
     // Avoid duplicate listeners
-    if (window._FireAttachListenerActive) return;
+    if (window._FireAttachListenerActive) {
+        // Already initialized, skip further setup
+        return;
+    }
     window._FireAttachListenerActive = true;
 
     const unitId = sessionStorage.getItem('unitId');
@@ -349,19 +393,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         // Detach event
         if (!attachedCallId && lastAttachedCallId) {
-            // --- GLOBAL DETACH LOGIC: Only play detach sound/popup if NOT in callClosingUnits ---
             (async () => {
                 let shouldShowPopup = true;
                 try {
                     const callClosingDocRef = doc(db, 'callClosingUnits', `${lastAttachedCallId}_${unitId}`);
                     const callClosingDoc = await getDoc(callClosingDocRef);
                     if (callClosingDoc.exists()) {
-                        // Suppress popup/sound, and clean up the callClosingUnits doc
                         await deleteDoc(callClosingDocRef);
                         shouldShowPopup = false;
+                        showNotification('You have been detached from the call.', 'info');
+                        clearCallDetailsSection();
                     }
                 } catch (e) {
-                    // If Firestore fails, default to showing popup
                     shouldShowPopup = true;
                 }
                 lastAttachedCallId = null;
@@ -370,9 +413,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 lastCallData = null;
                 window._prevAttachedUnitIds = new Set();
                 if (shouldShowPopup) {
-                    playDetachSound();
-                    // Show standown popup/modal
                     showStandownModal();
+                    playDetachSound();
+                }
+            })();
+        }
+    });
+
     // --- Standown Modal for Detach ---
     function showStandownModal() {
         // Remove any existing modal first
@@ -439,117 +486,11 @@ document.addEventListener('DOMContentLoaded', () => {
         overlay.appendChild(modal);
         document.body.appendChild(overlay);
     }
-                }
-            })();
-        }
-    });
+    // Close the Firestore/unit DOMContentLoaded handler
 });
-// --- New Call Modal Logic ---
-document.addEventListener('DOMContentLoaded', () => {
-    const newCallBtn = document.getElementById('new-call-btn');
-    const newCallModal = document.getElementById('newCallModal');
-    const closeNewCallModalBtn = document.getElementById('close-new-call-modal');
-    const newCallForm = document.getElementById('newCallForm');
-    if (newCallBtn && newCallModal && closeNewCallModalBtn && newCallForm) {
-        // Open modal
-        newCallBtn.addEventListener('click', () => {
-            newCallModal.style.display = 'block';
-            document.body.classList.add('modal-active');
-            // Reset form fields
-            newCallForm.reset();
-            document.getElementById('callerName').value = 'Fire DISPATCH';
-        });
-        // Close modal
-        closeNewCallModalBtn.addEventListener('click', () => {
-            newCallModal.style.display = 'none';
-            document.body.classList.remove('modal-active');
-        });
-        // Close modal on outside click
-        window.addEventListener('click', (e) => {
-            if (e.target === newCallModal) {
-                newCallModal.style.display = 'none';
-                document.body.classList.remove('modal-active');
-            }
-        });
-        // Handle form submit
-        newCallForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const description = document.getElementById('description').value.trim();
-            const location = document.getElementById('location').value.trim();
-            const service = document.getElementById('service').value;
-            if (!description || !location || !service) {
-                showNotification('Please fill in all fields.', 'error');
-                return;
-            }
-            if (location.length < 3 || location.length > 5) {
-                showNotification('Location must be 3-5 characters.', 'error');
-                return;
-            }
-            try {
-                const callData = {
-                    callerName: 'Fire DISPATCH',
-                    description,
-                    location,
-                    service,
-                    status: 'New',
-                    timestamp: new Date(),
-                    createdBy: 'Fire',
-                };
-                await addDoc(collection(db, 'calls'), callData);
-                showNotification('New call placed successfully.', 'success');
-                playSoundByKey("newcall");
-                newCallModal.style.display = 'none';
-                document.body.classList.remove('modal-active');
-            } catch (err) {
-                showNotification('Failed to place new call. Please try again.', 'error');
-                console.error('Error placing new call:', err);
-            }
-        });
-    }
-});
-// --- Dynamic Hospital Button UI Update ---
-// (Removed duplicate definition to resolve SyntaxError)
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getFirestore, doc, deleteDoc, getDoc, collection, addDoc, updateDoc, getDocs, setDoc, onSnapshot, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-import { getStatusColor, getContrastingTextColor } from "../dispatch/statusColor.js";
-import { getUnitTypeColor } from '../dispatch/statusColor.js';
 
-// Firebase configuration
-const firebaseConfig = {
-    apiKey: "AIzaSyBWM3d9NXDzItCM4z3lZK2LC0z41tPw-bE",
-    authDomain: "emergencycad-561d4.firebaseapp.com",
-    projectId: "emergencycad-561d4",
-    storageBucket: "emergencycad-561d4.firebasestorage.app",
-    messagingSenderId: "573720799939",
-    appId: "1:573720799939:web:5828efc1893892a4929076",
-    measurementId: "G-XQ55M4GC92"
-};
 
-let app, db;
-try {
-    app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
-} catch (e) {
-    showNotification("Failed to initialize Firebase. Check your internet connection.", "error");
-    throw e;
-}
 
-// --- Global State Variables for Self-Attach/Detach System ---
-let isUserAttachedToCall = false;
-let userAttachedCallId = null;
-let selfAttachLockActive = false;
-let dispatcherLockActive = false;
-
-// Utility: Check network connectivity (keep for UI, not for DB ops)
-function checkNetworkAndNotify() {
-    const isLocal = location.hostname === "localhost" || location.protocol === "file:";
-    console.log("navigator.onLine:", navigator.onLine, "isLocal:", isLocal, "location:", location.href);
-    if (!isLocal && !navigator.onLine) {
-        showNotification("You are offline. Please check your internet connection.", "error");
-        return false;
-    }
-    return true;
-}
 
 // Function to display notifications
 function showNotification(message, type = "info") {
@@ -607,6 +548,8 @@ function showNotification(message, type = "info") {
     }, 3000);
 }
 
+
+
 // --- Audio Playback Handling for Autoplay Restrictions ---
 let userHasInteracted = false;
 let soundQueue = [];
@@ -636,6 +579,7 @@ function playSound(audioUrl) {
         soundQueue.push(audioUrl);
     }
 }
+
 
 function flushSoundQueue() {
     if (!userHasInteracted) return;
@@ -2071,12 +2015,7 @@ function setupPanicButton() {
     initializePanicState();
 }
 
-// Ensure setupPanicButton is called on DOMContentLoaded
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', setupPanicButton);
-} else {
-    setupPanicButton();
-}
+// setupPanicButton will be called in the main DOMContentLoaded handler below
 
 // --- Panic Call Management Functions ---
 async function createPanicCall(unitId, callsign, location) {
@@ -3358,6 +3297,12 @@ try {
 
 // Add real-time listeners for attached units updates
 document.addEventListener("DOMContentLoaded", () => {
+    // --- Firebase Initialization ---
+    // (Assume firebaseConfig is defined above)
+    if (typeof firebaseConfig !== 'undefined' && !db) {
+        app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+    }
     console.log('Initializing real-time listeners for attached units and unit status updates');    // Listen for changes in the "attachedUnit" collection (singular)
     const attachedUnitRef = collection(db, "attachedUnit");
     onSnapshot(attachedUnitRef, async (snapshot) => {
@@ -4225,7 +4170,6 @@ async function manageUnitCollections(unitId, status) {
         } else {
             // For any other status, ensure unit is in availableUnits ONLY if not attached
             if (!isAttached && !isAvailable) {
-                // Add to availableUnits (only store unitId, other details are in units collection)
                 await setDoc(availableUnitDocRef, {
                     unitId: unitId
                 });
@@ -4236,9 +4180,10 @@ async function manageUnitCollections(unitId, status) {
                 console.log(`Removed unit ${unitId} from availableUnits collection (unit is attached to call)`);
             }
         }
-        
     } catch (error) {
         console.error('Error managing unit collections:', error);
         // Don't throw error to avoid breaking the status update flow
+
     }
 }
+

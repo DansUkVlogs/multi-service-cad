@@ -1,4 +1,3 @@
-// --- Real-time listener for dispatcher-driven attach/detach and call updates (Police Page) ---
 document.addEventListener('DOMContentLoaded', () => {
     // --- PATCH: BROADCAST UNIT SELECTION LOGIC ---
     // Replace any logic that populates the broadcast unit selection dropdown to use ALL units, not just available
@@ -384,6 +383,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     playDetachSound();
                     // Show standown popup/modal
                     showStandownModal();
+                    playDetachSound();
+                }
+            })();
+        }
     // --- Standown Modal for Detach ---
     function showStandownModal() {
         // Remove any existing modal first
@@ -450,14 +453,13 @@ document.addEventListener('DOMContentLoaded', () => {
         overlay.appendChild(modal);
         document.body.appendChild(overlay);
     }
-                }
-            })();
-        }
-    });
 });
+
 // --- New Call Modal Logic ---
-document.addEventListener('DOMContentLoaded', () => {
     const newCallBtn = document.getElementById('new-call-btn');
+// --- New Call Modal Logic ---
+// (Merged into single DOMContentLoaded handler above)
+
     const newCallModal = document.getElementById('newCallModal');
     const closeNewCallModalBtn = document.getElementById('close-new-call-modal');
     const newCallForm = document.getElementById('newCallForm');
@@ -524,6 +526,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebas
 import { getFirestore, doc, deleteDoc, getDoc, collection, addDoc, updateDoc, getDocs, setDoc, onSnapshot, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { getStatusColor, getContrastingTextColor } from "../dispatch/statusColor.js";
 import { getUnitTypeColor } from '../dispatch/statusColor.js';
+
+// --- IMPORTS (must be at the very top) ---
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+import { getFirestore, collection, getDocs, doc, setDoc, addDoc, deleteDoc, getDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -4232,7 +4238,7 @@ async function manageUnitCollections(unitId, status) {
             if (isAvailable) {
                 await deleteDoc(availableUnitDocRef);
                 console.log(`Removed unit ${unitId} from availableUnits collection (status: Unavailable)`);
-            }
+            };
         } else {
             // For any other status, ensure unit is in availableUnits ONLY if not attached
             if (!isAttached && !isAvailable) {
@@ -4253,3 +4259,4 @@ async function manageUnitCollections(unitId, status) {
         // Don't throw error to avoid breaking the status update flow
     }
 }
+

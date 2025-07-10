@@ -1,4 +1,30 @@
+// --- IMPORTS (must be at the very top) ---
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+import { getFirestore, collection, getDocs, doc, setDoc, addDoc, deleteDoc, getDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import { getStatusColor, getContrastingTextColor } from "../dispatch/statusColor.js";
+import { getUnitTypeColor } from '../dispatch/statusColor.js';
+
 // --- Real-time listener for dispatcher-driven attach/detach and call updates (Ambulance Page) ---
+// Firebase configuration
+const firebaseConfig = {
+    apiKey: "AIzaSyBWM3d9NXDzItCM4z3lZK2LC0z41tPw-bE",
+    authDomain: "emergencycad-561d4.firebaseapp.com",
+    projectId: "emergencycad-561d4",
+    storageBucket: "emergencycad-561d4.firebasestorage.app",
+    messagingSenderId: "573720799939",
+    appId: "1:573720799939:web:5828efc1893892a4929076",
+    measurementId: "G-XQ55M4GC92"
+};
+
+let app, db;
+try {
+    app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+} catch (e) {
+    showNotification("Failed to initialize Firebase. Check your internet connection.", "error");
+    throw e;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // --- PATCH: BROADCAST UNIT SELECTION LOGIC ---
     // Replace any logic that populates the broadcast unit selection dropdown to use ALL units, not just available
@@ -379,19 +405,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Fallback: if missing info, default to old logic
                         if (!window._isCallClosing) {
                             showStandownPopup();
+                            playDetachSound();
                         }
-                        playDetachSound();
                     }
                 } catch (err) {
                     // On error, fallback to old logic
                     if (!window._isCallClosing) {
                         showStandownPopup();
+                        playDetachSound();
                     }
-                    playDetachSound();
                 }
                 window._prevAttachedUnitIds = new Set();
             })();
-// --- Standown Popup ---
+        }
+    });
+    // Close DOMContentLoaded handler
+});
 // --- Standown Popup ---
 function showStandownPopup() {
     // Remove any existing popup
@@ -447,131 +476,9 @@ function showStandownPopup() {
     // Auto-close after 4 seconds
     setTimeout(() => { if (popup.parentNode) popup.remove(); }, 4000);
 }
-        }
-    });
-});
-// --- New Call Modal Logic ---
-
-// --- CLOSE CALL BUTTON LOGIC (AMBULANCE SIDE): Add to callClosingUnits before detaching ---
-// Patch the ambulance-side close call logic to add to callClosingUnits before detaching
-// (Assume there is a close call button with id 'close-call-btn')
-document.addEventListener('DOMContentLoaded', () => {
-    const closeCallBtn = document.getElementById('close-call-btn');
-    if (closeCallBtn) {
-        closeCallBtn.addEventListener('click', async () => {
-            try {
-                const callId = window.selectedCall?.id || window.lastCallData?.id;
-                if (callId) {
-                    // Get all attached units for this call and add them to callClosingUnits
-                    const attachedUnitQuery = query(collection(db, 'attachedUnit'), where('callID', '==', callId));
-                    const attachedUnitSnapshot = await getDocs(attachedUnitQuery);
-                    for (const docSnap of attachedUnitSnapshot.docs) {
-                        const unitId = docSnap.data().unitID;
-                        if (unitId) {
-                            await setDoc(doc(db, 'callClosingUnits', `${callId}_${unitId}`), {
-                                callId,
-                                unitId,
-                                timestamp: new Date(),
-                                closedBy: 'ambulance',
-                            });
-                        }
-                    }
-                }
-            } catch (err) {
-                // Ignore errors, fallback to normal close
-            }
-            // ...existing close call logic (should trigger detach)...
-        }, true); // Use capture to run before other listeners
-    }
-});
-document.addEventListener('DOMContentLoaded', () => {
-    const newCallBtn = document.getElementById('new-call-btn');
-    const newCallModal = document.getElementById('newCallModal');
-    const closeNewCallModalBtn = document.getElementById('close-new-call-modal');
-    const newCallForm = document.getElementById('newCallForm');
-    if (newCallBtn && newCallModal && closeNewCallModalBtn && newCallForm) {
-        // Open modal
-        newCallBtn.addEventListener('click', () => {
-            newCallModal.style.display = 'block';
-            document.body.classList.add('modal-active');
-            // Reset form fields
-            newCallForm.reset();
-            document.getElementById('callerName').value = 'AMBULANCE DISPATCH';
-        });
-        // Close modal
-        closeNewCallModalBtn.addEventListener('click', () => {
-            newCallModal.style.display = 'none';
-            document.body.classList.remove('modal-active');
-        });
-        // Close modal on outside click
-        window.addEventListener('click', (e) => {
-            if (e.target === newCallModal) {
-                newCallModal.style.display = 'none';
-                document.body.classList.remove('modal-active');
-            }
-        });
-        // Handle form submit
-        newCallForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const description = document.getElementById('description').value.trim();
-            const location = document.getElementById('location').value.trim();
-            const service = document.getElementById('service').value;
-            if (!description || !location || !service) {
-                showNotification('Please fill in all fields.', 'error');
-                return;
-            }
-            if (location.length < 3 || location.length > 5) {
-                showNotification('Location must be 3-5 characters.', 'error');
-                return;
-            }
-            try {
-                const callData = {
-                    callerName: 'AMBULANCE DISPATCH',
-                    description,
-                    location,
-                    service,
-                    status: 'New',
-                    timestamp: new Date(),
-                    createdBy: 'ambulance',
-                };
-                await addDoc(collection(db, 'calls'), callData);
-                showNotification('New call placed successfully.', 'success');
-                playSoundByKey('newambulancecall');
-                newCallModal.style.display = 'none';
-                document.body.classList.remove('modal-active');
-            } catch (err) {
-                showNotification('Failed to place new call. Please try again.', 'error');
-                console.error('Error placing new call:', err);
-            }
-        });
-    }
-});
 // --- Dynamic Hospital Button UI Update ---
 // (Removed duplicate definition to resolve SyntaxError)
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getFirestore, doc, deleteDoc, getDoc, collection, addDoc, updateDoc, getDocs, setDoc, onSnapshot, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-import { getStatusColor, getContrastingTextColor } from "../dispatch/statusColor.js";
-import { getUnitTypeColor } from '../dispatch/statusColor.js';
 
-// Firebase configuration
-const firebaseConfig = {
-    apiKey: "AIzaSyBWM3d9NXDzItCM4z3lZK2LC0z41tPw-bE",
-    authDomain: "emergencycad-561d4.firebaseapp.com",
-    projectId: "emergencycad-561d4",
-    storageBucket: "emergencycad-561d4.firebasestorage.app",
-    messagingSenderId: "573720799939",
-    appId: "1:573720799939:web:5828efc1893892a4929076",
-    measurementId: "G-XQ55M4GC92"
-};
-
-let app, db;
-try {
-    app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
-} catch (e) {
-    showNotification("Failed to initialize Firebase. Check your internet connection.", "error");
-    throw e;
-}
 
 // --- Global State Variables for Self-Attach/Detach System ---
 let isUserAttachedToCall = false;
@@ -645,7 +552,6 @@ function showNotification(message, type = "info") {
         setTimeout(() => notification.remove(), 300);
     }, 3000);
 }
-
 // --- Audio Playback Handling for Autoplay Restrictions ---
 let userHasInteracted = false;
 let soundQueue = [];
@@ -673,9 +579,14 @@ function playSound(audioUrl) {
         console.error('[AUDIO] playSound error (exception):', e);
         // Fallback: re-queue
         soundQueue.push(audioUrl);
+
+
     }
 }
 
+// Properly close the main DOMContentLoaded handler
+
+// The following functions should be outside the DOMContentLoaded handler
 function flushSoundQueue() {
     if (!userHasInteracted) return;
     while (soundQueue.length > 0) {
@@ -4170,3 +4081,4 @@ async function manageUnitCollections(unitId, status) {
         // Don't throw error to avoid breaking the status update flow
     }
 }
+
