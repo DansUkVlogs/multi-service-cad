@@ -221,7 +221,10 @@ async function renderAttachedUnitsForCall(callId) {
     const attachedUnitsContainer = document.getElementById(`attached-units-${callId}`);
     if (!attachedUnitsContainer) return;
 
-    attachedUnitsContainer.innerHTML = ''; // Clear existing content
+    // Defensive: Remove all child nodes (not just innerHTML)
+    while (attachedUnitsContainer.firstChild) {
+        attachedUnitsContainer.removeChild(attachedUnitsContainer.firstChild);
+    }
 
     try {
         const attachedUnitQuery = query(
@@ -260,7 +263,7 @@ async function renderAttachedUnitsForCall(callId) {
             }
             const unitData = unitSnap.data();
             const callsign = (unitData.callsign || 'N/A').trim();
-            pillsArr.push({ callsign, unitData });
+            pillsArr.push({ callsign, unitData, unitID });
         }
 
         if (pillsArr.length === 0) {
@@ -276,11 +279,18 @@ async function renderAttachedUnitsForCall(callId) {
             if (serviceA > serviceB) return 1;
             return (a.callsign || '').localeCompare(b.callsign || '');
         });
-        for (const { callsign, unitData } of pillsArr) {
+        // Defensive deduplication: check DOM for existing unitID before appending
+        const domUnitIds = new Set();
+        attachedUnitsContainer.querySelectorAll('[data-unit-id]').forEach(el => {
+            domUnitIds.add(el.getAttribute('data-unit-id'));
+        });
+        for (const { callsign, unitData, unitID } of pillsArr) {
+            if (domUnitIds.has(unitID)) continue; // Skip if already in DOM
             const service = unitData.unitType ? unitData.unitType : '';
             const pill = document.createElement('div');
             pill.className = 'all-calls-unit-pill';
             pill.textContent = service ? `${callsign} (${service})` : callsign;
+            pill.setAttribute('data-unit-id', unitID);
             if (unitData.unitType) pill.setAttribute('data-service', unitData.unitType);
             if (unitData.status) {
                 try {
@@ -359,8 +369,11 @@ async function displayCalls(calls) {
         callCard.addEventListener('click', () => selectCall(call));
 
         callsList.appendChild(callCard);
+    });
 
-        // Do NOT render attached units here; handled by real-time listener only
+    // After rendering all calls, render attached units for each call
+    calls.forEach(call => {
+        renderAttachedUnitsForCall(call.id);
     });
 }
 
@@ -504,7 +517,10 @@ async function renderAttachedUnits(callId) {
     const attachedUnitsContainer = document.getElementById('attachedUnits');
     if (!attachedUnitsContainer) return;
 
-    attachedUnitsContainer.innerHTML = ''; // Clear existing content
+    // Defensive: Remove all child nodes (not just innerHTML)
+    while (attachedUnitsContainer.firstChild) {
+        attachedUnitsContainer.removeChild(attachedUnitsContainer.firstChild);
+    }
 
     try {
         const attachedUnitQuery = query(
@@ -519,6 +535,10 @@ async function renderAttachedUnits(callId) {
         }
 
         const renderedUnitIds = new Set(); // Track rendered unit IDs to prevent duplicates
+        // Defensive deduplication: check DOM for existing unitID before appending
+        attachedUnitsContainer.querySelectorAll('[data-unit-id]').forEach(el => {
+            renderedUnitIds.add(el.getAttribute('data-unit-id'));
+        });
         for (const docSnap of attachedUnitSnapshot.docs) {
             const { unitID } = docSnap.data();
             if (!unitID || renderedUnitIds.has(unitID)) {
@@ -544,6 +564,7 @@ async function renderAttachedUnits(callId) {
             const unitDiv = document.createElement('div');
             unitDiv.classList.add('unit-card');
             unitDiv.dataset.unitId = unitID;
+            unitDiv.setAttribute('data-unit-id', unitID);
             unitDiv.style.backgroundColor = statusColor;
             unitDiv.style.color = textColor;
             unitDiv.style.setProperty('--unit-type-color', unitTypeColor);
@@ -748,11 +769,16 @@ function selectUnit(unitElement, section) {
 // Add a real-time listener for the `calls` collection to update saved details across tabs
 function listenForCallUpdates() {
     const callsRef = collection(db, "calls");
+    let isInitialCallSnapshot = true;
 
     // Listen for changes in the "calls" collection
     onSnapshot(
         callsRef,
         async (snapshot) => {
+            if (isInitialCallSnapshot) {
+                isInitialCallSnapshot = false;
+                return; // Skip the first snapshot to avoid duplicate rendering
+            }
             console.log("Snapshot received for calls collection.");
             const updatedCalls = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
