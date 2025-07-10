@@ -356,8 +356,65 @@ document.addEventListener('DOMContentLoaded', () => {
             if (callDetailsUnsub) { callDetailsUnsub(); callDetailsUnsub = null; }
             clearCallDetailsSection();
             lastCallData = null;
+            // Show standown popup if not due to call being closed
+            showStandownPopup();
             playDetachSound();
             window._prevAttachedUnitIds = new Set();
+// --- Standown Popup ---
+function showStandownPopup() {
+    // Remove any existing popup
+    let existing = document.getElementById('standown-popup');
+    if (existing) existing.remove();
+    // Create popup
+    const popup = document.createElement('div');
+    popup.id = 'standown-popup';
+    popup.style.position = 'fixed';
+    popup.style.top = '50%';
+    popup.style.left = '50%';
+    popup.style.transform = 'translate(-50%, -50%)';
+    popup.style.background = 'linear-gradient(135deg,#fff 0%,#e3f2fd 100%)';
+    popup.style.border = '4px solid #1976d2';
+    popup.style.borderRadius = '24px';
+    popup.style.boxShadow = '0 8px 32px rgba(30,60,90,0.18)';
+    popup.style.padding = '48px 64px 40px 64px';
+    popup.style.zIndex = '10050';
+    popup.style.display = 'flex';
+    popup.style.flexDirection = 'column';
+    popup.style.alignItems = 'center';
+    popup.style.justifyContent = 'center';
+    popup.style.minWidth = '320px';
+    popup.style.maxWidth = '95vw';
+    popup.style.textAlign = 'center';
+    // Standown text
+    const text = document.createElement('div');
+    text.textContent = 'STANDOWN';
+    text.style.fontSize = '3.2rem';
+    text.style.fontWeight = 'bold';
+    text.style.letterSpacing = '0.08em';
+    text.style.color = '#d84315';
+    text.style.marginBottom = '18px';
+    text.style.textShadow = '0 2px 12px #0002';
+    popup.appendChild(text);
+    // Close button
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = 'Close';
+    closeBtn.style.marginTop = '18px';
+    closeBtn.style.padding = '12px 32px';
+    closeBtn.style.fontSize = '1.2rem';
+    closeBtn.style.background = '#1976d2';
+    closeBtn.style.color = '#fff';
+    closeBtn.style.border = 'none';
+    closeBtn.style.borderRadius = '10px';
+    closeBtn.style.cursor = 'pointer';
+    closeBtn.style.fontWeight = 'bold';
+    closeBtn.onclick = () => popup.remove();
+    popup.appendChild(closeBtn);
+    document.body.appendChild(popup);
+    // Play tones sound
+    playSoundByKey('tones');
+    // Auto-close after 4 seconds
+    setTimeout(() => { if (popup.parentNode) popup.remove(); }, 4000);
+}
         }
     });
 });
