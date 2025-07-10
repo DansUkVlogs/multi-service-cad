@@ -1579,7 +1579,7 @@ async function saveCallChanges() {
     const service = callServiceDropdown.value; // Get the updated service
 
     if (!callId) {
-        alert("No call selected to save changes.");
+        showNotification("No call selected to save changes.", "warning");
         return;
     }
 
@@ -1591,7 +1591,7 @@ async function saveCallChanges() {
         const callDocRef = doc(db, "calls", callId);
         await setDoc(callDocRef, { description, callType, service, status }, { merge: true }); // Update description, callType, service, and status
         playSound("newnote"); // Play save changes sound
-        alert("Call details updated successfully.");
+        showNotification("Call details updated successfully.", "success");
 
         // Update the dropdown color to reflect the saved service
         callServiceDropdown.style.backgroundColor = getUnitTypeColor(service);
@@ -1605,7 +1605,7 @@ async function saveCallChanges() {
         await renderAttachedUnitsForCall(callId);
     } catch (error) {
         console.error("Error updating call:", error);
-        alert("Failed to update call details. Please try again.");
+        showNotification("Failed to update call details. Please try again.", "error");
     }
 }
 
@@ -2004,16 +2004,16 @@ function openBroadcastComposer(targetType, prefill = {}) {
     document.getElementById('send-broadcast-btn').onclick = async () => {
         const msg = document.getElementById('broadcast-message').value.trim();
         const priority = document.getElementById('broadcast-priority').value;
-        if (!msg) { alert('Message required.'); return; }
+        if (!msg) { showNotification('Message required.', 'warning'); return; }
         await sendBroadcast({message:msg,priority,recipients:selectedRecipients.length?selectedRecipients:['all']});
         composer.remove();
     };
     document.getElementById('save-broadcast-template-btn').onclick = () => {
         const msg = document.getElementById('broadcast-message').value.trim();
         const priority = document.getElementById('broadcast-priority').value;
-        if (!msg) { alert('Message required.'); return; }
+        if (!msg) { showNotification('Message required.', 'warning'); return; }
         saveBroadcastTemplate({message:msg,priority,recipients:[...selectedRecipients]});
-        alert('Template saved!');
+        showNotification('Template saved!', 'success');
         loadBroadcastTemplates();
     };
     loadBroadcastTemplates();
@@ -2105,7 +2105,7 @@ async function sendBroadcast({message,priority,recipients}) {
         });
     }
     if (mappedRecipients.length === 0 && invalidCallsigns.length > 0) {
-        alert('No valid recipients found. Please check callsigns.');
+        showNotification('No valid recipients found. Please check callsigns.', 'error');
         return;
     }
     if (invalidCallsigns.length > 0) {
@@ -2447,7 +2447,7 @@ function openUnitMultiSelectModal() {
         }
     };
     document.getElementById('save-multiselect-callsigns-btn').onclick = () => {
-        if (!selectedCallsigns.length) { alert('Add at least one callsign.'); return; }
+        if (!selectedCallsigns.length) { showNotification('Add at least one callsign.', 'warning'); return; }
         modal.remove();
         openBroadcastComposer('private',{recipients:selectedCallsigns});
     };

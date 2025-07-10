@@ -46,9 +46,9 @@ function loadCharacterFromSlot(slot) {
         const profilePicture = document.getElementById("profile-picture");
         profilePicture.src = characterData.profilePicture || "../imgs/blank-profile-picture-973460.svg";
 
-        alert(`Loaded character from Slot ${parseInt(slot) + 1}`);
+        showNotification(`Loaded character: ${characterData.firstName} ${characterData.lastName}`, "success");
     } else {
-        alert(`Slot ${parseInt(slot) + 1} is empty.`);
+        showNotification(`Slot ${parseInt(slot) + 1} is empty.`, "error");
     }
 }
 
@@ -65,6 +65,62 @@ function calculateAge(dob) {
     }
 
     return age;
+}
+
+// Function to display notifications
+function showNotification(message, type = "info") {
+    // Remove any existing notification first
+    const existing = document.querySelector('.notification');
+    if (existing) existing.remove();
+
+    const notification = document.createElement("div");
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+
+    // Style for top-center notification
+    notification.style.position = "fixed";
+    notification.style.top = "32px";
+    notification.style.left = "50%";
+    notification.style.transform = "translateX(-50%)";
+    notification.style.zIndex = "9999";
+    notification.style.minWidth = "320px";
+    notification.style.maxWidth = "90vw";
+    notification.style.padding = "18px 32px";
+    notification.style.borderRadius = "12px";
+    notification.style.boxShadow = "0 4px 24px rgba(0,0,0,0.18)";
+    notification.style.fontSize = "1.15rem";
+    notification.style.fontWeight = "600";
+    notification.style.textAlign = "center";
+    notification.style.opacity = "0";
+    notification.style.pointerEvents = "none";
+    notification.style.transition = "opacity 0.3s, top 0.3s";
+    // Color by type
+    if (type === "success") {
+        notification.style.background = "#2ecc40";
+        notification.style.color = "#fff";
+    } else if (type === "error") {
+        notification.style.background = "#ff4136";
+        notification.style.color = "#fff";
+    } else if (type === "warning") {
+        notification.style.background = "#ffdc00";
+        notification.style.color = "#222";
+    } else {
+        notification.style.background = "#0074d9";
+        notification.style.color = "#fff";
+    }
+
+    document.body.appendChild(notification);
+    // Animate in
+    setTimeout(() => {
+        notification.style.opacity = "1";
+        notification.style.top = "48px";
+    }, 10);
+    // Animate out and remove
+    setTimeout(() => {
+        notification.style.opacity = "0";
+        notification.style.top = "32px";
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
 }
 
 // Function to update the age field when the DOB changes
@@ -90,7 +146,7 @@ function saveCharacterToSlot(slot) {
     const profilePicture = localStorage.getItem("tempProfilePicture"); // Get the temporarily stored profile picture
 
     if (!firstName || !lastName) {
-        alert("First and last names are required.");
+        showNotification("First and last names are required.", "error");
         return;
     }
 
@@ -108,7 +164,7 @@ function saveCharacterToSlot(slot) {
     globalCharacters[`slot${slot}`] = characterData;
     localStorage.setItem("globalCharacters", JSON.stringify(globalCharacters));
 
-    alert(`Character saved to Slot ${parseInt(slot) + 1}`);
+    showNotification(`Character saved: ${firstName} ${lastName}`, "success");
     populateCharacterSlots(); // Refresh the dropdown
 }
 
@@ -134,7 +190,7 @@ async function goLive() {
     const selectedSlot = slotSelect.value;
 
     if (selectedSlot === "") {
-        alert("Please select a slot.");
+        showNotification("Please select a slot to go live.", "warning");
         return;
     }
 
@@ -142,7 +198,7 @@ async function goLive() {
     const characterData = globalCharacters[`slot${selectedSlot}`];
 
     if (!characterData) {
-        alert("Please save a character to the selected slot before going live.");
+        showNotification("Please save a character to the selected slot before going live.", "warning");
         return;
     }
 
@@ -176,10 +232,10 @@ async function goLive() {
         document.querySelector(".load-character").disabled = true;
         document.querySelector(".save-character").disabled = true;
 
-        alert(`You are now live with ${characterData.firstName} ${characterData.lastName}!`);
+        showNotification(`You are now live with ${characterData.firstName} ${characterData.lastName}!`, "success");
     } catch (error) {
         console.error("Error going live:", error);
-        alert("Failed to go live. Please try again.");
+        showNotification("Failed to go live. Please try again.", "error");
     }
 }
 
@@ -216,7 +272,7 @@ async function unlive() {
         console.log("Character successfully removed from the civilians collection.");
     } catch (error) {
         console.error("Error removing character from the civilians collection:", error);
-        alert("Failed to remove the character. Please try again.");
+        showNotification("Failed to remove the character. Please try again.", "error");
     }
 }
 
@@ -250,7 +306,7 @@ function openNewCallModal() {
         const service = document.getElementById("service").value;
 
         if (!description || !location || !service) {
-            alert("Please fill in all required fields.");
+            showNotification("Please fill in all required fields.", "warning");
             return;
         }
 
@@ -266,11 +322,11 @@ function openNewCallModal() {
                 timestamp: new Date()
             });
 
-            alert("New call placed successfully!");
+            showNotification("New call placed successfully!", "success");
             newCallModal.style.display = "none"; // Hide the modal after submission
         } catch (error) {
             console.error("Error placing new call:", error);
-            alert("Failed to place the call. Please try again.");
+            showNotification("Failed to place the call. Please try again.", "error");
         }
     };
 }
@@ -298,7 +354,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const selectedSlot = slotSelect.value;
 
         if (selectedSlot === "") {
-            alert("Please select a slot.");
+            showNotification("Please select a slot.", "warning");
             return;
         }
 
@@ -310,7 +366,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const selectedSlot = slotSelect.value;
 
         if (selectedSlot === "") {
-            alert("Please select a slot.");
+            showNotification("Please select a slot.", "warning");
             return;
         }
 
