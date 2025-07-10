@@ -352,14 +352,46 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         // Detach event
         if (!attachedCallId && lastAttachedCallId) {
+            // --- FIX: Capture callId BEFORE nulling state ---
+            const detachingCallId = lastAttachedCallId;
             lastAttachedCallId = null;
             if (callDetailsUnsub) { callDetailsUnsub(); callDetailsUnsub = null; }
             clearCallDetailsSection();
             lastCallData = null;
-            // Show standown popup if not due to call being closed
-            showStandownPopup();
-            playDetachSound();
-            window._prevAttachedUnitIds = new Set();
+            // --- GLOBAL DETACH LOGIC: Only show standown popup/sound if not detaching due to call close (tracked in Firestore) ---
+            (async () => {
+                try {
+                    const unitId = sessionStorage.getItem('unitId');
+                    const callId = detachingCallId;
+                    if (unitId && callId) {
+                        // Check if this detach is due to a call close (look for doc in callClosingUnits)
+                        const closingDocRef = doc(db, 'callClosingUnits', `${callId}_${unitId}`);
+                        const closingDoc = await getDoc(closingDocRef);
+                        if (closingDoc.exists()) {
+                            // Remove the record so future detaches are not suppressed
+                            await deleteDoc(closingDocRef);
+                            // Do NOT show popup/sound
+                        } else {
+                            showStandownPopup();
+                            playDetachSound();
+                        }
+                    } else {
+                        // Fallback: if missing info, default to old logic
+                        if (!window._isCallClosing) {
+                            showStandownPopup();
+                        }
+                        playDetachSound();
+                    }
+                } catch (err) {
+                    // On error, fallback to old logic
+                    if (!window._isCallClosing) {
+                        showStandownPopup();
+                    }
+                    playDetachSound();
+                }
+                window._prevAttachedUnitIds = new Set();
+            })();
+// --- Standown Popup ---
 // --- Standown Popup ---
 function showStandownPopup() {
     // Remove any existing popup
@@ -419,6 +451,39 @@ function showStandownPopup() {
     });
 });
 // --- New Call Modal Logic ---
+
+// --- CLOSE CALL BUTTON LOGIC (AMBULANCE SIDE): Add to callClosingUnits before detaching ---
+// Patch the ambulance-side close call logic to add to callClosingUnits before detaching
+// (Assume there is a close call button with id 'close-call-btn')
+document.addEventListener('DOMContentLoaded', () => {
+    const closeCallBtn = document.getElementById('close-call-btn');
+    if (closeCallBtn) {
+        closeCallBtn.addEventListener('click', async () => {
+            try {
+                const callId = window.selectedCall?.id || window.lastCallData?.id;
+                if (callId) {
+                    // Get all attached units for this call and add them to callClosingUnits
+                    const attachedUnitQuery = query(collection(db, 'attachedUnit'), where('callID', '==', callId));
+                    const attachedUnitSnapshot = await getDocs(attachedUnitQuery);
+                    for (const docSnap of attachedUnitSnapshot.docs) {
+                        const unitId = docSnap.data().unitID;
+                        if (unitId) {
+                            await setDoc(doc(db, 'callClosingUnits', `${callId}_${unitId}`), {
+                                callId,
+                                unitId,
+                                timestamp: new Date(),
+                                closedBy: 'ambulance',
+                            });
+                        }
+                    }
+                }
+            } catch (err) {
+                // Ignore errors, fallback to normal close
+            }
+            // ...existing close call logic (should trigger detach)...
+        }, true); // Use capture to run before other listeners
+    }
+});
 document.addEventListener('DOMContentLoaded', () => {
     const newCallBtn = document.getElementById('new-call-btn');
     const newCallModal = document.getElementById('newCallModal');
@@ -2943,6 +3008,7 @@ async function executeCloseCall() {
     const detachedUnits = []; // Track detached units for rollback
     
     try {
+        window._isCallClosing = true;
         showNotification('Closing call...', 'info');
         
         // Step 1: Get all units attached to this call
@@ -3048,17 +3114,18 @@ async function executeCloseCall() {
             showNotification('Failed to delete call. All units have been re-attached.', 'error');
             return;
         }
+        window._isCallClosing = false;
         
     } catch (error) {
         console.error(`[CLOSE CALL] Unexpected error in executeCloseCall:`, error);
-        
         // Rollback: Re-attach all detached units
         if (detachedUnits.length > 0) {
             console.log(`[CLOSE CALL] Rolling back detached units due to unexpected error`);
             await rollbackDetachedUnits(detachedUnits);
         }
-        
         showNotification('Failed to close call due to unexpected error. Operation cancelled.', 'error');
+    } finally {
+        window._isCallClosing = false;
     }
 }
 

@@ -1443,6 +1443,36 @@ document.addEventListener("DOMContentLoaded", () => {
                 where("callID", "==", callId)
             );
             const attachedUnitSnapshot = await getDocs(attachedUnitQuery);
+            // --- GLOBAL DETACH LOGIC: Add all attached units to callClosingUnits before detaching ---
+            for (const attachedDoc of attachedUnitSnapshot.docs) {
+                const unitData = attachedDoc.data();
+                const unitId = unitData.unitID;
+                if (!unitId) continue;
+                try {
+                    // Determine service type for this unit (fire, police, ambulance, etc)
+                    let closedBy = 'dispatch';
+                    // Try to get the unit's type from the units collection
+                    let unitType = null;
+                    try {
+                        const unitRef = doc(db, 'units', unitId);
+                        const unitSnap = await getDoc(unitRef);
+                        if (unitSnap.exists()) {
+                            unitType = unitSnap.data().unitType || null;
+                        }
+                    } catch (e) {}
+                    if (unitType) {
+                        closedBy = unitType.toLowerCase(); // e.g., 'fire', 'police', 'ambulance'
+                    }
+                    await setDoc(doc(db, 'callClosingUnits', `${callId}_${unitId}`), {
+                        callId,
+                        unitId,
+                        timestamp: new Date(),
+                        closedBy,
+                    });
+                } catch (err) {
+                    // Ignore errors, continue
+                }
+            }
             // Step 2: Detach all units and move them to availableUnits
             for (const attachedDoc of attachedUnitSnapshot.docs) {
                 const unitData = attachedDoc.data();

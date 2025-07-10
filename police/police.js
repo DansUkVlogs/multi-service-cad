@@ -349,12 +349,109 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         // Detach event
         if (!attachedCallId && lastAttachedCallId) {
-            lastAttachedCallId = null;
-            if (callDetailsUnsub) { callDetailsUnsub(); callDetailsUnsub = null; }
-            clearCallDetailsSection();
-            lastCallData = null;
-            playDetachSound();
-            window._prevAttachedUnitIds = new Set();
+            // --- GLOBAL DETACH LOGIC: Only play detach sound/popup if NOT in callClosingUnits ---
+            (async () => {
+                let shouldShowPopup = true;
+                let callIdForDetach = null;
+                // Try to get the correct call ID for this detach event
+                if (typeof lastCallData === 'object' && lastCallData && lastCallData.id) {
+                    callIdForDetach = lastCallData.id;
+                } else if (typeof lastAttachedCallId === 'string' && lastAttachedCallId) {
+                    callIdForDetach = lastAttachedCallId;
+                } else if (window.selectedCall && window.selectedCall.id) {
+                    callIdForDetach = window.selectedCall.id;
+                }
+                try {
+                    if (callIdForDetach && unitId) {
+                        const callClosingDocRef = doc(db, 'callClosingUnits', `${callIdForDetach}_${unitId}`);
+                        const callClosingDoc = await getDoc(callClosingDocRef);
+                        if (callClosingDoc.exists()) {
+                            // Suppress popup/sound, and clean up the callClosingUnits doc
+                            await deleteDoc(callClosingDocRef);
+                            shouldShowPopup = false;
+                        }
+                    }
+                } catch (e) {
+                    // If Firestore fails, default to showing popup
+                    shouldShowPopup = true;
+                }
+                lastAttachedCallId = null;
+                if (callDetailsUnsub) { callDetailsUnsub(); callDetailsUnsub = null; }
+                clearCallDetailsSection();
+                lastCallData = null;
+                window._prevAttachedUnitIds = new Set();
+                if (shouldShowPopup) {
+                    playDetachSound();
+                    // Show standown popup/modal
+                    showStandownModal();
+    // --- Standown Modal for Detach ---
+    function showStandownModal() {
+        // Remove any existing modal first
+        const existingModal = document.getElementById('standown-modal');
+        if (existingModal) existingModal.remove();
+        // Create overlay
+        const overlay = document.createElement('div');
+        overlay.id = 'standown-modal';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.55);
+            z-index: 10050;
+            display: flex; justify-content: center; align-items: center;
+        `;
+        // Modal content
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            background: #fff;
+            border: 3px solid #1976d2;
+            border-radius: 16px;
+            padding: 32px 40px 24px 40px;
+            min-width: 340px;
+            max-width: 90vw;
+            box-shadow: 0 8px 32px rgba(25, 118, 210, 0.18);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            font-family: inherit;
+        `;
+        // Icon
+        const icon = document.createElement('div');
+        icon.innerHTML = '🚨';
+        icon.style.fontSize = '3rem';
+        // Title
+        const title = document.createElement('div');
+        title.textContent = 'Unit Detached';
+        title.style.cssText = 'font-size: 1.6rem; color: #1976d2; font-weight: bold; text-align: center; margin-bottom: 10px;';
+        // Message
+        const message = document.createElement('div');
+        message.innerHTML = `<p style="color: #333; font-size: 1.1rem; text-align: center; margin: 0 0 10px 0;">You have been detached from your call.<br><b>Stand down and await further instructions.</b></p>`;
+        // Button
+        const okBtn = document.createElement('button');
+        okBtn.textContent = 'OK';
+        okBtn.style.cssText = `
+            padding: 12px 32px;
+            border: none;
+            background: #1976d2;
+            color: #fff;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-top: 10px;
+        `;
+        okBtn.onclick = () => overlay.remove();
+        // Assemble
+        modal.appendChild(icon);
+        modal.appendChild(title);
+        modal.appendChild(message);
+        modal.appendChild(okBtn);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+    }
+                }
+            })();
         }
     });
 });
