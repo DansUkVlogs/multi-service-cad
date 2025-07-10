@@ -323,7 +323,7 @@ document.addEventListener('DOMContentLoaded', function() {
         playSoundByKey('newcall');
     }
     function playDetachSound() {
-        playSoundByKey('detach');
+        playSoundByKey('callclosed');
     }
     function playUpdateSound() {
         playSoundByKey('newnote');
@@ -385,7 +385,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     updateCallDetailsSection(callData);
                     lastCallData = callData;
                 } else {
-                    // Call was deleted
+                    // Call was deleted (call closed while unit was attached)
+                    playSoundByKey('callclosed');
                     clearCallDetailsSection();
                     lastCallData = null;
                 }
@@ -414,6 +415,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 window._prevAttachedUnitIds = new Set();
                 if (shouldShowPopup) {
                     showStandownModal();
+                    playSoundByKey("tones");
+                }
+                else if (!shouldShowPopup) {
                     playDetachSound();
                 }
             })();

@@ -1,3 +1,47 @@
+// --- Dynamic Hospital Button UI Update ---
+// (Removed duplicate definition to resolve SyntaxError)
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getFirestore, doc, deleteDoc, getDoc, collection, addDoc, updateDoc, getDocs, setDoc, onSnapshot, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { getStatusColor, getContrastingTextColor } from "../dispatch/statusColor.js";
+import { getUnitTypeColor } from '../dispatch/statusColor.js';
+
+// Firebase configuration
+const firebaseConfig = {
+    apiKey: "AIzaSyBWM3d9NXDzItCM4z3lZK2LC0z41tPw-bE",
+    authDomain: "emergencycad-561d4.firebaseapp.com",
+    projectId: "emergencycad-561d4",
+    storageBucket: "emergencycad-561d4.firebasestorage.app",
+    messagingSenderId: "573720799939",
+    appId: "1:573720799939:web:5828efc1893892a4929076",
+    measurementId: "G-XQ55M4GC92"
+};
+
+let app, db;
+try {
+    app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+} catch (e) {
+    showNotification("Failed to initialize Firebase. Check your internet connection.", "error");
+    throw e;
+}
+
+// --- Global State Variables for Self-Attach/Detach System ---
+let isUserAttachedToCall = false;
+let userAttachedCallId = null;
+let selfAttachLockActive = false;
+let dispatcherLockActive = false;
+
+// Utility: Check network connectivity (keep for UI, not for DB ops)
+function checkNetworkAndNotify() {
+    const isLocal = location.hostname === "localhost" || location.protocol === "file:";
+    console.log("navigator.onLine:", navigator.onLine, "isLocal:", isLocal, "location:", location.href);
+    if (!isLocal && !navigator.onLine) {
+        showNotification("You are offline. Please check your internet connection.", "error");
+        return false;
+    }
+    return true;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // --- PATCH: BROADCAST UNIT SELECTION LOGIC ---
     // Replace any logic that populates the broadcast unit selection dropdown to use ALL units, not just available
@@ -340,7 +384,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     updateCallDetailsSection(callData);
                     lastCallData = callData;
                 } else {
-                    // Call was deleted
+                    // Call was deleted (call closed while unit was attached)
+                    playSoundByKey('callclosed');
                     clearCallDetailsSection();
                     lastCallData = null;
                 }
@@ -380,10 +425,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 lastCallData = null;
                 window._prevAttachedUnitIds = new Set();
                 if (shouldShowPopup) {
-                    playDetachSound();
                     // Show standown popup/modal
                     showStandownModal();
-                    playDetachSound();
+                    playSoundByKey("tones");
+                }
+                else if (!shouldShowPopup) {
+                    playSoundByKey("callclosed");
                 }
             })();
         }
@@ -520,53 +567,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
-// --- Dynamic Hospital Button UI Update ---
-// (Removed duplicate definition to resolve SyntaxError)
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getFirestore, doc, deleteDoc, getDoc, collection, addDoc, updateDoc, getDocs, setDoc, onSnapshot, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-import { getStatusColor, getContrastingTextColor } from "../dispatch/statusColor.js";
-import { getUnitTypeColor } from '../dispatch/statusColor.js';
 
-// --- IMPORTS (must be at the very top) ---
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-import { getFirestore, collection, getDocs, doc, setDoc, addDoc, deleteDoc, getDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
-
-// Firebase configuration
-const firebaseConfig = {
-    apiKey: "AIzaSyBWM3d9NXDzItCM4z3lZK2LC0z41tPw-bE",
-    authDomain: "emergencycad-561d4.firebaseapp.com",
-    projectId: "emergencycad-561d4",
-    storageBucket: "emergencycad-561d4.firebasestorage.app",
-    messagingSenderId: "573720799939",
-    appId: "1:573720799939:web:5828efc1893892a4929076",
-    measurementId: "G-XQ55M4GC92"
-};
-
-let app, db;
-try {
-    app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
-} catch (e) {
-    showNotification("Failed to initialize Firebase. Check your internet connection.", "error");
-    throw e;
-}
-
-// --- Global State Variables for Self-Attach/Detach System ---
-let isUserAttachedToCall = false;
-let userAttachedCallId = null;
-let selfAttachLockActive = false;
-let dispatcherLockActive = false;
-
-// Utility: Check network connectivity (keep for UI, not for DB ops)
-function checkNetworkAndNotify() {
-    const isLocal = location.hostname === "localhost" || location.protocol === "file:";
-    console.log("navigator.onLine:", navigator.onLine, "isLocal:", isLocal, "location:", location.href);
-    if (!isLocal && !navigator.onLine) {
-        showNotification("You are offline. Please check your internet connection.", "error");
-        return false;
-    }
-    return true;
-}
 
 // Function to display notifications
 function showNotification(message, type = "info") {

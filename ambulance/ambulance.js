@@ -1,6 +1,6 @@
 // --- IMPORTS (must be at the very top) ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-import { getFirestore, collection, getDocs, doc, setDoc, addDoc, deleteDoc, getDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import { getFirestore, collection, getDocs, doc, setDoc, addDoc, deleteDoc, getDoc, onSnapshot, query, where, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 import { getStatusColor, getContrastingTextColor } from "../dispatch/statusColor.js";
 import { getUnitTypeColor } from '../dispatch/statusColor.js';
 
@@ -302,10 +302,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Helper: Play attach/detach sounds only if not self-initiated
     function playAttachSound() {
-        playSoundByKey('tones');
+        playSoundByKey('newambulancecall');
     }
     function playDetachSound() {
-        playSoundByKey('detach');
+        playSoundByKey('callclosed');
     }
     function playUpdateSound() {
         playSoundByKey('callupdate');
@@ -370,7 +370,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     updateCallDetailsSection(callData);
                     lastCallData = callData;
                 } else {
-                    // Call was deleted
+                    // Call was deleted (call closed while unit was attached)
+                    playSoundByKey('callclosed');
                     clearCallDetailsSection();
                     lastCallData = null;
                 }
@@ -397,15 +398,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             // Remove the record so future detaches are not suppressed
                             await deleteDoc(closingDocRef);
                             // Do NOT show popup/sound
+                            playDetachSound();
                         } else {
                             showStandownPopup();
-                            playDetachSound();
                         }
                     } else {
                         // Fallback: if missing info, default to old logic
                         if (!window._isCallClosing) {
                             showStandownPopup();
-                            playDetachSound();
                         }
                     }
                 } catch (err) {
