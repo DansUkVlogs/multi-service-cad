@@ -109,7 +109,13 @@ async function logSelfAttach(callId) {
 async function logSelfDetach(callId) {
     const unit = await getCurrentUnitDetails();
     const call = await getCallDetails(callId);
-    await logUserAction(db, 'self_detach', { unit, call });
+    await logUserAction(db, 'self_detach', { 
+        unit, 
+        call, 
+        callId,
+        detachReason: 'User initiated self-detach',
+        timestamp: new Date()
+    });
 }
 
 // 5. Log call selection (with all details)
@@ -630,7 +636,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Detach event (self-initiated only)
         if (!attachedCallId && lastAttachedCallId) {
             if (!selfAttachLockActive) {
-                logSelfDetach(lastAttachedCallId);
+                // Log self-detach asynchronously without blocking
+                logSelfDetach(lastAttachedCallId).catch(e => 
+                    console.warn('Failed to log self-detach:', e)
+                );
             }
             // --- FIX: Capture callId BEFORE nulling state ---
             const detachingCallId = lastAttachedCallId;
@@ -1146,19 +1155,54 @@ async function saveDetails() {
 
     try {
         // Save description to the selected call in Firestore if a call is selected
+        console.log('[DEBUG] saveDetails: window.selectedCall =', window.selectedCall);
         if (window.selectedCall && window.selectedCall.id) {
+            console.log('[DEBUG] saveDetails: Call is selected, saving description...');
             const descriptionElement = document.querySelector('.descriptionText');
+            console.log('[DEBUG] saveDetails: descriptionElement =', descriptionElement);
             let newDescription = '';
             if (descriptionElement && descriptionElement.tagName === 'TEXTAREA') {
                 newDescription = descriptionElement.value;
+                console.log('[DEBUG] saveDetails: Got description from textarea:', newDescription);
             } else if (descriptionElement) {
                 newDescription = descriptionElement.textContent;
+                console.log('[DEBUG] saveDetails: Got description from textContent:', newDescription);
             }
+            
+            // Get the previous description before updating
+            let previousDescription = 'Unknown';
+            try {
+                const callDocRef = doc(db, 'calls', window.selectedCall.id);
+                const callDoc = await getDoc(callDocRef);
+                if (callDoc.exists()) {
+                    previousDescription = callDoc.data().description || 'No description';
+                }
+            } catch (e) {
+                console.warn('[DEBUG] Could not get previous description:', e);
+            }
+            
+            // Update the call description
             const callDocRef = doc(db, 'calls', window.selectedCall.id);
             await setDoc(callDocRef, { description: newDescription }, { merge: true });
-            await logDescriptionUpdate(window.selectedCall.id, newDescription);
+            console.log('[DEBUG] saveDetails: Updated call description in Firestore');
+            
+            // Log the description update with previous description
+            const unit = await getCurrentUnitDetails();
+            const call = await getCallDetails(window.selectedCall.id);
+            console.log('[DEBUG] saveDetails: About to log description update...');
+            await logUserAction(db, 'update_call_description', { 
+                unit, 
+                call, 
+                previousDescription, 
+                newDescription,
+                callId: window.selectedCall.id 
+            });
+            console.log('[DEBUG] saveDetails: Description update logged successfully');
+            
             console.log('[DEBUG] Saved call description to Firestore:', newDescription);
             showNotification('Call details updated successfully.', 'success');
+        } else {
+            console.log('[DEBUG] saveDetails: No call selected, skipping description save');
         }
         // --- Save unit/civilian details as before ---
         let unitId = sessionStorage.getItem("unitId");
@@ -1206,8 +1250,9 @@ async function saveDetails() {
         const callsignDisplay = document.getElementById("callsign-display");
         callsignDisplay.textContent = callsignInput;
         // --- Force refresh of call details section if a call is selected ---
+        // Skip logging on this refresh since it's just UI update after save
         if (window.selectedCall && typeof selectCall === 'function') {
-            selectCall(window.selectedCall);
+            await selectCallWithoutLogging(window.selectedCall);
         }
         // Ensure the setup modal is closed
         closeSetupModal();
@@ -1839,6 +1884,10 @@ async function updateStatusAndButton(statusText, button, newButtonText, isSecond
         }
         
         showNotification(`Status changed to: ${statusText}`, 'success');
+        
+        // --- LOG: Log every status change from updateStatusAndButton ---
+        await logStatusChange(statusText);
+        
         console.log(`Status changed to: ${statusText} for unit: ${unitId}`);
     } catch (error) {
         console.error('Error updating status in Firebase:', error);
@@ -2237,6 +2286,27 @@ async function deletePanicCall(unitId) {
 async function updatePanicLocation(unitId, newLocation) {
     try {
         console.log('[PANIC DEBUG] Updating panic location for unit:', unitId, 'to:', newLocation);
+        
+        // Get the current panic location before updating
+        let previousLocation = 'Unknown';
+        try {
+            const panicRef = doc(db, 'panicAlerts', `panic_${unitId}`);
+            const panicDoc = await getDoc(panicRef);
+            if (panicDoc.exists()) {
+                previousLocation = panicDoc.data().callLocation || 'Unknown';
+            }
+        } catch (e) {
+            console.warn('[PANIC DEBUG] Could not get previous location:', e);
+        }
+        
+        // Log the panic location change with previous location
+        const unit = await getCurrentUnitDetails();
+        await logUserAction(db, 'panic_location_change', { 
+            unit, 
+            previousLocation, 
+            newLocation,
+            unitId 
+        });
         
         // Update the panic alert document
         const panicRef = doc(db, 'panicAlerts', `panic_${unitId}`);
@@ -2856,9 +2926,15 @@ function setupSelfAttachButton() {
                 const attachmentSnapshot = await getDocs(attachedUnitQuery);
                 
                 if (!attachmentSnapshot.empty) {
+                    // Get the call ID before detaching for logging
+                    const attachedCallId = attachmentSnapshot.docs[0].data().callID;
+                    
                     // Get unit details for notification
                     const unitSnap = await getDoc(doc(db, 'units', unitId));
                     const callsign = unitSnap.exists() ? unitSnap.data().callsign : 'Unknown';
+                    
+                    // Log the self-detach action before actually detaching
+                    await logSelfDetach(attachedCallId);
                     
                     // Remove all attachment documents for this unit
                     const deletePromises = attachmentSnapshot.docs.map(doc => 
@@ -3271,6 +3347,23 @@ async function executeCloseCall() {
         // Step 3: Delete the call from calls collection
         try {
             const callDocRef = doc(db, "calls", callId);
+            
+            // Log call closure before deletion
+            const callData = window.selectedCall || {};
+            await logUserAction(db, 'call_closed', {
+                callId: callId,
+                callType: callData.type || 'Unknown',
+                callLocation: callData.location || 'Unknown Location',
+                callDescription: callData.description || 'No description',
+                detachedUnitsCount: detachedUnits.length,
+                detachedUnits: detachedUnits.map(unit => ({
+                    unitId: unit.unitId,
+                    unitStatus: unit.unitStatus
+                })),
+                closureReason: 'Manual closure by ambulance service',
+                callDuration: callData.timestamp ? Date.now() - callData.timestamp : null
+            });
+            
             await deleteDoc(callDocRef);
             console.log(`[CLOSE CALL] Successfully deleted call ${callId}`);
             
@@ -3361,6 +3454,16 @@ async function selectCall(call) {
     if (call && call.id) {
         await logCallSelect(call.id);
     }
+    await selectCallInternal(call);
+}
+
+// Function to select a call without logging (for UI refreshes)
+async function selectCallWithoutLogging(call) {
+    await selectCallInternal(call);
+}
+
+// Internal function that handles the UI update logic
+async function selectCallInternal(call) {
     try {
         // Always fetch the latest call data from Firestore
         const callDoc = await getDoc(doc(db, "calls", call.id));
@@ -3648,28 +3751,60 @@ document.addEventListener("DOMContentLoaded", () => {
     const callDetailsSaveBtn = document.querySelector('.call-details-section .save-details-btn');
     if (callDetailsSaveBtn) {
         callDetailsSaveBtn.addEventListener('click', async () => {
+            console.log('[DEBUG] Call details save button clicked');
             // Save the description to Firestore
             const descriptionElement = document.querySelector('.descriptionText');
+            console.log('[DEBUG] Call details save: descriptionElement =', descriptionElement);
             let newDescription = '';
             if (descriptionElement && descriptionElement.tagName === 'TEXTAREA') {
                 newDescription = descriptionElement.value;
+                console.log('[DEBUG] Call details save: Got description from textarea:', newDescription);
             } else if (descriptionElement) {
                 newDescription = descriptionElement.textContent;
+                console.log('[DEBUG] Call details save: Got description from textContent:', newDescription);
             }
             if (window.selectedCall && window.selectedCall.id) {
                 try {
+                    // Get the previous description before updating
+                    let previousDescription = 'Unknown';
+                    try {
+                        const callDocRef = doc(db, 'calls', window.selectedCall.id);
+                        const callDoc = await getDoc(callDocRef);
+                        if (callDoc.exists()) {
+                            previousDescription = callDoc.data().description || 'No description';
+                        }
+                    } catch (e) {
+                        console.warn('[DEBUG] Call details save: Could not get previous description:', e);
+                    }
+                    
                     const callDocRef = doc(db, 'calls', window.selectedCall.id);
                     await setDoc(callDocRef, { description: newDescription }, { merge: true });
+                    console.log('[DEBUG] Call details save: Updated description in Firestore');
+                    
+                    // Log the description update with previous description
+                    const unit = await getCurrentUnitDetails();
+                    const call = await getCallDetails(window.selectedCall.id);
+                    console.log('[DEBUG] Call details save: About to log description update...');
+                    await logUserAction(db, 'update_call_description', { 
+                        unit, 
+                        call, 
+                        previousDescription, 
+                        newDescription,
+                        callId: window.selectedCall.id 
+                    });
+                    console.log('[DEBUG] Call details save: Description update logged successfully');
+                    
                     showNotification('Call details updated successfully.', 'success');
-                    // Refresh the call details UI
-                    if (typeof selectCall === 'function') {
-                        selectCall(window.selectedCall);
+                    // Refresh the call details UI WITHOUT logging
+                    if (typeof selectCallWithoutLogging === 'function') {
+                        await selectCallWithoutLogging(window.selectedCall);
                     }
                 } catch (err) {
                     showNotification('Failed to save call details to database.', 'error');
                     console.error('Error saving call description:', err);
                 }
             } else {
+                console.log('[DEBUG] Call details save: No call selected');
                 showNotification('No call selected. Cannot save call details.', 'error');
             }
         });

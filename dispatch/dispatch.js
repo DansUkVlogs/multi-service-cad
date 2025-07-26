@@ -2603,7 +2603,7 @@ window.addEventListener('beforeunload', function () {
     // Try to remove dispatcher session from Firestore and sessionStorage
     // Note: async functions can't be awaited here, but this will still trigger the cleanup in most cases
     removeDispatcherSessionFromDB();
-    aleret("Session successfully ended. You can now close this tab.");
+    showNotification("Session successfully ended. You can now close this tab.", 'info');
 });
 
 // Display current dispatcher session ID in the UI for debugging/cleanup
