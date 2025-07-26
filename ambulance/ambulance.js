@@ -1,9 +1,29 @@
 // --- IMPORTS (must be at the very top) ---
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-import { getFirestore, collection, getDocs, doc, setDoc, addDoc, deleteDoc, getDoc, onSnapshot, query, where, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getFirestore, collection, getDocs, doc, setDoc, addDoc, deleteDoc, getDoc, onSnapshot, query, where, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { getStatusColor, getContrastingTextColor } from "../dispatch/statusColor.js";
 import { getUnitTypeColor } from '../dispatch/statusColor.js';
 import { logUserAction } from '../firebase/logUserAction.js';
+
+// --- Firebase configuration and initialization ---
+const firebaseConfig = {
+    apiKey: "AIzaSyBWM3d9NXDzItCM4z3lZK2LC0z41tPw-bE",
+    authDomain: "emergencycad-561d4.firebaseapp.com",
+    projectId: "emergencycad-561d4",
+    storageBucket: "emergencycad-561d4.firebasestorage.app",
+    messagingSenderId: "573720799939",
+    appId: "1:573720799939:web:5828efc1893892a4929076",
+    measurementId: "G-XQ55M4GC92"
+};
+
+let app, db;
+try {
+    app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+} catch (e) {
+    console.error("Failed to initialize Firebase:", e);
+    // We'll handle this gracefully in the logging functions
+}
 
 // --- LOGGING HELPERS FOR USER ACTIONS (AMBULANCE PAGE) ---
 // All logUserAction calls must use: logUserAction(db, action, details)
@@ -115,25 +135,6 @@ async function logBroadcastReceived(broadcast) {
 }
 
 // --- Real-time listener for dispatcher-driven attach/detach and call updates (Ambulance Page) ---
-// Firebase configuration
-const firebaseConfig = {
-    apiKey: "AIzaSyBWM3d9NXDzItCM4z3lZK2LC0z41tPw-bE",
-    authDomain: "emergencycad-561d4.firebaseapp.com",
-    projectId: "emergencycad-561d4",
-    storageBucket: "emergencycad-561d4.firebasestorage.app",
-    messagingSenderId: "573720799939",
-    appId: "1:573720799939:web:5828efc1893892a4929076",
-    measurementId: "G-XQ55M4GC92"
-};
-
-let app, db;
-try {
-    app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
-} catch (e) {
-    showNotification("Failed to initialize Firebase. Check your internet connection.", "error");
-    throw e;
-}
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- PATCH: BROADCAST UNIT SELECTION LOGIC ---

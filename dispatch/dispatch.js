@@ -1,8 +1,8 @@
 // --- Logging Utility ---
 import { logUserAction } from "../firebase/logUserAction.js";
 
-// Usage: logUserAction(action, details, db)
-// Make sure to pass the Firestore db instance as the third argument in all calls.
+// Usage: logUserAction(db, action, details)
+// Make sure to pass the Firestore db instance as the first argument in all calls.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { getFirestore, doc, deleteDoc, setDoc, addDoc, getDoc, getDocs, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { getStatusColor, getUnitTypeColor, getContrastingTextColor } from "./statusColor.js";
@@ -171,7 +171,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // Update the calls list based on the selected service filter
 callServiceFilter.addEventListener('change', async () => {
     const selectedService = callServiceFilter.value;
-    await logUserAction('change_call_service_filter', { value: selectedService }, db);
+    await logUserAction(db, 'change_call_service_filter', { value: selectedService });
     // Filter calls based on the selected service
     const filteredCalls = selectedService === 'All'
         ? allCalls // Show all calls if "All" is selected
@@ -195,20 +195,20 @@ function filterUnits() {
 
 // Attach event listeners for unit filters
 unitTypeFilter.addEventListener('change', async () => {
-    await logUserAction('change_unit_type_filter', { value: unitTypeFilter.value }, db);
+    await logUserAction(db, 'change_unit_type_filter', { value: unitTypeFilter.value });
     filterUnits();
 });
 unitCallsignSearch.addEventListener('input', async () => {
-    await logUserAction('unit_callsign_search', { value: unitCallsignSearch.value }, db);
+    await logUserAction(db, 'unit_callsign_search', { value: unitCallsignSearch.value });
     filterUnits();
 });
 
 // --- Log errors globally ---
 window.addEventListener('error', async (event) => {
-    await logUserAction('error', { message: event.message, source: event.filename, lineno: event.lineno, colno: event.colno }, db);
+    await logUserAction(db, 'error', { message: event.message, source: event.filename, lineno: event.lineno, colno: event.colno });
 });
 window.addEventListener('unhandledrejection', async (event) => {
-    await logUserAction('unhandledrejection', { reason: event.reason }, db);
+    await logUserAction(db, 'unhandledrejection', { reason: event.reason });
 });
 
 // Fix `loadCalls` to render attached units for each call
@@ -385,7 +385,7 @@ async function displayCalls(calls) {
 
         // Attach click event listener to select the call
         callCard.addEventListener('click', async () => {
-            await logUserAction('select_call', {
+            await logUserAction(db, 'select_call', {
                 callId: call.id,
                 callerName: call.callerName,
                 location: call.location,
@@ -795,7 +795,7 @@ async function selectUnit(unitElement, section) {
     selectedUnit.classList.add('selected-unit'); // Highlight the selected unit
 
     // Log unit selection
-    await logUserAction('select_unit', {
+    await logUserAction(db, 'select_unit', {
         unitId: selectedUnit.dataset.unitId,
         section,
         callsign: selectedUnit.querySelector('.unit-callsign-box')?.textContent || 'N/A',
@@ -1071,7 +1071,7 @@ function showDispatcherDutyModal() {
     document.body.classList.add('modal-open');
     document.getElementById('start-dispatch-duty-btn').onclick = async function() {
         await addDispatcherSession();
-        await logUserAction('start_dispatcher_duty', {}, db);
+        await logUserAction(db, 'start_dispatcher_duty', {});
         modal.remove();
         document.body.classList.remove('modal-open');
         muteSounds = false; // Unmute sounds after modal is closed
@@ -1115,7 +1115,7 @@ async function removeDispatcherSessionFromDB() {
 
 // Function to handle Back to Home button click (for dispatcher)
 async function handleBackToHomeDispatcher() {
-    await logUserAction('dispatcher_logoff', {}, db);
+    await logUserAction(db, 'dispatcher_logoff', {});
     const alertMessage = await removeDispatcherSessionFromDB();
     // Optionally show a notification here if you want
     window.location.href = '../index.html';
@@ -1207,11 +1207,11 @@ document.addEventListener("DOMContentLoaded", () => {
         attachBtn.addEventListener("click", async () => {
             if (selectedUnit && selectedUnitSection === "manage" && selectedCallId) {
                 const unitId = selectedUnit.dataset.unitId;
-                await logUserAction('attach_unit_button', { unitId, callId: selectedCallId }, db);
+                await logUserAction(db, 'attach_unit_button', { unitId, callId: selectedCallId });
                 await attachUnit(unitId, selectedCallId);
                 showNotification("Unit attached successfully.", "success");
             } else {
-                await logUserAction('attach_unit_button_failed', { reason: 'No unit or call selected' }, db);
+                await logUserAction(db, 'attach_unit_button_failed', { reason: 'No unit or call selected' });
                 showNotification("No unit selected or no call selected.", "error");
             }
         });
@@ -1223,11 +1223,11 @@ document.addEventListener("DOMContentLoaded", () => {
         detachBtn.addEventListener("click", async () => {
             if (selectedUnit && selectedUnitSection === "attached" && selectedCallId) {
                 const unitId = selectedUnit.dataset.unitId;
-                await logUserAction('detach_unit_button', { unitId, callId: selectedCallId }, db);
+                await logUserAction(db, 'detach_unit_button', { unitId, callId: selectedCallId });
                 await detachUnit(unitId, selectedCallId);
                 showNotification("Unit detached successfully.", "success");
             } else {
-                await logUserAction('detach_unit_button_failed', { reason: 'No unit or call selected' }, db);
+                await logUserAction(db, 'detach_unit_button_failed', { reason: 'No unit or call selected' });
                 showNotification("No unit selected or no call selected.", "error");
             }
         });
@@ -1237,7 +1237,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const addCallBtn = document.getElementById("addCallBtn");
     if (addCallBtn) {
         addCallBtn.addEventListener("click", async () => {
-            await logUserAction('open_add_call_modal', {}, db);
+            await logUserAction(db, 'open_add_call_modal', {});
             const addCallModal = document.getElementById("addCallModal");
             if (addCallModal) {
                 addCallModal.style.display = "block"; // Show the modal
@@ -1248,7 +1248,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const closeModalButton = document.querySelector("#addCallModal .close");
         if (closeModalButton) {
             closeModalButton.addEventListener("click", async () => {
-                await logUserAction('close_add_call_modal', {}, db);
+                await logUserAction(db, 'close_add_call_modal', {});
                 const addCallModal = document.getElementById("addCallModal");
                 if (addCallModal) {
                     addCallModal.style.display = "none"; // Hide the modal
@@ -1269,7 +1269,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const callType = document.getElementById("callType").value;
 
                 if (!description || !location || !service || !callType) {
-                    await logUserAction('add_call_failed', { description, location, service, callType, reason: 'Missing required fields' }, db);
+                    await logUserAction(db, 'add_call_failed', { description, location, service, callType, reason: 'Missing required fields' });
                     showNotification("Please fill out all required fields.", "error");
                     return;
                 }
@@ -1284,7 +1284,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         status: `${callType}-${document.getElementById("callType").options[document.getElementById("callType").selectedIndex].text}`,
                         timestamp: new Date(),
                     });
-                    await logUserAction('add_call', { callerName, description, location, service, callType }, db);
+                    await logUserAction(db, 'add_call', { callerName, description, location, service, callType });
                     playSound("newcall"); // Play new call sound
                     showNotification("New call added successfully.", "success");
 
@@ -1295,7 +1295,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     addCallForm.reset(); // Reset the form
                     await loadCalls(); // Reload the calls list
                 } catch (error) {
-                    await logUserAction('add_call_error', { error: error.message }, db);
+                    await logUserAction(db, 'add_call_error', { error: error.message });
                     console.error("Error adding new call:", error);
                     showNotification("Failed to add new call. Please try again.", "error");
                 }
@@ -1940,7 +1940,7 @@ function openBroadcastComposer(targetType, prefill = {}) {
     `;
     document.body.appendChild(composer);
     document.getElementById('close-broadcast-composer').onclick = () => {
-        logUserAction('close_broadcast_composer_modal', {}, db);
+        logUserAction(db, 'close_broadcast_composer_modal', {});
         composer.remove();
     };
 
