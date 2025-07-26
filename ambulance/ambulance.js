@@ -3809,6 +3809,92 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
     }
+
+    // Set up New Call button event listener
+    const newCallBtn = document.getElementById('new-call-btn');
+    const newCallModal = document.getElementById('newCallModal');
+    const closeNewCallModal = document.getElementById('close-new-call-modal');
+    const newCallForm = document.getElementById('newCallForm');
+
+    if (newCallBtn && newCallModal) {
+        newCallBtn.addEventListener('click', function() {
+            console.log('[DEBUG] New Call button clicked');
+            newCallModal.style.display = 'block';
+            document.body.classList.add('modal-active');
+        });
+    }
+
+    if (closeNewCallModal && newCallModal) {
+        closeNewCallModal.addEventListener('click', function() {
+            console.log('[DEBUG] Close New Call modal clicked');
+            newCallModal.style.display = 'none';
+            document.body.classList.remove('modal-active');
+        });
+    }
+
+    // Handle new call form submission
+    if (newCallForm) {
+        newCallForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            console.log('[DEBUG] New Call form submitted');
+            
+            const callerName = document.getElementById('callerName').value.trim();
+            const description = document.getElementById('description').value.trim();
+            const location = document.getElementById('location').value.trim();
+            const service = document.getElementById('service').value;
+
+            if (!description || !location || !service) {
+                showNotification('Please fill in all required fields.', 'error');
+                return;
+            }
+
+            try {
+                // Create new call in Firestore
+                const newCall = {
+                    callerName: callerName || 'AMBULANCE DISPATCH',
+                    description: description,
+                    location: location,
+                    service: service,
+                    status: 'Awaiting Dispatch',
+                    timestamp: new Date()
+                };
+
+                console.log('[DEBUG] Creating new call:', newCall);
+                const docRef = await addDoc(collection(db, 'calls'), newCall);
+                console.log('[DEBUG] New call created with ID:', docRef.id);
+
+                // Log the call creation
+                const unit = await getCurrentUnitDetails();
+                await logUserAction(db, 'call_created', {
+                    unit,
+                    callId: docRef.id,
+                    callData: newCall
+                });
+
+                showNotification('New call created successfully!', 'success');
+                
+                // Close modal and reset form
+                newCallModal.style.display = 'none';
+                document.body.classList.remove('modal-active');
+                newCallForm.reset();
+                document.getElementById('callerName').value = 'AMBULANCE DISPATCH'; // Reset default value
+
+            } catch (error) {
+                console.error('[DEBUG] Error creating new call:', error);
+                showNotification('Failed to create new call. Please try again.', 'error');
+            }
+        });
+    }
+
+    // Close modal when clicking outside
+    if (newCallModal) {
+        newCallModal.addEventListener('click', function(e) {
+            if (e.target === newCallModal) {
+                newCallModal.style.display = 'none';
+                document.body.classList.remove('modal-active');
+            }
+        });
+    }
 });
 
 // --- Utility: Status Indicator and Gradient Bar ---
