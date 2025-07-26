@@ -4,6 +4,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebas
 import { getFirestore, doc, deleteDoc, getDoc, collection, addDoc, updateDoc, getDocs, setDoc, onSnapshot, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { getStatusColor, getContrastingTextColor } from "../dispatch/statusColor.js";
 import { getUnitTypeColor } from '../dispatch/statusColor.js';
+import { logUserAction } from '../firebase/logUserAction.js';
 
 // Firebase configuration
 const firebaseConfig = {
@@ -1599,7 +1600,6 @@ function setupStatusButtons() {
                             // Then show price modal
                             showRefuelPriceModal(location, async function(price) {
                                 try {
-                                    // Save refuel log to Firebase
                                     const unitId = sessionStorage.getItem('unitId');
                                     const civilianName = sessionStorage.getItem('civilianName') || 'Unknown';
                                     if (!unitId) {

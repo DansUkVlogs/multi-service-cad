@@ -1,3 +1,8 @@
+// --- Logging Utility ---
+import { logUserAction } from "../firebase/logUserAction.js";
+
+// Usage: logUserAction(action, details, db)
+// Make sure to pass the Firestore db instance as the third argument in all calls.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { getFirestore, doc, deleteDoc, setDoc, addDoc, getDoc, getDocs, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { getStatusColor, getUnitTypeColor, getContrastingTextColor } from "./statusColor.js";
@@ -164,14 +169,13 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // Update the calls list based on the selected service filter
-callServiceFilter.addEventListener('change', () => {
+callServiceFilter.addEventListener('change', async () => {
     const selectedService = callServiceFilter.value;
-
+    await logUserAction('change_call_service_filter', { value: selectedService }, db);
     // Filter calls based on the selected service
     const filteredCalls = selectedService === 'All'
         ? allCalls // Show all calls if "All" is selected
         : allCalls.filter(call => call.service === selectedService);
-
     displayCalls(filteredCalls); // Render the filtered calls
 });
 
@@ -190,8 +194,22 @@ function filterUnits() {
 }
 
 // Attach event listeners for unit filters
-unitTypeFilter.addEventListener('change', filterUnits);
-unitCallsignSearch.addEventListener('input', filterUnits);
+unitTypeFilter.addEventListener('change', async () => {
+    await logUserAction('change_unit_type_filter', { value: unitTypeFilter.value }, db);
+    filterUnits();
+});
+unitCallsignSearch.addEventListener('input', async () => {
+    await logUserAction('unit_callsign_search', { value: unitCallsignSearch.value }, db);
+    filterUnits();
+});
+
+// --- Log errors globally ---
+window.addEventListener('error', async (event) => {
+    await logUserAction('error', { message: event.message, source: event.filename, lineno: event.lineno, colno: event.colno }, db);
+});
+window.addEventListener('unhandledrejection', async (event) => {
+    await logUserAction('unhandledrejection', { reason: event.reason }, db);
+});
 
 // Fix `loadCalls` to render attached units for each call
 async function loadCalls() {
@@ -366,7 +384,18 @@ async function displayCalls(calls) {
         `;
 
         // Attach click event listener to select the call
-        callCard.addEventListener('click', () => selectCall(call));
+        callCard.addEventListener('click', async () => {
+            await logUserAction('select_call', {
+                callId: call.id,
+                callerName: call.callerName,
+                location: call.location,
+                status: call.status,
+                service: call.service,
+                description: call.description,
+                callType: call.callType
+            });
+            selectCall(call);
+        });
 
         callsList.appendChild(callCard);
     });
@@ -759,11 +788,20 @@ function renderUnitCards(units) {
 }
 
 // Add the selectUnit function
-function selectUnit(unitElement, section) {
+async function selectUnit(unitElement, section) {
     if (selectedUnit) selectedUnit.classList.remove('selected-unit'); // Deselect the previously selected unit
     selectedUnit = unitElement; // Set the new selected unit
     selectedUnitSection = section; // Track the section (e.g., 'manage' or 'attached')
     selectedUnit.classList.add('selected-unit'); // Highlight the selected unit
+
+    // Log unit selection
+    await logUserAction('select_unit', {
+        unitId: selectedUnit.dataset.unitId,
+        section,
+        callsign: selectedUnit.querySelector('.unit-callsign-box')?.textContent || 'N/A',
+        status: selectedUnit.querySelector('.unit-status-label')?.textContent || 'Unknown',
+        specificType: selectedUnit.querySelector('.unit-specific-type')?.textContent || ''
+    });
 }
 
 // Add a real-time listener for the `calls` collection to update saved details across tabs
@@ -1033,6 +1071,7 @@ function showDispatcherDutyModal() {
     document.body.classList.add('modal-open');
     document.getElementById('start-dispatch-duty-btn').onclick = async function() {
         await addDispatcherSession();
+        await logUserAction('start_dispatcher_duty', {}, db);
         modal.remove();
         document.body.classList.remove('modal-open');
         muteSounds = false; // Unmute sounds after modal is closed
@@ -1076,6 +1115,7 @@ async function removeDispatcherSessionFromDB() {
 
 // Function to handle Back to Home button click (for dispatcher)
 async function handleBackToHomeDispatcher() {
+    await logUserAction('dispatcher_logoff', {}, db);
     const alertMessage = await removeDispatcherSessionFromDB();
     // Optionally show a notification here if you want
     window.location.href = '../index.html';
@@ -1167,9 +1207,11 @@ document.addEventListener("DOMContentLoaded", () => {
         attachBtn.addEventListener("click", async () => {
             if (selectedUnit && selectedUnitSection === "manage" && selectedCallId) {
                 const unitId = selectedUnit.dataset.unitId;
+                await logUserAction('attach_unit_button', { unitId, callId: selectedCallId }, db);
                 await attachUnit(unitId, selectedCallId);
                 showNotification("Unit attached successfully.", "success");
             } else {
+                await logUserAction('attach_unit_button_failed', { reason: 'No unit or call selected' }, db);
                 showNotification("No unit selected or no call selected.", "error");
             }
         });
@@ -1181,9 +1223,11 @@ document.addEventListener("DOMContentLoaded", () => {
         detachBtn.addEventListener("click", async () => {
             if (selectedUnit && selectedUnitSection === "attached" && selectedCallId) {
                 const unitId = selectedUnit.dataset.unitId;
+                await logUserAction('detach_unit_button', { unitId, callId: selectedCallId }, db);
                 await detachUnit(unitId, selectedCallId);
                 showNotification("Unit detached successfully.", "success");
             } else {
+                await logUserAction('detach_unit_button_failed', { reason: 'No unit or call selected' }, db);
                 showNotification("No unit selected or no call selected.", "error");
             }
         });
@@ -1192,7 +1236,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // Add Call button
     const addCallBtn = document.getElementById("addCallBtn");
     if (addCallBtn) {
-        addCallBtn.addEventListener("click", () => {
+        addCallBtn.addEventListener("click", async () => {
+            await logUserAction('open_add_call_modal', {}, db);
             const addCallModal = document.getElementById("addCallModal");
             if (addCallModal) {
                 addCallModal.style.display = "block"; // Show the modal
@@ -1202,7 +1247,8 @@ document.addEventListener("DOMContentLoaded", () => {
         // Close the Add Call modal when clicking the close button
         const closeModalButton = document.querySelector("#addCallModal .close");
         if (closeModalButton) {
-            closeModalButton.addEventListener("click", () => {
+            closeModalButton.addEventListener("click", async () => {
+                await logUserAction('close_add_call_modal', {}, db);
                 const addCallModal = document.getElementById("addCallModal");
                 if (addCallModal) {
                     addCallModal.style.display = "none"; // Hide the modal
@@ -1223,6 +1269,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const callType = document.getElementById("callType").value;
 
                 if (!description || !location || !service || !callType) {
+                    await logUserAction('add_call_failed', { description, location, service, callType, reason: 'Missing required fields' }, db);
                     showNotification("Please fill out all required fields.", "error");
                     return;
                 }
@@ -1237,6 +1284,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         status: `${callType}-${document.getElementById("callType").options[document.getElementById("callType").selectedIndex].text}`,
                         timestamp: new Date(),
                     });
+                    await logUserAction('add_call', { callerName, description, location, service, callType }, db);
                     playSound("newcall"); // Play new call sound
                     showNotification("New call added successfully.", "success");
 
@@ -1247,6 +1295,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     addCallForm.reset(); // Reset the form
                     await loadCalls(); // Reload the calls list
                 } catch (error) {
+                    await logUserAction('add_call_error', { error: error.message }, db);
                     console.error("Error adding new call:", error);
                     showNotification("Failed to add new call. Please try again.", "error");
                 }
@@ -1619,6 +1668,15 @@ async function saveCallChanges() {
         playSound("newnote"); // Play save changes sound
         showNotification("Call details updated successfully.", "success");
 
+        // Log the call detail edit
+        await logUserAction('edit_call_details', {
+            callId,
+            description,
+            callType,
+            service,
+            status
+        });
+
         // Update the dropdown color to reflect the saved service
         callServiceDropdown.style.backgroundColor = getUnitTypeColor(service);
         callServiceDropdown.style.color = getContrastingTextColor(getUnitTypeColor(service));
@@ -1881,7 +1939,10 @@ function openBroadcastComposer(targetType, prefill = {}) {
         </div>
     `;
     document.body.appendChild(composer);
-    document.getElementById('close-broadcast-composer').onclick = () => composer.remove();
+    document.getElementById('close-broadcast-composer').onclick = () => {
+        logUserAction('close_broadcast_composer_modal', {}, db);
+        composer.remove();
+    };
 
     // --- Recipient selection logic ---
     const groupNames = [
@@ -2031,6 +2092,11 @@ function openBroadcastComposer(targetType, prefill = {}) {
         const msg = document.getElementById('broadcast-message').value.trim();
         const priority = document.getElementById('broadcast-priority').value;
         if (!msg) { showNotification('Message required.', 'warning'); return; }
+        await logUserAction('create_broadcast', {
+            message: msg,
+            priority,
+            recipients: selectedRecipients.length ? selectedRecipients : ['all']
+        });
         await sendBroadcast({message:msg,priority,recipients:selectedRecipients.length?selectedRecipients:['all']});
         composer.remove();
     };
@@ -2289,7 +2355,12 @@ function openBroadcastHistoryModal() {
         </div>
     </div>`;
     document.body.appendChild(modal);
-    document.getElementById('close-broadcast-history-modal').onclick = ()=>modal.remove();
+    document.getElementById('close-broadcast-history-modal').onclick = ()=>{
+        logUserAction('close_broadcast_history_modal', {});
+        modal.remove();
+    };
+    // Log modal open
+    logUserAction('open_broadcast_history_modal', {});
     // Load and render broadcast history
     loadBroadcastHistoryList();
 }
@@ -2394,11 +2465,41 @@ function openUnitMultiSelectModal() {
                 selectedCallsigns = selectedCallsigns.filter(c => c !== cs);
                 renderSelectedTiles();
             };
+            tile.style.fontSize = '1em';
+            tile.style.marginRight = '4px';
+            tile.style.display = 'inline-block';
+            tile.style.cursor = 'pointer';
+            tile.title = 'Remove';
+            tile.onclick = () => {
+                selectedCallsigns = selectedCallsigns.filter(c => c !== cs);
+                renderSelectedTiles();
+            };
             listDiv.appendChild(tile);
         });
     }
-
-    // --- Callsign Search UI ---
+    renderSelectedTiles();
+    // Group buttons
+    const groupBtnsDiv = document.getElementById('recipient-group-btns');
+    groupNames.forEach(g => {
+        let btn = document.createElement('button');
+        btn.textContent = g.label;
+        btn.style.background = g.color;
+        btn.style.color = '#fff';
+        btn.style.border = 'none';
+        btn.style.borderRadius = '7px';
+        btn.style.padding = '6px 16px';
+        btn.style.fontWeight = 'bold';
+        btn.style.cursor = 'pointer';
+        btn.style.fontSize = '1em';
+        btn.onclick = () => {
+            if (!selectedCallsigns.includes(g.value)) {
+                selectedCallsigns.push(g.value);
+                renderSelectedTiles();
+            }
+        };
+        groupBtnsDiv.appendChild(btn);
+    });
+    // Search logic (fetch all units from Firestore for searching)
     const searchBox = document.getElementById('callsign-search-box');
     const addBtn = document.getElementById('add-callsign-btn');
     // Add a dropdown for search results
@@ -2440,6 +2541,7 @@ function openUnitMultiSelectModal() {
             searchResultsDiv.appendChild(res);
         });
     }
+
     searchBox.addEventListener('input', updateSearchResults);
     // Hide results on blur (with slight delay for click)
     searchBox.addEventListener('blur', () => setTimeout(()=>{searchResultsDiv.innerHTML='';}, 200));
@@ -2457,32 +2559,16 @@ function openUnitMultiSelectModal() {
             }
         }
     });
-    // Add button adds if only one result
-    addBtn.onclick = () => {
-        const val = searchBox.value.trim().toLowerCase();
-        const filtered = allUnits.filter(u => (u.callsign||'').toLowerCase().includes(val) && !selectedCallsigns.includes(u.callsign));
-        if (filtered.length === 1) {
-            selectedCallsigns.push(filtered[0].callsign);
-            renderSelectedTiles();
-            searchBox.value = '';
-            searchResultsDiv.innerHTML = '';
-        } else if (filtered.length > 1) {
-            showNotification('Type more to narrow down to one unit.', 'warning');
+    // Save & Compose Message button
+    document.getElementById('save-multiselect-callsigns-btn').onclick = () => {
+        if (selectedCallsigns.length > 0) {
+            openBroadcastComposer('private', { recipients: [...selectedCallsigns] });
+            modal.remove();
         } else {
-            showNotification('No matching unit found.', 'warning');
+            showNotification('Select at least one callsign.', 'warning');
         }
     };
-    document.getElementById('save-multiselect-callsigns-btn').onclick = () => {
-        if (!selectedCallsigns.length) { showNotification('Add at least one callsign.', 'warning'); return; }
-        modal.remove();
-        openBroadcastComposer('private',{recipients:selectedCallsigns});
-    };
 }
-
-// --- Read Receipt/Seen Indicator (for future expansion) ---
-// When modal is shown, mark as seen (add to seenBy array in Firestore)
-// (Implementation for seen indicator in UI can be added in next steps)
-
 // ================== END BROADCAST SYSTEM ADDITIONS ==================
 
 // Remove dispatcher session on page unload (for dispatch page)

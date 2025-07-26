@@ -6,8 +6,10 @@
 // --- IMPORTS (must be at the very top of the file) ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { getFirestore, doc, deleteDoc, getDoc, collection, addDoc, updateDoc, getDocs, setDoc, onSnapshot, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
 import { getStatusColor, getContrastingTextColor } from "../dispatch/statusColor.js";
 import { getUnitTypeColor } from '../dispatch/statusColor.js';
+import { logUserAction } from '../firebase/logUserAction.js';
 
 // Firebase configuration
 const firebaseConfig = {
@@ -1529,7 +1531,6 @@ function setupStatusButtons() {
                             // Then show price modal
                             showRefuelPriceModal(location, async function(price) {
                                 try {
-                                    // Save refuel log to Firebase
                                     const unitId = sessionStorage.getItem('unitId');
                                     const civilianName = sessionStorage.getItem('civilianName') || 'Unknown';
                                     if (!unitId) {
@@ -1548,6 +1549,14 @@ function setupStatusButtons() {
                                         price: price,
                                         timestamp: serverTimestamp()
                                     });
+                                    // Log user action
+                                    await logUserAction(db, 'Refuel', {
+                                        unitId,
+                                        callsign,
+                                        civilianName,
+                                        location,
+                                        price
+                                    });
                                     showNotification(`Refueling completed at ${location} for ${price}`, 'success');
                                     // Return to Available status
                                     const availableBtn = document.querySelector('[data-status="Available"]');
@@ -1562,33 +1571,45 @@ function setupStatusButtons() {
                         });
                     } else {
                         // If no refuelBtn, just show price modal
-                        showRefuelPriceModal(location, async function(price) {
-                            try {
-                                const unitId = sessionStorage.getItem('unitId');
-                                const civilianName = sessionStorage.getItem('civilianName') || 'Unknown';
-                                if (!unitId) {
-                                    showNotification('No UnitID found. Cannot save refuel log.', 'error');
-                                    return;
+                        showRefuelPriceModal(location, function(price) {
+                            // Use a named async function to avoid syntax issues
+                            async function handleRefuelPrice() {
+                                try {
+                                    const unitId = sessionStorage.getItem('unitId');
+                                    const civilianName = sessionStorage.getItem('civilianName') || 'Unknown';
+                                    if (!unitId) {
+                                        showNotification('No UnitID found. Cannot save refuel log.', 'error');
+                                        return;
+                                    }
+                                    const unitSnap = await getDoc(doc(db, 'units', unitId));
+                                    const callsign = unitSnap.exists() ? unitSnap.data().callsign : 'Unknown';
+                                    await addDoc(collection(db, 'refuelLogs'), {
+                                        unitId: unitId,
+                                        callsign: callsign,
+                                        civilianName: civilianName,
+                                        location: location,
+                                        price: price,
+                                        timestamp: serverTimestamp()
+                                    });
+                                    // Log user action
+                                    await logUserAction(db, 'Refuel', {
+                                        unitId,
+                                        callsign,
+                                        civilianName,
+                                        location,
+                                        price
+                                    });
+                                    showNotification(`Refueling completed at ${location} for ${price}`, 'success');
+                                    const availableBtn = document.querySelector('[data-status="Available"]');
+                                    if (availableBtn) {
+                                        await handleStatusChange('Available', availableBtn);
+                                    }
+                                } catch (error) {
+                                    console.error('Error saving refuel log:', error);
+                                    showNotification('Error saving refuel log', 'error');
                                 }
-                                const unitSnap = await getDoc(doc(db, 'units', unitId));
-                                const callsign = unitSnap.exists() ? unitSnap.data().callsign : 'Unknown';
-                                await addDoc(collection(db, 'refuelLogs'), {
-                                    unitId: unitId,
-                                    callsign: callsign,
-                                    civilianName: civilianName,
-                                    location: location,
-                                    price: price,
-                                    timestamp: serverTimestamp()
-                                });
-                                showNotification(`Refueling completed at ${location} for ${price}`, 'success');
-                                const availableBtn = document.querySelector('[data-status="Available"]');
-                                if (availableBtn) {
-                                    await handleStatusChange('Available', availableBtn);
-                                }
-                            } catch (error) {
-                                console.error('Error saving refuel log:', error);
-                                showNotification('Error saving refuel log', 'error');
                             }
+                            handleRefuelPrice();
                         });
                     }
                 }, function() {

@@ -1,5 +1,7 @@
+
 import { db } from "../firebase/firebase.js";
 import { collection, addDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+import { logUserAction } from '../firebase/logUserAction.js';
 
 let liveCharacterId = null; // Store the unique ID of the live character
 
@@ -373,7 +375,13 @@ document.addEventListener("DOMContentLoaded", () => {
         loadCharacterFromSlot(selectedSlot);
     };
 
-    goLiveBtn.onclick = goLive;
+    goLiveBtn.onclick = async () => {
+        await logUserAction(db, 'Go Live', {
+            character: document.getElementById("first-name").value + ' ' + document.getElementById("last-name").value,
+            slot: document.getElementById("slot-select").value
+        });
+        goLive();
+    };
 
     newCallBtn.onclick = openNewCallModal;
 

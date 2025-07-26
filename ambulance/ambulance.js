@@ -3,6 +3,116 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebas
 import { getFirestore, collection, getDocs, doc, setDoc, addDoc, deleteDoc, getDoc, onSnapshot, query, where, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 import { getStatusColor, getContrastingTextColor } from "../dispatch/statusColor.js";
 import { getUnitTypeColor } from '../dispatch/statusColor.js';
+import { logUserAction } from '../firebase/logUserAction.js';
+
+// --- LOGGING HELPERS FOR USER ACTIONS (AMBULANCE PAGE) ---
+// All logUserAction calls must use: logUserAction(db, action, details)
+
+// Helper: Get current unit details from sessionStorage and Firestore
+async function getCurrentUnitDetails() {
+    const unitId = sessionStorage.getItem('unitId');
+    let unitData = {};
+    if (unitId && unitId !== 'None') {
+        try {
+            const unitSnap = await getDoc(doc(db, 'units', unitId));
+            if (unitSnap.exists()) {
+                unitData = { unitId, ...unitSnap.data() };
+            }
+        } catch (e) { /* ignore */ }
+    }
+    return unitData;
+}
+
+// Helper: Get current civilian details from sessionStorage and Firestore
+async function getCurrentCivilianDetails() {
+    const civilianId = sessionStorage.getItem('civilianId');
+    let civilianData = {};
+    if (civilianId && civilianId !== 'None') {
+        try {
+            const civSnap = await getDoc(doc(db, 'civilians', civilianId));
+            if (civSnap.exists()) {
+                civilianData = { civilianId, ...civSnap.data() };
+            }
+        } catch (e) { /* ignore */ }
+    }
+    return civilianData;
+}
+
+// Helper: Get full call details by callId
+async function getCallDetails(callId) {
+    if (!callId) return null;
+    try {
+        const callSnap = await getDoc(doc(db, 'calls', callId));
+        if (callSnap.exists()) {
+            return { callId, ...callSnap.data() };
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+// 1. Log on login (after modal is closed)
+async function logOnLogin() {
+    const unit = await getCurrentUnitDetails();
+    const civilian = await getCurrentCivilianDetails();
+    await logUserAction(db, 'login', { unit, civilian });
+}
+
+// 2. Log description update
+async function logDescriptionUpdate(callId, newDescription) {
+    const unit = await getCurrentUnitDetails();
+    const call = await getCallDetails(callId);
+    await logUserAction(db, 'update_call_description', { unit, call, newDescription });
+}
+
+// 3. Log self attach
+async function logSelfAttach(callId) {
+    const unit = await getCurrentUnitDetails();
+    const call = await getCallDetails(callId);
+    await logUserAction(db, 'self_attach', { unit, call });
+}
+
+// 4. Log self detach
+async function logSelfDetach(callId) {
+    const unit = await getCurrentUnitDetails();
+    const call = await getCallDetails(callId);
+    await logUserAction(db, 'self_detach', { unit, call });
+}
+
+// 5. Log call selection (with all details)
+async function logCallSelect(callId) {
+    const unit = await getCurrentUnitDetails();
+    const call = await getCallDetails(callId);
+    await logUserAction(db, 'select_call', { unit, call });
+}
+
+// 6. Log status change
+async function logStatusChange(newStatus) {
+    const unit = await getCurrentUnitDetails();
+    await logUserAction(db, 'status_change', { unit, newStatus });
+}
+
+// 7. Log panic button actions
+async function logPanicActivate(location, callId) {
+    const unit = await getCurrentUnitDetails();
+    const call = await getCallDetails(callId);
+    await logUserAction(db, 'panic_activate', { unit, location, call });
+}
+async function logPanicLocationChange(newLocation, callId) {
+    const unit = await getCurrentUnitDetails();
+    const call = await getCallDetails(callId);
+    await logUserAction(db, 'panic_location_change', { unit, newLocation, call });
+}
+async function logPanicDeactivate(callId) {
+    const unit = await getCurrentUnitDetails();
+    const call = await getCallDetails(callId);
+    await logUserAction(db, 'panic_deactivate', { unit, call });
+}
+
+// 8. Log broadcast received (every time it pops up)
+async function logBroadcastReceived(broadcast) {
+    const unit = await getCurrentUnitDetails();
+    await logUserAction(db, 'broadcast_received', { unit, broadcast });
+}
 
 // --- Real-time listener for dispatcher-driven attach/detach and call updates (Ambulance Page) ---
 // Firebase configuration
@@ -232,6 +342,8 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (lastBroadcastId !== latest.id) {
                 lastBroadcastId = latest.id;
                 showBroadcastModal(latest);
+                // --- LOG: Every time a broadcast pops up, log it ---
+                logBroadcastReceived(latest);
             }
         } else {
             if (broadcastBarMsg) broadcastBarMsg.textContent = '';
@@ -318,9 +430,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!snapshot.empty) {
             attachedCallId = snapshot.docs[0].data().callID;
         }
-
-        // Attach event
+        // Attach event (self-initiated only)
         if (attachedCallId && attachedCallId !== lastAttachedCallId) {
+            if (!selfAttachLockActive) {
+                logSelfAttach(attachedCallId);
+            }
             lastAttachedCallId = attachedCallId;
             // Set up real-time listener for the call details and attached units
             if (callDetailsUnsub) callDetailsUnsub();
@@ -353,9 +467,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         lastCallData = callData;
                         return;
                     }
-                    // Play update sound if any of the following changed:
-                    // location, description, status, attached/detached unit, or status
-                    // Play newnote sound ONLY if description changed
+                    // Play update sound if any of the following changed
                     if (callData['description'] !== lastCallData['description']) {
                         playSoundByKey('newnote');
                     } else if (
@@ -377,8 +489,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         }
-        // Detach event
+        // Detach event (self-initiated only)
         if (!attachedCallId && lastAttachedCallId) {
+            if (!selfAttachLockActive) {
+                logSelfDetach(lastAttachedCallId);
+            }
             // --- FIX: Capture callId BEFORE nulling state ---
             const detachingCallId = lastAttachedCallId;
             lastAttachedCallId = null;
@@ -903,6 +1018,7 @@ async function saveDetails() {
             }
             const callDocRef = doc(db, 'calls', window.selectedCall.id);
             await setDoc(callDocRef, { description: newDescription }, { merge: true });
+            await logDescriptionUpdate(window.selectedCall.id, newDescription);
             console.log('[DEBUG] Saved call description to Firestore:', newDescription);
             showNotification('Call details updated successfully.', 'success');
         }
@@ -931,18 +1047,22 @@ async function saveDetails() {
         if (unitId && unitId !== "None") {
             unitDocRef = doc(db, "units", unitId);
             await setDoc(unitDocRef, unitData, { merge: true });
+            await logUserAction(db, 'update_unit_details', { unitId, ...unitData });
         } else {
             unitDocRef = await addDoc(dbUnit, unitData);
             unitId = unitDocRef.id;
             sessionStorage.setItem("unitId", unitId);
+            await logUserAction(db, 'create_unit', { unitId, ...unitData });
         }
         if (civilianId && civilianId !== "None") {
             civilianDocRef = doc(db, "civilians", civilianId);
             await setDoc(civilianDocRef, civilianData, { merge: true });
+            await logUserAction(db, 'update_civilian_details', { civilianId, ...civilianData });
         } else {
             civilianDocRef = await addDoc(dbCiv, civilianData);
             civilianId = civilianDocRef.id;
             sessionStorage.setItem("civilianId", civilianId);
+            await logUserAction(db, 'create_civilian', { civilianId, ...civilianData });
         }
         // Update the displayed IDs
         displayCurrentIDs();
@@ -957,8 +1077,12 @@ async function saveDetails() {
         }
         // Ensure the setup modal is closed
         closeSetupModal();
+        // --- LOG: After modal is closed, log login event ---
+        await logOnLogin();
+        await logUserAction(db, 'save_details', { unitId, civilianId, callsign: callsignInput, specificType, firstName, lastName });
     } catch (error) {
         showNotification('Failed to save details. Please check your network or firewall settings.', 'error');
+        await logUserAction(db, 'save_details_error', { error: error?.message || error });
         console.error('Error saving details:', error);
     }
 }
@@ -1460,7 +1584,6 @@ function setupStatusButtons() {
                             // Get unit callsign from Firebase
                             const unitSnap = await getDoc(doc(db, 'units', unitId));
                             const callsign = unitSnap.exists() ? unitSnap.data().callsign : 'Unknown';
-                            // Save to refuelLogs collection
                             await addDoc(collection(db, 'refuelLogs'), {
                                 unitId: unitId,
                                 callsign: callsign,
@@ -1524,6 +1647,9 @@ async function handleStatusChange(status, button) {
         
         // Set this button as the active one (green for normal buttons)
         setActiveStatusButton(button, 'green');
+        
+        // --- LOG: Log every status change ---
+        await logStatusChange(status);
         
         console.log(`Status changed to: ${status} for unit: ${unitId}`);
     } catch (error) {
@@ -1717,6 +1843,10 @@ function setupPanicButton() {
                 callLocation = callSnap.data().location || null;
             }
         }
+        
+        // --- LOG: Log panic activation ---
+        await logPanicActivate(callLocation, callId);
+        
         // Prevent duplicate panic alerts for this unit
         const existingPanicQuery = query(collection(db, 'panicAlerts'), where('unitId', '==', unitId));
         const existingPanicSnap = await getDocs(existingPanicQuery);
@@ -1790,6 +1920,10 @@ function setupPanicButton() {
         if (!attachedSnap.empty) {
             callId = attachedSnap.docs[0].data().callID;
         }
+        
+        // --- LOG: Log panic deactivation ---
+        await logPanicDeactivate(callId);
+        
         if (callId) {
             // Detach all units from this call
             const attachedUnitQuery = query(collection(db, 'attachedUnit'), where('callID', '==', callId));
@@ -3084,6 +3218,10 @@ function updateCloseCallButtonVisibility() {
 
 // Function to select a call and update the call details panel
 async function selectCall(call) {
+    // --- LOG: Every time the user selects a call, log it ---
+    if (call && call.id) {
+        await logCallSelect(call.id);
+    }
     try {
         // Always fetch the latest call data from Firestore
         const callDoc = await getDoc(doc(db, "calls", call.id));
