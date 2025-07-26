@@ -28,6 +28,20 @@ try {
 // --- LOGGING HELPERS FOR USER ACTIONS (AMBULANCE PAGE) ---
 // All logUserAction calls must use: logUserAction(db, action, details)
 
+// Function to manually trigger user identity setup
+async function setupUserIdentity() {
+    try {
+        // Import the ensureUserIdentity function from logUserAction
+        const { logUserAction } = await import('../firebase/logUserAction.js');
+        // Trigger a dummy log action that will prompt for identity
+        await logUserAction(db, 'identity_setup_triggered', { source: 'manual_setup' });
+        showNotification('User identity setup completed!', 'success');
+    } catch (error) {
+        console.error('Error setting up user identity:', error);
+        showNotification('Error setting up user identity', 'error');
+    }
+}
+
 // Helper: Get current unit details from sessionStorage and Firestore
 async function getCurrentUnitDetails() {
     const unitId = sessionStorage.getItem('unitId');
@@ -238,7 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
         broadcastHistoryBtn.textContent = '📢';
         broadcastHistoryBtn.title = 'Show Broadcast History';
         broadcastHistoryBtn.style.position = 'fixed';
-        broadcastHistoryBtn.style.bottom = '32px';
+        broadcastHistoryBtn.style.bottom = '100px';
         broadcastHistoryBtn.style.right = '32px';
         broadcastHistoryBtn.style.background = '#1976d2';
         broadcastHistoryBtn.style.color = '#fff';
@@ -251,6 +265,29 @@ document.addEventListener('DOMContentLoaded', () => {
         broadcastHistoryBtn.style.zIndex = '100';
         broadcastHistoryBtn.style.cursor = 'pointer';
         document.body.appendChild(broadcastHistoryBtn);
+    }
+
+    // User settings floating button
+    let userSettingsBtn = document.getElementById('user-settings-btn');
+    if (!userSettingsBtn) {
+        userSettingsBtn = document.createElement('button');
+        userSettingsBtn.id = 'user-settings-btn';
+        userSettingsBtn.textContent = '⚙️';
+        userSettingsBtn.title = 'User Settings';
+        userSettingsBtn.style.position = 'fixed';
+        userSettingsBtn.style.bottom = '32px';
+        userSettingsBtn.style.right = '32px';
+        userSettingsBtn.style.background = '#388e3c';
+        userSettingsBtn.style.color = '#fff';
+        userSettingsBtn.style.border = 'none';
+        userSettingsBtn.style.borderRadius = '50%';
+        userSettingsBtn.style.width = '54px';
+        userSettingsBtn.style.height = '54px';
+        userSettingsBtn.style.fontSize = '1.5em';
+        userSettingsBtn.style.boxShadow = '0 2px 12px rgba(0,0,0,0.18)';
+        userSettingsBtn.style.zIndex = '100';
+        userSettingsBtn.style.cursor = 'pointer';
+        document.body.appendChild(userSettingsBtn);
     }
 
     // Broadcast history modal
@@ -286,6 +323,106 @@ document.addEventListener('DOMContentLoaded', () => {
         updateBroadcastHistoryList();
         broadcastHistoryModal.style.display = 'flex';
     };
+
+    // User settings modal
+    let userSettingsModal = document.getElementById('user-settings-modal');
+    if (!userSettingsModal) {
+        userSettingsModal = document.createElement('div');
+        userSettingsModal.id = 'user-settings-modal';
+        userSettingsModal.style.position = 'fixed';
+        userSettingsModal.style.top = '0';
+        userSettingsModal.style.left = '0';
+        userSettingsModal.style.width = '100vw';
+        userSettingsModal.style.height = '100vh';
+        userSettingsModal.style.background = 'rgba(0,0,0,0.38)';
+        userSettingsModal.style.display = 'none';
+        userSettingsModal.style.alignItems = 'center';
+        userSettingsModal.style.justifyContent = 'center';
+        userSettingsModal.style.zIndex = '10060';
+        userSettingsModal.innerHTML = `
+        <div style="background:linear-gradient(135deg,#e3f2fd 0%,#fce4ec 100%);padding:0;border-radius:20px;min-width:400px;max-width:98vw;box-shadow:0 8px 32px rgba(30,60,90,0.18);position:relative;">
+            <div style="background:linear-gradient(90deg,#388e3c,#1976d2,#d84315,#1565c0);border-radius:20px 20px 0 0;padding:18px 38px 14px 24px;display:flex;align-items:center;gap:14px;">
+                <span style="font-size:2em;">⚙️</span>
+                <span style="font-size:1.35em;font-weight:700;color:#fff;letter-spacing:1px;text-shadow:0 2px 8px #0002;">User Settings</span>
+                <span id="close-user-settings-modal" style="margin-left:auto;font-size:2em;cursor:pointer;color:#fff;opacity:0.85;transition:opacity 0.2s;user-select:none;">&times;</span>
+            </div>
+            <div style="padding:24px 32px 18px 32px;">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Discord Name:</label>
+                    <input type="text" id="settings-discord-name" placeholder="e.g. Username#1234" 
+                           style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 1em;">
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Real Name:</label>
+                    <input type="text" id="settings-irl-name" placeholder="e.g. John Smith"
+                           style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 1em;">
+                </div>
+                
+                <div style="margin-bottom: 15px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
+                    <p style="margin: 0 0 10px 0; font-size: 0.9em; color: #666;">These details are used for audit logging. They are stored locally on your device.</p>
+                    <p style="margin: 0; font-size: 0.9em; color: #666;"><strong>Current Status:</strong> 
+                        <span id="identity-status">Loading...</span>
+                    </p>
+                </div>
+                
+                <div style="display: flex; gap: 10px;">
+                    <button id="save-user-settings-btn" style="flex: 1; padding: 12px; background: #388e3c; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1em;">Save Changes</button>
+                    <button id="cancel-user-settings-btn" style="flex: 1; padding: 12px; background: #757575; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1em;">Cancel</button>
+                </div>
+            </div>
+        </div>`;
+        document.body.appendChild(userSettingsModal);
+    }
+    document.getElementById('close-user-settings-modal')?.addEventListener('click',()=>{
+        userSettingsModal.style.display = 'none';
+    });
+    document.getElementById('cancel-user-settings-btn')?.addEventListener('click',()=>{
+        userSettingsModal.style.display = 'none';
+    });
+    
+    userSettingsBtn.onclick = ()=>{
+        // Populate current values
+        const currentDiscordName = localStorage.getItem('discordName') || '';
+        const currentIrlName = localStorage.getItem('irlName') || '';
+        document.getElementById('settings-discord-name').value = currentDiscordName;
+        document.getElementById('settings-irl-name').value = currentIrlName;
+        
+        // Update status display
+        const statusElement = document.getElementById('identity-status');
+        if (statusElement) {
+            statusElement.textContent = `Discord: ${currentDiscordName || 'Not Set'}, IRL: ${currentIrlName || 'Not Set'}`;
+        }
+        
+        userSettingsModal.style.display = 'flex';
+    };
+    
+    document.getElementById('save-user-settings-btn')?.addEventListener('click',()=>{
+        const previousDiscordName = localStorage.getItem('discordName') || 'Unknown';
+        const previousIrlName = localStorage.getItem('irlName') || 'Unknown';
+        const newDiscordName = document.getElementById('settings-discord-name').value.trim();
+        const newIrlName = document.getElementById('settings-irl-name').value.trim();
+        
+        if (!newDiscordName || !newIrlName) {
+            showNotification('Please fill in both fields', 'error');
+            return;
+        }
+        
+        // Save to localStorage
+        localStorage.setItem('discordName', newDiscordName);
+        localStorage.setItem('irlName', newIrlName);
+        
+        userSettingsModal.style.display = 'none';
+        showNotification('User settings saved successfully!', 'success');
+        
+        // Log the settings update
+        logUserAction(db, 'user_settings_updated', { 
+            previousDiscordName, 
+            previousIrlName,
+            newDiscordName, 
+            newIrlName 
+        });
+    });
 
     // --- Firestore Listener for Broadcasts ---
     // --- Updated Firestore Listener for Broadcasts: match by unitID, callsign, and group names ---
