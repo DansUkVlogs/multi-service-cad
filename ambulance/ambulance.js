@@ -1048,22 +1048,18 @@ async function saveDetails() {
         if (unitId && unitId !== "None") {
             unitDocRef = doc(db, "units", unitId);
             await setDoc(unitDocRef, unitData, { merge: true });
-            await logUserAction(db, 'update_unit_details', { unitId, ...unitData });
         } else {
             unitDocRef = await addDoc(dbUnit, unitData);
             unitId = unitDocRef.id;
             sessionStorage.setItem("unitId", unitId);
-            await logUserAction(db, 'create_unit', { unitId, ...unitData });
         }
         if (civilianId && civilianId !== "None") {
             civilianDocRef = doc(db, "civilians", civilianId);
             await setDoc(civilianDocRef, civilianData, { merge: true });
-            await logUserAction(db, 'update_civilian_details', { civilianId, ...civilianData });
         } else {
             civilianDocRef = await addDoc(dbCiv, civilianData);
             civilianId = civilianDocRef.id;
             sessionStorage.setItem("civilianId", civilianId);
-            await logUserAction(db, 'create_civilian', { civilianId, ...civilianData });
         }
         // Update the displayed IDs
         displayCurrentIDs();
@@ -1078,12 +1074,17 @@ async function saveDetails() {
         }
         // Ensure the setup modal is closed
         closeSetupModal();
-        // --- LOG: After modal is closed, log login event ---
+        // --- LOG: After modal is closed, log comprehensive save event ---
+        await logUserAction(db, 'ambulance_setup_complete', { 
+            unitId, 
+            civilianId, 
+            unitData: { callsign: callsignInput, specificType }, 
+            civilianData: { firstName, lastName }
+        });
         await logOnLogin();
-        await logUserAction(db, 'save_details', { unitId, civilianId, callsign: callsignInput, specificType, firstName, lastName });
     } catch (error) {
         showNotification('Failed to save details. Please check your network or firewall settings.', 'error');
-        await logUserAction(db, 'save_details_error', { error: error?.message || error });
+        await logUserAction(db, 'ambulance_setup_error', { error: error?.message || String(error) });
         console.error('Error saving details:', error);
     }
 }

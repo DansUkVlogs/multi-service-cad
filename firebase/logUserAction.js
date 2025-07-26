@@ -27,23 +27,15 @@ export async function logUserAction(db, action, details) {
         // Add the new log entry
         await addDoc(collection(db, 'logs'), logEntry);
 
-        // Delete logs older than 1 week
-        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        const logsRef = collection(db, 'logs');
-        const oldLogsQuery = query(logsRef, where('timestamp', '<', oneWeekAgo));
-        const oldLogsSnapshot = await getDocs(oldLogsQuery);
-        for (const docSnap of oldLogsSnapshot.docs) {
-            await deleteDoc(docSnap.ref);
-        }
-
-        // Ensure at least one placeholder log exists in the collection
-        const placeholderQuery = query(logsRef, where('action', '==', '__placeholder__'));
-        const placeholderSnapshot = await getDocs(placeholderQuery);
-        if (placeholderSnapshot.empty) {
-            await addDoc(logsRef, {
-                placeholder: true,
-                timestamp: new Date()
-            });
+        // Delete logs older than 1 week (run cleanup less frequently to avoid performance issues)
+        if (Math.random() < 0.1) { // Only run cleanup 10% of the time
+            const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            const logsRef = collection(db, 'logs');
+            const oldLogsQuery = query(logsRef, where('timestamp', '<', oneWeekAgo));
+            const oldLogsSnapshot = await getDocs(oldLogsQuery);
+            for (const docSnap of oldLogsSnapshot.docs) {
+                await deleteDoc(docSnap.ref);
+            }
         }
     } catch (e) {
         console.error('Failed to log user action:', action, details, e);
