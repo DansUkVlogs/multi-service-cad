@@ -1,6 +1,6 @@
 
 import { db } from "../firebase/firebase.js";
-import { collection, addDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+import { collection, addDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { logUserAction } from '../firebase/logUserAction.js';
 
 let liveCharacterId = null; // Store the unique ID of the live character
@@ -24,7 +24,7 @@ function populateCharacterSlots() {
 }
 
 // Function to load a character from the selected slot
-function loadCharacterFromSlot(slot) {
+async function loadCharacterFromSlot(slot) {
     const globalCharacters = JSON.parse(localStorage.getItem("globalCharacters")) || {};
     const characterData = globalCharacters[`slot${slot}`];
 
@@ -47,6 +47,26 @@ function loadCharacterFromSlot(slot) {
         // Load the profile picture
         const profilePicture = document.getElementById("profile-picture");
         profilePicture.src = characterData.profilePicture || "../imgs/blank-profile-picture-973460.svg";
+
+        // Log the character load action
+        try {
+            console.log("DEBUG: About to call logUserAction for load_character with db:", !!db);
+            await logUserAction(db, 'load_character', {
+                slot: parseInt(slot) + 1, // Convert to 1-based indexing
+                character: {
+                    firstName: characterData.firstName,
+                    lastName: characterData.lastName,
+                    fullName: `${characterData.firstName} ${characterData.lastName}`,
+                    dob: characterData.dob,
+                    phone: characterData.phone,
+                    address: characterData.address,
+                    age: characterData.dob ? calculateAge(characterData.dob) : null
+                }
+            });
+            console.log("DEBUG: logUserAction for load_character completed successfully");
+        } catch (error) {
+            console.error("Error logging character load:", error);
+        }
 
         showNotification(`Loaded character: ${characterData.firstName} ${characterData.lastName}`, "success");
     } else {
@@ -139,7 +159,7 @@ function updateAge() {
 }
 
 // Function to save a character to a global local storage key
-function saveCharacterToSlot(slot) {
+async function saveCharacterToSlot(slot) {
     const firstName = document.getElementById("first-name").value.trim();
     const lastName = document.getElementById("last-name").value.trim();
     const dob = document.getElementById("dob").value;
@@ -161,10 +181,41 @@ function saveCharacterToSlot(slot) {
         profilePicture // Save the profile picture
     };
 
-    // Save to a global key
+    // Get previous character data for logging
     const globalCharacters = JSON.parse(localStorage.getItem("globalCharacters")) || {};
+    const previousCharacterData = globalCharacters[`slot${slot}`] || null;
+
+    // Save to a global key
     globalCharacters[`slot${slot}`] = characterData;
     localStorage.setItem("globalCharacters", JSON.stringify(globalCharacters));
+
+    // Log the character save action
+    try {
+        console.log("DEBUG: About to call logUserAction for save_character with db:", !!db);
+        await logUserAction(db, 'save_character', {
+            slot: parseInt(slot) + 1, // Convert to 1-based indexing for readability
+            newCharacter: {
+                firstName,
+                lastName,
+                dob,
+                phone,
+                address,
+                age: dob ? calculateAge(dob) : null
+            },
+            previousCharacter: previousCharacterData ? {
+                firstName: previousCharacterData.firstName,
+                lastName: previousCharacterData.lastName,
+                dob: previousCharacterData.dob,
+                phone: previousCharacterData.phone,
+                address: previousCharacterData.address,
+                age: previousCharacterData.dob ? calculateAge(previousCharacterData.dob) : null
+            } : null,
+            action: previousCharacterData ? 'overwrite_existing' : 'save_new'
+        });
+        console.log("DEBUG: logUserAction for save_character completed successfully");
+    } catch (error) {
+        console.error("Error logging character save:", error);
+    }
 
     showNotification(`Character saved: ${firstName} ${lastName}`, "success");
     populateCharacterSlots(); // Refresh the dropdown
@@ -218,6 +269,24 @@ async function goLive() {
 
         liveCharacterId = docRef.id; // Store the unique ID of the live character
 
+        // Store the live character ID for session tracking
+        sessionStorage.setItem('civilianId', liveCharacterId);
+
+        // Log the go live action
+        await logUserAction(db, 'go_live', {
+            characterId: liveCharacterId,
+            slot: parseInt(selectedSlot) + 1, // Convert to 1-based indexing
+            character: {
+                firstName: characterData.firstName,
+                lastName: characterData.lastName,
+                fullName: `${characterData.firstName} ${characterData.lastName}`,
+                dob: characterData.dob,
+                phone: characterData.phone,
+                address: characterData.address,
+                age: characterData.dob ? calculateAge(characterData.dob) : null
+            }
+        });
+
         // Change the button to "Unlive" and add flashing red effect
         const goLiveBtn = document.getElementById("go-live-btn");
         goLiveBtn.textContent = "Unlive";
@@ -249,10 +318,34 @@ async function unlive() {
     }
 
     try {
+        // Get character data for logging before removal
+        const globalCharacters = JSON.parse(localStorage.getItem("globalCharacters")) || {};
+        const slotSelect = document.getElementById("slot-select");
+        const selectedSlot = slotSelect.value;
+        const characterData = globalCharacters[`slot${selectedSlot}`];
+
+        // Log the go unlive action
+        await logUserAction(db, 'go_unlive', {
+            characterId: liveCharacterId,
+            slot: selectedSlot ? parseInt(selectedSlot) + 1 : null,
+            character: characterData ? {
+                firstName: characterData.firstName,
+                lastName: characterData.lastName,
+                fullName: `${characterData.firstName} ${characterData.lastName}`,
+                dob: characterData.dob,
+                phone: characterData.phone,
+                address: characterData.address,
+                age: characterData.dob ? calculateAge(characterData.dob) : null
+            } : null
+        });
+
         // Remove the character from the "civilians" collection in Firestore
         console.log(`Removing character with ID: ${liveCharacterId} from the civilians collection.`);
         await deleteDoc(doc(db, "civilians", liveCharacterId));
         liveCharacterId = null; // Clear the stored ID
+
+        // Clear the session storage
+        sessionStorage.removeItem('civilianId');
 
         // Change the button back to "Go Live"
         const goLiveBtn = document.getElementById("go-live-btn");
@@ -266,7 +359,6 @@ async function unlive() {
         newCallBtn.disabled = true;
 
         // Re-enable dropdown, "Load Saved Character," and "Save Current Character" buttons
-        const slotSelect = document.getElementById("slot-select");
         slotSelect.disabled = false;
         document.querySelector(".load-character").disabled = false;
         document.querySelector(".save-character").disabled = false;
@@ -314,7 +406,7 @@ function openNewCallModal() {
 
         try {
             // Add the new call to the "calls" collection in Firestore
-            await addDoc(collection(db, "calls"), {
+            const docRef = await addDoc(collection(db, "calls"), {
                 callType: "",
                 callerName: callerNameInput.value,
                 description,
@@ -324,11 +416,36 @@ function openNewCallModal() {
                 timestamp: new Date()
             });
 
+            // Log the new call creation
+            await logUserAction(db, 'create_new_call', {
+                callId: docRef.id,
+                callerName: callerNameInput.value,
+                description,
+                location,
+                service,
+                characterId: liveCharacterId,
+                character: firstName && lastName ? {
+                    firstName,
+                    lastName,
+                    fullName: `${firstName} ${lastName}`
+                } : null
+            });
+
             showNotification("New call placed successfully!", "success");
             newCallModal.style.display = "none"; // Hide the modal after submission
         } catch (error) {
             console.error("Error placing new call:", error);
             showNotification("Failed to place the call. Please try again.", "error");
+            
+            // Log the error
+            await logUserAction(db, 'create_new_call_error', {
+                error: error.message,
+                callerName: callerNameInput.value,
+                description,
+                location,
+                service,
+                characterId: liveCharacterId
+            });
         }
     };
 }
@@ -351,7 +468,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Disable "New Call" button by default
     newCallBtn.disabled = true;
 
-    saveCharacterBtn.onclick = () => {
+    saveCharacterBtn.onclick = async () => {
         const slotSelect = document.getElementById("slot-select");
         const selectedSlot = slotSelect.value;
 
@@ -360,10 +477,10 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        saveCharacterToSlot(selectedSlot);
+        await saveCharacterToSlot(selectedSlot);
     };
 
-    loadCharacterBtn.onclick = () => {
+    loadCharacterBtn.onclick = async () => {
         const slotSelect = document.getElementById("slot-select");
         const selectedSlot = slotSelect.value;
 
@@ -372,16 +489,10 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        loadCharacterFromSlot(selectedSlot);
+        await loadCharacterFromSlot(selectedSlot);
     };
 
-    goLiveBtn.onclick = async () => {
-        await logUserAction(db, 'Go Live', {
-            character: document.getElementById("first-name").value + ' ' + document.getElementById("last-name").value,
-            slot: document.getElementById("slot-select").value
-        });
-        goLive();
-    };
+    goLiveBtn.onclick = goLive;
 
     newCallBtn.onclick = openNewCallModal;
 
@@ -391,4 +502,113 @@ document.addEventListener("DOMContentLoaded", () => {
         unlive();
         window.location.href = "../index.html";
     };
+
+    // Display user identity button
+    displayUserIdentityButton();
 });
+
+// Display user identity button (for editing Discord/IRL names)
+function displayUserIdentityButton() {
+    let identityBtn = document.getElementById('user-identity-btn');
+    if (!identityBtn) {
+        identityBtn = document.createElement('button');
+        identityBtn.id = 'user-identity-btn';
+        identityBtn.textContent = '👤 Edit User Details';
+        identityBtn.title = 'Click to edit your Discord name and IRL name for logging';
+        identityBtn.style.cssText = `
+            position: fixed; bottom: 20px; right: 24px; 
+            background: #1976d2; color: #fff; border: none; 
+            padding: 8px 16px; border-radius: 6px; 
+            font-size: 13px; font-weight: bold; 
+            cursor: pointer; z-index: 9999;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        `;
+        identityBtn.addEventListener('click', showUserIdentityModal);
+        document.body.appendChild(identityBtn);
+    }
+}
+
+// Show user identity modal for editing Discord/IRL names
+function showUserIdentityModal() {
+    // Remove any existing modal
+    const existingModal = document.getElementById('user-identity-modal');
+    if (existingModal) existingModal.remove();
+
+    const discordName = localStorage.getItem('discordName') || '';
+    const irlName = localStorage.getItem('irlName') || '';
+
+    const modal = document.createElement('div');
+    modal.id = 'user-identity-modal';
+    modal.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(0,0,0,0.5); display: flex; align-items: center;
+        justify-content: center; z-index: 10000;
+    `;
+
+    modal.innerHTML = `
+        <div style="background: white; padding: 30px; border-radius: 12px; min-width: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+            <h2 style="margin: 0 0 20px 0; color: #1976d2; text-align: center;">👤 User Identity</h2>
+            <p style="margin: 0 0 20px 0; color: #666; text-align: center;">
+                This information is used for logging your actions and will be included in all log entries.
+            </p>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Discord Name:</label>
+                <input type="text" id="discord-name-input" value="${discordName}" 
+                       style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;" 
+                       placeholder="Your Discord username">
+            </div>
+            <div style="margin-bottom: 25px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">IRL Name:</label>
+                <input type="text" id="irl-name-input" value="${irlName}" 
+                       style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;" 
+                       placeholder="Your real name">
+            </div>
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <button id="save-identity-btn" 
+                        style="background: #1976d2; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                    💾 Save
+                </button>
+                <button id="cancel-identity-btn" 
+                        style="background: #666; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                    ❌ Cancel
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Event listeners
+    document.getElementById('save-identity-btn').addEventListener('click', async () => {
+        const newDiscordName = document.getElementById('discord-name-input').value.trim();
+        const newIrlName = document.getElementById('irl-name-input').value.trim();
+
+        if (!newDiscordName || !newIrlName) {
+            alert('Please fill in both Discord name and IRL name.');
+            return;
+        }
+
+        localStorage.setItem('discordName', newDiscordName);
+        localStorage.setItem('irlName', newIrlName);
+        
+        // Log the identity update
+        await logUserAction(db, 'update_user_identity', {
+            discordName: newDiscordName,
+            irlName: newIrlName
+        });
+
+        showNotification('User identity updated successfully!', 'success');
+        modal.remove();
+    });
+
+    document.getElementById('cancel-identity-btn').addEventListener('click', () => {
+        modal.remove();
+    });
+
+    // Close on outside click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}

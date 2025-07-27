@@ -1579,6 +1579,14 @@ document.addEventListener("DOMContentLoaded", () => {
             try {
                 const callDocRef = doc(db, "calls", callId);
                 await deleteDoc(callDocRef);
+                
+                // Log the call closure
+                await logUserAction(db, 'close_call', {
+                    callId,
+                    detachedUnitsCount: detachedUnits.length,
+                    detachedUnits: detachedUnits.map(unit => ({ unitId: unit.unitId, unitStatus: unit.unitStatus }))
+                });
+                
                 // Step 4: Clear call details section (no rollback needed past this point)
                 selectedCallId = null;
                 callerName.textContent = "";
@@ -1663,19 +1671,23 @@ async function saveCallChanges() {
     const status = `${callType}-${callTypeText}`; // Combine the code and message for the status
 
     try {
+        console.log("DEBUG: saveCallChanges function called with:", { callId, description, callType, service, status });
+        
         const callDocRef = doc(db, "calls", callId);
         await setDoc(callDocRef, { description, callType, service, status }, { merge: true }); // Update description, callType, service, and status
         playSound("newnote"); // Play save changes sound
         showNotification("Call details updated successfully.", "success");
 
         // Log the call detail edit
-        await logUserAction('edit_call_details', {
+        console.log("DEBUG: About to call logUserAction for call_edit");
+        await logUserAction(db, 'call_edit', {
             callId,
             description,
             callType,
             service,
             status
         });
+        console.log("DEBUG: logUserAction for call_edit completed");
 
         // Update the dropdown color to reflect the saved service
         callServiceDropdown.style.backgroundColor = getUnitTypeColor(service);
@@ -2604,6 +2616,7 @@ window.addEventListener('beforeunload', function () {
     // Note: async functions can't be awaited here, but this will still trigger the cleanup in most cases
     removeDispatcherSessionFromDB();
     showNotification("Session successfully ended. You can now close this tab.", 'info');
+
 });
 
 // Display current dispatcher session ID in the UI for debugging/cleanup
@@ -2619,7 +2632,114 @@ function displayDispatcherSessionId() {
     el.textContent = `Dispatcher-ID: ${sessionId}`;
 }
 
+// Display user identity button (for editing Discord/IRL names)
+function displayUserIdentityButton() {
+    let identityBtn = document.getElementById('user-identity-btn');
+    if (!identityBtn) {
+        identityBtn = document.createElement('button');
+        identityBtn.id = 'user-identity-btn';
+        identityBtn.textContent = '👤 Edit User Details';
+        identityBtn.title = 'Click to edit your Discord name and IRL name for logging';
+        identityBtn.style.cssText = `
+            position: fixed; bottom: 130px; right: 24px; 
+            background: #1976d2; color: #fff; border: none; 
+            padding: 8px 16px; border-radius: 6px; 
+            font-size: 13px; font-weight: bold; 
+            cursor: pointer; z-index: 9999;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        `;
+        identityBtn.addEventListener('click', showUserIdentityModal);
+        document.body.appendChild(identityBtn);
+    }
+}
+
+// Show user identity modal for editing Discord/IRL names
+function showUserIdentityModal() {
+    // Remove any existing modal
+    const existingModal = document.getElementById('user-identity-modal');
+    if (existingModal) existingModal.remove();
+
+    const discordName = localStorage.getItem('discordName') || '';
+    const irlName = localStorage.getItem('irlName') || '';
+
+    const modal = document.createElement('div');
+    modal.id = 'user-identity-modal';
+    modal.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(0,0,0,0.5); display: flex; align-items: center;
+        justify-content: center; z-index: 10000;
+    `;
+
+    modal.innerHTML = `
+        <div style="background: white; padding: 30px; border-radius: 12px; min-width: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+            <h2 style="margin: 0 0 20px 0; color: #1976d2; text-align: center;">👤 User Identity</h2>
+            <p style="margin: 0 0 20px 0; color: #666; text-align: center;">
+                This information is used for logging your actions and will be included in all log entries.
+            </p>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Discord Name:</label>
+                <input type="text" id="discord-name-input" value="${discordName}" 
+                       style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;" 
+                       placeholder="Your Discord username">
+            </div>
+            <div style="margin-bottom: 25px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">IRL Name:</label>
+                <input type="text" id="irl-name-input" value="${irlName}" 
+                       style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;" 
+                       placeholder="Your real name">
+            </div>
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <button id="save-identity-btn" 
+                        style="background: #1976d2; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                    💾 Save
+                </button>
+                <button id="cancel-identity-btn" 
+                        style="background: #666; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                    ❌ Cancel
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Event listeners
+    document.getElementById('save-identity-btn').addEventListener('click', () => {
+        const newDiscordName = document.getElementById('discord-name-input').value.trim();
+        const newIrlName = document.getElementById('irl-name-input').value.trim();
+
+        if (!newDiscordName || !newIrlName) {
+            alert('Please fill in both Discord name and IRL name.');
+            return;
+        }
+
+        localStorage.setItem('discordName', newDiscordName);
+        localStorage.setItem('irlName', newIrlName);
+        
+        // Log the identity update
+        logUserAction(db, 'update_user_identity', {
+            discordName: newDiscordName,
+            irlName: newIrlName
+        });
+
+        showNotification('User identity updated successfully!', 'success');
+        modal.remove();
+    });
+
+    document.getElementById('cancel-identity-btn').addEventListener('click', () => {
+        modal.remove();
+    });
+
+    // Close on outside click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', displayDispatcherSessionId);
+document.addEventListener('DOMContentLoaded', displayUserIdentityButton);
 
 // Update dispatcher session ID display on session change
 function updateDispatcherSessionIdDisplay() {

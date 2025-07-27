@@ -27,11 +27,137 @@ try {
     app = initializeApp(firebaseConfig);
     db = getFirestore(app);
 } catch (e) {
-    showNotification("Failed to initialize Firebase. Check your internet connection.", "error");
-    throw e;
+    showNotification("Failed to initialize Firebase, check your internet connection", "error");
+    // We'll handle this gracefully in the logging functions
 }
 
+// --- LOGGING HELPERS FOR USER ACTIONS (FIRE PAGE) ---
+// All logUserAction calls must use: logUserAction(db, action, details)
 
+// Function to manually trigger user identity setup
+async function setupUserIdentity() {
+    try {
+        const { discordName, irlName } = await ensureUserIdentity();
+        showNotification(`Identity set: ${discordName} (${irlName})`, 'success');
+    } catch (error) {
+        console.error('Error setting up user identity:', error);
+        showNotification('Failed to set up user identity', 'error');
+    }
+}
+
+// Helper: Get current unit details from sessionStorage and Firestore
+async function getCurrentUnitDetails() {
+    const unitId = sessionStorage.getItem('unitId');
+    let unitData = {};
+    if (unitId && unitId !== 'None') {
+        try {
+            const unitDoc = await getDoc(doc(db, 'units', unitId));
+            if (unitDoc.exists()) {
+                unitData = { id: unitId, ...unitDoc.data() };
+            }
+        } catch (e) {
+            console.error('Error fetching unit details:', e);
+        }
+    }
+    return unitData;
+}
+
+// Helper: Get current civilian details from sessionStorage and Firestore
+async function getCurrentCivilianDetails() {
+    const civilianId = sessionStorage.getItem('civilianId');
+    let civilianData = {};
+    if (civilianId && civilianId !== 'None') {
+        try {
+            const civilianDoc = await getDoc(doc(db, 'civilians', civilianId));
+            if (civilianDoc.exists()) {
+                civilianData = { id: civilianId, ...civilianDoc.data() };
+            }
+        } catch (e) {
+            console.error('Error fetching civilian details:', e);
+        }
+    }
+    return civilianData;
+}
+
+// Helper: Get full call details by callId
+async function getCallDetails(callId) {
+    if (!callId) return null;
+    try {
+        const callDoc = await getDoc(doc(db, 'calls', callId));
+        if (callDoc.exists()) {
+            return { id: callId, ...callDoc.data() };
+        }
+    } catch (e) {
+        console.error('Error fetching call details:', e);
+    }
+    return null;
+}
+
+// 1. Log on login (after modal is closed)
+async function logOnLogin() {
+    const unit = await getCurrentUnitDetails();
+    const civilian = await getCurrentCivilianDetails();
+    await logUserAction(db, 'login', { unit, civilian });
+}
+
+// 2. Log description update
+async function logDescriptionUpdate(callId, newDescription) {
+    const unit = await getCurrentUnitDetails();
+    const call = await getCallDetails(callId);
+    await logUserAction(db, 'update_call_description', { unit, call, newDescription });
+}
+
+// 3. Log self attach
+async function logSelfAttach(callId) {
+    const unit = await getCurrentUnitDetails();
+    const call = await getCallDetails(callId);
+    await logUserAction(db, 'self_attach', { unit, call });
+}
+
+// 4. Log self detach
+async function logSelfDetach(callId) {
+    const unit = await getCurrentUnitDetails();
+    const call = await getCallDetails(callId);
+    await logUserAction(db, 'self_detach', { unit, call });
+}
+
+// 5. Log call selection (with all details)
+async function logCallSelect(callId) {
+    const unit = await getCurrentUnitDetails();
+    const call = await getCallDetails(callId);
+    await logUserAction(db, 'select_call', { unit, call });
+}
+
+// 6. Log status change
+async function logStatusChange(newStatus) {
+    const unit = await getCurrentUnitDetails();
+    await logUserAction(db, 'status_change', { unit, newStatus });
+}
+
+// 7. Log panic button actions
+async function logPanicActivate(location, callId) {
+    const unit = await getCurrentUnitDetails();
+    const call = callId ? await getCallDetails(callId) : null;
+    await logUserAction(db, 'panic_activate', { unit, location, call });
+}
+
+async function logPanicLocationChange(newLocation, callId) {
+    const unit = await getCurrentUnitDetails();
+    const call = callId ? await getCallDetails(callId) : null;
+    await logUserAction(db, 'panic_location_change', { unit, newLocation, call });
+}
+
+async function logPanicDeactivate(callId) {
+    const unit = await getCurrentUnitDetails();
+    const call = callId ? await getCallDetails(callId) : null;
+    await logUserAction(db, 'panic_deactivate', { unit, call });
+}
+
+// 8. Log broadcast received (every time it pops up)
+async function logBroadcastReceived(broadcast) {
+    const unit = await getCurrentUnitDetails();
+    await logUserAction(db, 'broadcast_received', { unit, broadcast });
+}
 
 // --- Global State Variables for Self-Attach/Detach System ---
 let isUserAttachedToCall = false;
@@ -260,6 +386,10 @@ let broadcastBarMsg = document.getElementById('broadcast-bar-message');
             broadcastModal.style.display = 'none';
             return;
         }
+        
+        // Log broadcast received
+        logBroadcastReceived(broadcast);
+        
         // Clean up undefined/null/empty fields for display
         const safe = (v, fallback = '') => (v === undefined || v === null ? fallback : v);
         const recipients = Array.isArray(broadcast.recipients) ? broadcast.recipients.filter(r => !!r).join(', ') : '';
@@ -1636,12 +1766,19 @@ async function handleStatusChange(status, button) {
     }
     
     try {
+        // Get previous status for logging
+        const unitDoc = await getDoc(doc(db, "units", unitId));
+        const previousStatus = unitDoc.exists() ? unitDoc.data().status : 'Unknown';
+        
         // Update status in Firebase
         const unitDocRef = doc(db, "units", unitId);
         await updateDoc(unitDocRef, {
             status: status,
             lastStatusUpdate: serverTimestamp()
         });
+        
+        // Log the status change
+        await logStatusChange(status);
         
         // Manage availableUnits and attachedUnit collections
         await manageUnitCollections(unitId, status);
@@ -1673,12 +1810,19 @@ async function updateStatusAndButton(statusText, button, newButtonText, isSecond
     }
     
     try {
+        // Get previous status for logging
+        const unitDoc = await getDoc(doc(db, "units", unitId));
+        const previousStatus = unitDoc.exists() ? unitDoc.data().status : 'Unknown';
+        
         // Update status in Firebase
         const unitDocRef = doc(db, "units", unitId);
         await updateDoc(unitDocRef, {
             status: statusText,
             lastStatusUpdate: serverTimestamp()
         });
+        
+        // Log the status change
+        await logStatusChange(statusText);
         
         // Manage availableUnits and attachedUnit collections
         await manageUnitCollections(unitId, statusText);
@@ -1904,6 +2048,9 @@ function setupPanicButton() {
         panicActive = true;
         console.log('[PANIC DEBUG] Panic activation completed successfully, panicDocId:', panicDocId);
         
+        // Log panic activation
+        await logPanicActivate(callLocation || 'Unknown', callId);
+        
         // Create a panic call
         await createPanicCall(unitId, unitData.callsign, callLocation);
         
@@ -1915,13 +2062,17 @@ function setupPanicButton() {
     async function deactivatePanic() {
         console.log('[PANIC DEBUG] Deactivating panic, panicDocId:', panicDocId);
         const unitId = sessionStorage.getItem('unitId');
-        // --- PATCH: End panic follows close call procedure ---
-        // 1. Detach all units from the call (if any)
+        
+        // Log panic deactivation
         let callId = null;
         const attachedSnap = await getDocs(query(collection(db, 'attachedUnit'), where('unitID', '==', unitId)));
         if (!attachedSnap.empty) {
             callId = attachedSnap.docs[0].data().callID;
         }
+        await logPanicDeactivate(callId);
+        
+        // --- PATCH: End panic follows close call procedure ---
+        // 1. Detach all units from the call (if any)
         if (callId) {
             // Detach all units from this call
             const attachedUnitQuery = query(collection(db, 'attachedUnit'), where('callID', '==', callId));
@@ -2714,6 +2865,9 @@ function setupSelfAttachButton() {
                     const unitSnap = await getDoc(doc(db, 'units', unitId));
                     const callsign = unitSnap.exists() ? unitSnap.data().callsign : 'Unknown';
                     
+                    // Log self detach before removing
+                    await logSelfDetach(userAttachedCallId);
+                    
                     // Remove all attachment documents for this unit
                     const deletePromises = attachmentSnapshot.docs.map(doc => 
                         deleteDoc(doc.ref)
@@ -2773,6 +2927,9 @@ function setupSelfAttachButton() {
                     unitID: unitId,
                     timestamp: serverTimestamp()
                 });
+                
+                // Log self attach
+                await logSelfAttach(window.selectedCall.id);
                 
                 // Update state
                 isUserAttachedToCall = true;
@@ -3209,6 +3366,18 @@ function updateCloseCallButtonVisibility() {
 
 // Function to select a call and update the call details panel
 async function selectCall(call) {
+    await selectCallInternal(call);
+    // Log call selection
+    await logCallSelect(call.id);
+}
+
+// Function to select a call without logging (for UI refreshes)
+async function selectCallWithoutLogging(call) {
+    await selectCallInternal(call);
+}
+
+// Internal function that handles the UI update logic
+async function selectCallInternal(call) {
     try {
         // Always fetch the latest call data from Firestore
         const callDoc = await getDoc(doc(db, "calls", call.id));
@@ -3502,8 +3671,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const callDetailsSaveBtn = document.querySelector('.call-details-section .save-details-btn');
     if (callDetailsSaveBtn) {
         callDetailsSaveBtn.addEventListener('click', async () => {
+            console.log('[DEBUG] Call details save button clicked');
             // Save the description to Firestore
             const descriptionElement = document.querySelector('.descriptionText');
+            console.log('[DEBUG] Call details save: descriptionElement =', descriptionElement);
             let newDescription = '';
             if (descriptionElement && descriptionElement.tagName === 'TEXTAREA') {
                 newDescription = descriptionElement.value;
@@ -3512,11 +3683,27 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             if (window.selectedCall && window.selectedCall.id) {
                 try {
+                    // Get previous description for logging
+                    const previousDescription = window.selectedCall.description || '';
+                    
                     const callDocRef = doc(db, 'calls', window.selectedCall.id);
                     await setDoc(callDocRef, { description: newDescription }, { merge: true });
+                    
+                    // Log the description update with previous value
+                    const unit = await getCurrentUnitDetails();
+                    const call = await getCallDetails(window.selectedCall.id);
+                    await logUserAction(db, 'update_call_description', { 
+                        unit, 
+                        call, 
+                        newDescription,
+                        previousDescription 
+                    });
+                    
                     showNotification('Call details updated successfully.', 'success');
                     // Refresh the call details UI
-                    if (typeof selectCall === 'function') {
+                    if (typeof selectCallWithoutLogging === 'function') {
+                        selectCallWithoutLogging(window.selectedCall);
+                    } else if (typeof selectCall === 'function') {
                         selectCall(window.selectedCall);
                     }
                 } catch (err) {
@@ -3524,7 +3711,93 @@ document.addEventListener("DOMContentLoaded", () => {
                     console.error('Error saving call description:', err);
                 }
             } else {
+                console.log('[DEBUG] Call details save: No call selected');
                 showNotification('No call selected. Cannot save call details.', 'error');
+            }
+        });
+    }
+
+    // Set up New Call button event listener
+    const newCallBtn = document.getElementById('new-call-btn');
+    const newCallModal = document.getElementById('newCallModal');
+    const closeNewCallModal = document.getElementById('close-new-call-modal');
+    const newCallForm = document.getElementById('newCallForm');
+
+    if (newCallBtn && newCallModal) {
+        newCallBtn.addEventListener('click', function() {
+            console.log('[DEBUG] New Call button clicked');
+            newCallModal.style.display = 'block';
+            document.body.classList.add('modal-active');
+        });
+    }
+
+    if (closeNewCallModal && newCallModal) {
+        closeNewCallModal.addEventListener('click', function() {
+            console.log('[DEBUG] Close New Call modal clicked');
+            newCallModal.style.display = 'none';
+            document.body.classList.remove('modal-active');
+        });
+    }
+
+    // Handle new call form submission
+    if (newCallForm) {
+        newCallForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            console.log('[DEBUG] New Call form submitted');
+            
+            const callerName = document.getElementById('callerName').value.trim();
+            const description = document.getElementById('description').value.trim();
+            const location = document.getElementById('location').value.trim();
+            const service = document.getElementById('service').value;
+
+            if (!description || !location || !service) {
+                showNotification('Please fill in all required fields.', 'error');
+                return;
+            }
+
+            try {
+                // Create new call in Firestore
+                const newCall = {
+                    callerName: callerName || 'FIRE DISPATCH',
+                    description: description,
+                    location: location,
+                    service: service,
+                    status: 'Awaiting Dispatch',
+                    timestamp: new Date()
+                };
+
+                console.log('[DEBUG] Creating new call:', newCall);
+                const docRef = await addDoc(collection(db, 'calls'), newCall);
+                console.log('[DEBUG] New call created with ID:', docRef.id);
+
+                // Log the call creation
+                const unit = await getCurrentUnitDetails();
+                await logUserAction(db, 'call_created', {
+                    unit,
+                    callId: docRef.id,
+                    callData: newCall
+                });
+
+                showNotification('New call created successfully!', 'success');
+
+                // Close modal and reset form
+                newCallModal.style.display = 'none';
+                document.body.classList.remove('modal-active');
+                newCallForm.reset();
+
+            } catch (error) {
+                console.error('[DEBUG] Error creating new call:', error);
+                showNotification('Failed to create new call. Please try again.', 'error');
+            }
+        });
+    }
+
+    // Close modal when clicking outside
+    if (newCallModal) {
+        newCallModal.addEventListener('click', function(e) {
+            if (e.target === newCallModal) {
+                newCallModal.style.display = 'none';
+                document.body.classList.remove('modal-active');
             }
         });
     }
@@ -3815,6 +4088,9 @@ function closeSetupModal() {
     }
     // Unmute sounds after modal is closed
     isStartupModalActive = false;
+    
+    // Log login after modal is closed
+    logOnLogin();
 }
 
 // Function to check if user is currently attached to any call
@@ -4211,4 +4487,113 @@ async function manageUnitCollections(unitId, status) {
 
     }
 }
+
+// Display user identity button (for editing Discord/IRL names)
+function displayUserIdentityButton() {
+    let identityBtn = document.getElementById('user-identity-btn');
+    if (!identityBtn) {
+        identityBtn = document.createElement('button');
+        identityBtn.id = 'user-identity-btn';
+        identityBtn.textContent = '👤 Edit User Details';
+        identityBtn.title = 'Click to edit your Discord name and IRL name for logging';
+        identityBtn.style.cssText = `
+            position: fixed; bottom: 120px; right: 10px; 
+            background: #d84315; color: #fff; border: none; 
+            padding: 8px 16px; border-radius: 6px; 
+            font-size: 13px; font-weight: bold; 
+            cursor: pointer; z-index: 9999;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        `;
+        identityBtn.addEventListener('click', showUserIdentityModal);
+        document.body.appendChild(identityBtn);
+    }
+}
+
+// Show user identity modal for editing Discord/IRL names
+function showUserIdentityModal() {
+    // Remove any existing modal
+    const existingModal = document.getElementById('user-identity-modal');
+    if (existingModal) existingModal.remove();
+
+    const discordName = localStorage.getItem('discordName') || '';
+    const irlName = localStorage.getItem('irlName') || '';
+
+    const modal = document.createElement('div');
+    modal.id = 'user-identity-modal';
+    modal.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(0,0,0,0.5); display: flex; align-items: center;
+        justify-content: center; z-index: 10000;
+    `;
+
+    modal.innerHTML = `
+        <div style="background: white; padding: 30px; border-radius: 12px; min-width: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+            <h2 style="margin: 0 0 20px 0; color: #d84315; text-align: center;">👤 User Identity</h2>
+            <p style="margin: 0 0 20px 0; color: #666; text-align: center;">
+                This information is used for logging your actions and will be included in all log entries.
+            </p>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Discord Name:</label>
+                <input type="text" id="discord-name-input" value="${discordName}" 
+                       style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;" 
+                       placeholder="Your Discord username">
+            </div>
+            <div style="margin-bottom: 25px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">IRL Name:</label>
+                <input type="text" id="irl-name-input" value="${irlName}" 
+                       style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;" 
+                       placeholder="Your real name">
+            </div>
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <button id="save-identity-btn" 
+                        style="background: #d84315; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                    💾 Save
+                </button>
+                <button id="cancel-identity-btn" 
+                        style="background: #666; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                    ❌ Cancel
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Event listeners
+    document.getElementById('save-identity-btn').addEventListener('click', () => {
+        const newDiscordName = document.getElementById('discord-name-input').value.trim();
+        const newIrlName = document.getElementById('irl-name-input').value.trim();
+
+        if (!newDiscordName || !newIrlName) {
+            alert('Please fill in both Discord name and IRL name.');
+            return;
+        }
+
+        localStorage.setItem('discordName', newDiscordName);
+        localStorage.setItem('irlName', newIrlName);
+        
+        // Log the identity update
+        logUserAction(db, 'update_user_identity', {
+            discordName: newDiscordName,
+            irlName: newIrlName
+        });
+
+        showNotification('User identity updated successfully!', 'success');
+        modal.remove();
+    });
+
+    document.getElementById('cancel-identity-btn').addEventListener('click', () => {
+        modal.remove();
+    });
+
+    // Close on outside click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+
+// Initialize user identity button on page load
+document.addEventListener('DOMContentLoaded', displayUserIdentityButton);
 

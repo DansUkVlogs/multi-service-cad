@@ -139,13 +139,17 @@ async function ensureUserIdentity() {
  * @param {object|string} details - Details about the action
  */
 export async function logUserAction(db, action, details) {
+    console.log("DEBUG: logUserAction called with:", { db: !!db, action, details });
+    
     try {
         // Ensure user identity is captured
         const { discordName, irlName } = await ensureUserIdentity();
+        console.log("DEBUG: User identity captured:", { discordName, irlName });
         
         // Determine which ID to use based on the current page/service
         let serviceId = 'Unknown';
         let serviceType = detectServiceType();
+        console.log("DEBUG: Service type detected:", serviceType);
         
         // Get the appropriate ID based on service type
         switch (serviceType) {
@@ -201,8 +205,11 @@ export async function logUserAction(db, action, details) {
             civilianId: serviceType === 'Civilian' ? serviceId : 'N/A'
         };
 
+        console.log("DEBUG: Log entry to be added:", logEntry);
+
         // Add the new log entry
-        await addDoc(collection(db, 'logs'), logEntry);
+        const docRef = await addDoc(collection(db, 'logs'), logEntry);
+        console.log("DEBUG: Log entry successfully added with ID:", docRef.id);
         
         // Debug log to console
         console.log('[LOG] User action logged:', {
@@ -225,7 +232,8 @@ export async function logUserAction(db, action, details) {
             }
         }
     } catch (e) {
-        console.error('Failed to log user action:', action, details, e);
+        console.error('DEBUG: Failed to log user action:', action, details, e);
+        console.error('DEBUG: Full error object:', e);
     }
 }
 
