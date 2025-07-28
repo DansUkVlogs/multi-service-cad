@@ -892,6 +892,10 @@ function listenForCallUpdates() {
             const removedCallIds = allCalls
                 .filter(existingCall => !updatedCalls.some(call => call.id === existingCall.id))
                 .map(call => call.id);
+            
+            // Get the actual removed call objects before updating allCalls
+            const removedCalls = allCalls
+                .filter(existingCall => !updatedCalls.some(call => call.id === existingCall.id));
 
             // Update the global calls array
             allCalls = updatedCalls;
@@ -901,27 +905,45 @@ function listenForCallUpdates() {
 
             // Play sound only for truly new calls (always play for new calls regardless of selection)
             if (newCallIds.length > 0) {
-                playSound("newcall");
-                console.log(`New calls detected: ${newCallIds.join(", ")}`);
+                // Check if any of the new calls are panic calls
+                const newCalls = updatedCalls.filter(call => newCallIds.includes(call.id));
+                const hasPanicCall = newCalls.some(call => call.isPanicCall === true);
+                
+                if (hasPanicCall) {
+                    playSound("panictones");
+                    console.log(`Panic call detected: ${newCallIds.join(", ")} - playing panic tones`);
+                } else {
+                    playSound("newcall");
+                    console.log(`New calls detected: ${newCallIds.join(", ")} - playing new call sound`);
+                }
             }
 
             // Play close call sound ONLY if the selected call was closed
             if (removedCallIds.length > 0) {
-                // Check if the selected call was among the removed calls
-                const selectedCallWasClosed = selectedCallId && removedCallIds.includes(selectedCallId);
+                // Check if any of the removed calls were panic calls
+                const hasPanicCallRemoved = removedCalls.some(call => call.isPanicCall === true);
                 
-                if (selectedCallWasClosed) {
-                    // Only play sound if the selected call was closed by another user
-                    const isCurrentUserClosing = window.isClosingCall;
-                    
-                    if (!isCurrentUserClosing) {
-                        playSound("callclosed");
-                        console.log(`Selected call ${selectedCallId} was closed by another user - playing callclosed sound`);
-                    } else {
-                        console.log(`Selected call ${selectedCallId} was closed by current user, no sound played`);
-                    }
+                if (hasPanicCallRemoved) {
+                    // Play panic end sound for all users when panic call is removed
+                    playSound("tones");
+                    console.log(`Panic call removed: ${removedCallIds.join(", ")} - playing tones sound`);
                 } else {
-                    console.log(`Calls closed but not the selected call, no sound played: ${removedCallIds.join(", ")}`);
+                    // Check if the selected call was among the removed calls
+                    const selectedCallWasClosed = selectedCallId && removedCallIds.includes(selectedCallId);
+                    
+                    if (selectedCallWasClosed) {
+                        // Only play sound if the selected call was closed by another user
+                        const isCurrentUserClosing = window.isClosingCall;
+                        
+                        if (!isCurrentUserClosing) {
+                            playSound("callclosed");
+                            console.log(`Selected call ${selectedCallId} was closed by another user - playing callclosed sound`);
+                        } else {
+                            console.log(`Selected call ${selectedCallId} was closed by current user, no sound played`);
+                        }
+                    } else {
+                        console.log(`Calls closed but not the selected call, no sound played: ${removedCallIds.join(", ")}`);
+                    }
                 }
                 
                 // Reset the flag

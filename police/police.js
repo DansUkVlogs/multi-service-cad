@@ -1964,22 +1964,7 @@ function setupPanicButton() {
         console.log('[PANIC DEBUG] audioPaths loaded:', audioPathsLoaded, 'audioPaths:', audioPaths);
         console.log('[PANIC DEBUG] userHasInteracted:', userHasInteracted, 'isStartupModalActive:', isStartupModalActive);
         
-        // Enhanced panic sound playing with multiple attempts
-        playSoundByKey('panictones');
-        
-        // Additional fallback: try direct audio play as backup with a slight delay
-        setTimeout(() => {
-            if (audioPaths && audioPaths['panictones']) {
-                console.log('[PANIC DEBUG] Fallback: playing panic sound directly');
-                try {
-                    const audio = new Audio(audioPaths['panictones']);
-                    audio.volume = 0.8; // Ensure good volume
-                    audio.play().catch(err => console.error('[PANIC DEBUG] Direct panic audio play failed:', err));
-                } catch (e) {
-                    console.error('[PANIC DEBUG] Direct panic audio creation failed:', e);
-                }
-            }
-        }, 100);
+        // Panic tones will be played by dispatch when the panic call is created
         
         // Get unit info
         const unitId = sessionStorage.getItem('unitId');
@@ -2125,17 +2110,7 @@ function setupPanicButton() {
         panicActive = false;
         stopPanicBlink();
         updateStatusIndicator('Unavailable');
-        // Play tones sound immediately for local user when panic stops
-        playSoundByKey('tones');
-        setTimeout(() => {
-            if (audioPaths && audioPaths['tones']) {
-                try {
-                    const audio = new Audio(audioPaths['tones']);
-                    audio.volume = 0.8;
-                    audio.play().catch(() => {});
-                } catch (e) {}
-            }
-        }, 100);
+        // Tones sound will be played by dispatch when the panic call is removed
         // Do NOT call removePanicPopup() here; let the Firestore listener update the popup
     }
 
@@ -2221,7 +2196,7 @@ async function createPanicCall(unitId, callsign, location) {
             callerName: `PANIC - ${callsign}`,
             description: `PANIC ALERT - Unit ${callsign} requires immediate assistance`,
             location: location,
-            service: 'Police',
+            service: 'Multiple',
             callType: 'PANIC',
             status: 'PANIC-Emergency',
             timestamp: new Date(),
@@ -3916,42 +3891,12 @@ function updateStatusGradientBar(status, flashing) {
         if (removedPanicIds.length > 0) {
             console.log('[PANIC DEBUG] Panic alerts removed:', removedPanicIds);
             
-            // If ALL panics are now gone, play tones for everyone
+            // If ALL panics are now gone, just update the UI (sound is already played by deactivatePanic)
             if (currentPanicDocIds.length === 0) {
-                console.log('[PANIC DEBUG] All panic alerts cleared, playing tones sound');
-                playSoundByKey('tones');
-                
-                // Enhanced tones sound playing with fallback
-                setTimeout(() => {
-                    if (audioPaths && audioPaths['tones']) {
-                        console.log('[PANIC DEBUG] Fallback: playing tones sound directly (all panics cleared)');
-                        try {
-                            const audio = new Audio(audioPaths['tones']);
-                            audio.volume = 0.8;
-                            audio.play().catch(err => console.error('[PANIC DEBUG] Direct tones audio play failed (all cleared):', err));
-                        } catch (e) {
-                            console.error('[PANIC DEBUG] Direct tones audio creation failed (all cleared):', e);
-                        }
-                    }
-                }, 100);
+                console.log('[PANIC DEBUG] All panic alerts cleared, UI updated');
             } else {
-                // If some panics still exist but some were cleared, also play tones
-                console.log('[PANIC DEBUG] Some panic alerts cleared (but others remain), playing tones sound');
-                playSoundByKey('tones');
-                
-                // Enhanced tones sound playing with fallback
-                setTimeout(() => {
-                    if (audioPaths && audioPaths['tones']) {
-                        console.log('[PANIC DEBUG] Fallback: playing tones sound directly (some cleared)');
-                        try {
-                            const audio = new Audio(audioPaths['tones']);
-                            audio.volume = 0.8;
-                            audio.play().catch(err => console.error('[PANIC DEBUG] Direct tones audio play failed (some cleared):', err));
-                        } catch (e) {
-                            console.error('[PANIC DEBUG] Direct tones audio creation failed (some cleared):', e);
-                        }
-                    }
-                }, 100);
+                // If some panics still exist but some were cleared, just update the UI
+                console.log('[PANIC DEBUG] Some panic alerts cleared (but others remain), UI updated');
             }
         }
         
@@ -4610,4 +4555,113 @@ function showUserIdentityModal() {
 
 // Initialize user identity button on page load
 document.addEventListener('DOMContentLoaded', displayUserIdentityButton);
+
+// Add a real-time listener for new calls and panic sounds
+function listenForNewCalls() {
+    const callsRef = collection(db, "calls");
+    let isInitialSnapshot = true;
+    let previousCalls = [];
+
+    onSnapshot(callsRef, (snapshot) => {
+        if (isInitialSnapshot) {
+            isInitialSnapshot = false;
+            previousCalls = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            return;
+        }
+
+        const currentCalls = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Identify new calls
+        const newCalls = currentCalls.filter(call => 
+            !previousCalls.some(prevCall => prevCall.id === call.id)
+        );
+        
+        // Identify removed calls
+        const removedCalls = previousCalls.filter(prevCall => 
+            !currentCalls.some(call => call.id === prevCall.id)
+        );
+
+        // Play appropriate sound for new calls
+        if (newCalls.length > 0) {
+            const hasPanicCall = newCalls.some(call => call.isPanicCall === true);
+            if (hasPanicCall) {
+                playSoundByKey('panictones');
+                console.log('[PANIC SOUND] New panic call detected - playing panic tones');
+            } else {
+                playSoundByKey('newcall');
+                console.log('[SOUND] New regular call detected - playing new call sound');
+            }
+        }
+
+        // Play tones sound for removed panic calls
+        if (removedCalls.length > 0) {
+            const hasPanicCallRemoved = removedCalls.some(call => call.isPanicCall === true);
+            if (hasPanicCallRemoved) {
+                playSoundByKey('tones');
+                console.log('[PANIC SOUND] Panic call removed - playing tones');
+            }
+        }
+
+        previousCalls = currentCalls;
+    });
+}
+
+// Initialize call listener
+document.addEventListener('DOMContentLoaded', () => {
+    // Small delay to ensure audio system is ready
+    setTimeout(listenForNewCalls, 1000);
+});
+
+// Add a real-time listener for panic call sounds
+function listenForPanicCalls() {
+    const callsRef = collection(db, "calls");
+    let isInitialSnapshot = true;
+    let previousCalls = [];
+
+    onSnapshot(callsRef, (snapshot) => {
+        if (isInitialSnapshot) {
+            isInitialSnapshot = false;
+            previousCalls = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            return;
+        }
+
+        const currentCalls = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Identify new calls
+        const newCalls = currentCalls.filter(call => 
+            !previousCalls.some(prevCall => prevCall.id === call.id)
+        );
+        
+        // Identify removed calls
+        const removedCalls = previousCalls.filter(prevCall => 
+            !currentCalls.some(call => call.id === prevCall.id)
+        );
+
+        // Play panic tones for new panic calls
+        if (newCalls.length > 0) {
+            const hasPanicCall = newCalls.some(call => call.isPanicCall === true);
+            if (hasPanicCall) {
+                playSoundByKey('panictones');
+                console.log('[PANIC SOUND] New panic call detected - playing panic tones');
+            }
+        }
+
+        // Play tones sound for removed panic calls
+        if (removedCalls.length > 0) {
+            const hasPanicCallRemoved = removedCalls.some(call => call.isPanicCall === true);
+            if (hasPanicCallRemoved) {
+                playSoundByKey('tones');
+                console.log('[PANIC SOUND] Panic call removed - playing tones');
+            }
+        }
+
+        previousCalls = currentCalls;
+    });
+}
+
+// Initialize panic call listener
+document.addEventListener('DOMContentLoaded', () => {
+    // Small delay to ensure audio system is ready
+    setTimeout(listenForPanicCalls, 1000);
+});
 
