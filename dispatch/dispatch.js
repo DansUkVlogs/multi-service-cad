@@ -467,6 +467,7 @@ function listenForSelectedCallUpdates() {
     if (!selectedCallId) return;
 
     const callDocRef = doc(db, "calls", selectedCallId);
+    let isInitialCallDetailsSnapshot = true;
 
     // Listen for changes to the selected call document
     onSnapshot(callDocRef, async (docSnap) => {
@@ -505,6 +506,14 @@ function listenForSelectedCallUpdates() {
             }
 
             console.log("Call details and dropdown options updated in real-time.");
+            
+            // Play new note sound when call details are updated (skip initial snapshot)
+            if (!isInitialCallDetailsSnapshot) {
+                playSound("newnote");
+                console.log("Call details updated by any user - playing newnote sound");
+            } else {
+                isInitialCallDetailsSnapshot = false;
+            }
         } else {
             console.warn("Selected call document does not exist.");
         }
@@ -526,6 +535,9 @@ function selectCall(call) {
             return;
         }
         selectedCallId = call.id;
+
+        // Play sound when selecting a call
+        playSound("newnote");
 
         // Show the Close Call button
         closeCallBtn.classList.add('show'); // Ensure the button is visible
@@ -699,7 +711,6 @@ async function attachUnit(unitId, callId) {
         }
         await renderAttachedUnits(callId); // Update `callDetails`
 
-        playSound("callupdate"); // Play call update sound
         console.log(`Unit ${unitId} attached to call ${callId}.`);
     } catch (error) {
         console.error('Error attaching unit:', error);
@@ -731,7 +742,6 @@ async function detachUnit(unitId, callId) {
         attachedUnits.innerHTML = ''; // Clear the container
         await renderAttachedUnits(callId); // Update `callDetails`
 
-        playSound("callupdate"); // Play call update sound
         console.log(`Unit ${unitId} detached from call ${callId}.`);
     } catch (error) {
         console.error('Error detaching unit:', error);
@@ -878,16 +888,44 @@ function listenForCallUpdates() {
                 .filter(call => !allCalls.some(existingCall => existingCall.id === call.id))
                 .map(call => call.id);
 
+            // Identify closed/removed calls (but don't play sound if current user closed it)
+            const removedCallIds = allCalls
+                .filter(existingCall => !updatedCalls.some(call => call.id === existingCall.id))
+                .map(call => call.id);
+
             // Update the global calls array
             allCalls = updatedCalls;
             console.log("Global allCalls length after update:", allCalls.length);
 
             displayCalls(allCalls); // Re-render the calls list
 
-            // Play sound only for truly new calls
+            // Play sound only for truly new calls (always play for new calls regardless of selection)
             if (newCallIds.length > 0) {
                 playSound("newcall");
                 console.log(`New calls detected: ${newCallIds.join(", ")}`);
+            }
+
+            // Play close call sound ONLY if the selected call was closed
+            if (removedCallIds.length > 0) {
+                // Check if the selected call was among the removed calls
+                const selectedCallWasClosed = selectedCallId && removedCallIds.includes(selectedCallId);
+                
+                if (selectedCallWasClosed) {
+                    // Only play sound if the selected call was closed by another user
+                    const isCurrentUserClosing = window.isClosingCall;
+                    
+                    if (!isCurrentUserClosing) {
+                        playSound("callclosed");
+                        console.log(`Selected call ${selectedCallId} was closed by another user - playing callclosed sound`);
+                    } else {
+                        console.log(`Selected call ${selectedCallId} was closed by current user, no sound played`);
+                    }
+                } else {
+                    console.log(`Calls closed but not the selected call, no sound played: ${removedCallIds.join(", ")}`);
+                }
+                
+                // Reset the flag
+                window.isClosingCall = false;
             }
 
             // IMPORTANT: After the calls list is updated, we need to refresh attached units
@@ -924,6 +962,8 @@ function listenForCallUpdates() {
 // Add a real-time listener for the `units` collection to update the Manage Units section
 function listenForUnitStatusUpdates() {
     const unitsRef = collection(db, "units");
+    let isInitialUnitsSnapshot = true;
+    
     onSnapshot(unitsRef, async (snapshot) => {
         try {
             // Only update units that are currently in availableUnits
@@ -965,7 +1005,17 @@ function listenForUnitStatusUpdates() {
                 }
                 if (shouldUpdate) {
                     await renderAttachedUnits(selectedCallId);
+                    // Play call update sound when attached unit status changes (skip initial snapshot)
+                    if (!isInitialUnitsSnapshot) {
+                        playSound("callupdate");
+                        console.log("Attached unit status changed by any user - playing callupdate sound");
+                    }
                 }
+            }
+            
+            // Mark that we've processed the initial snapshot
+            if (isInitialUnitsSnapshot) {
+                isInitialUnitsSnapshot = false;
             }
         } catch (error) {
             console.error("Error processing units snapshot:", error);
@@ -982,6 +1032,9 @@ let listenersInitialized = false;
 window.triggerAttachedUnitsRefresh = async function() {
     console.log("triggerAttachedUnitsRefresh called before listener setup - this is normal during initialization");
 };
+
+// Flag to prevent duplicate close call sound when current user closes a call
+window.isClosingCall = false;
 
 // Ensure all real-time listeners are initialized on page load
 document.addEventListener("DOMContentLoaded", async () => {
@@ -1052,6 +1105,7 @@ function listenForAvailableUnitsUpdates() {
 function listenForAttachedUnitsUpdates() {
     const attachedUnitsRef = collection(db, "attachedUnit");
     let isProcessing = false;
+    let isInitialAttachedUnitsSnapshot = true;
 
     // Function to refresh all attached units
     async function refreshAllAttachedUnits() {
@@ -1103,7 +1157,32 @@ function listenForAttachedUnitsUpdates() {
     // Listen for changes in the "attachedUnit" collection
     onSnapshot(attachedUnitsRef, async (snapshot) => {
         console.log("Attached units collection changed, refreshing...");
+        
+        // Check if any changes are related to the selected call before playing sound
+        let selectedCallAffected = false;
+        if (selectedCallId && !isInitialAttachedUnitsSnapshot) {
+            // Check if any of the changed documents relate to the selected call
+            snapshot.docChanges().forEach((change) => {
+                const data = change.doc.data();
+                if (data.callID === selectedCallId) {
+                    selectedCallAffected = true;
+                    console.log(`Attached unit change detected for selected call ${selectedCallId}: ${change.type}`);
+                }
+            });
+        }
+        
         await refreshAllAttachedUnits();
+        
+        // Only play sound if the selected call was affected and it's not the initial snapshot
+        if (selectedCallAffected && !isInitialAttachedUnitsSnapshot) {
+            playSound("callupdate");
+            console.log("Attached units changed for selected call - playing callupdate sound");
+        }
+        
+        // Mark that we've processed the initial snapshot
+        if (isInitialAttachedUnitsSnapshot) {
+            isInitialAttachedUnitsSnapshot = false;
+        }
     });
 
     // Also call initial refresh to handle already existing data
@@ -1401,7 +1480,6 @@ document.addEventListener("DOMContentLoaded", () => {
                         timestamp: new Date(),
                     });
                     await logUserAction(db, 'add_call', { callerName, description, location, service, callType });
-                    playSound("newcall"); // Play new call sound
                     showNotification("New call added successfully.", "success");
 
                     const addCallModal = document.getElementById("addCallModal");
@@ -1410,6 +1488,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                     addCallForm.reset(); // Reset the form
                     await loadCalls(); // Reload the calls list
+                    // Note: Sound will be played by the real-time listener when it detects the new call
                 } catch (error) {
                     await logUserAction(db, 'add_call_error', { error: error.message });
                     console.error("Error adding new call:", error);
@@ -1624,6 +1703,10 @@ document.addEventListener("DOMContentLoaded", () => {
             showNotification('No call selected to close.', 'error');
             return;
         }
+        
+        // Set flag to prevent duplicate close sound from real-time listener
+        window.isClosingCall = true;
+        
         const callId = selectedCallId;
         const detachedUnits = [];
         try {
@@ -1711,14 +1794,22 @@ document.addEventListener("DOMContentLoaded", () => {
                 callTimestamp.textContent = "";
                 attachedUnits.innerHTML = "<p>No Attached Units</p>";
                 await loadCalls();
+                
+                // Play close call sound
+                playSound("callclosed");
+                
                 showNotification(`Call closed successfully. ${detachedUnits.length} units were detached.`, 'success');
             } catch (deleteError) {
                 // Rollback: Re-attach all detached units
                 await rollbackDetachedUnits(detachedUnits);
                 showNotification('Failed to delete call. Operation cancelled.', 'error');
+                // Reset flag on error
+                window.isClosingCall = false;
             }
         } catch (error) {
             showNotification('Failed to close call. Please try again.', 'error');
+            // Reset flag on error
+            window.isClosingCall = false;
         }
     }
 
