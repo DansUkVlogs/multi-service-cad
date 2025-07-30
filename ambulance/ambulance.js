@@ -2330,12 +2330,11 @@ const callsRef = collection(db, 'calls');
 const q = query(callsRef, where('service', 'in', ['Ambulance', 'Multiple']));
 onSnapshot(q, (snapshot) => {
     const calls = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    // --- Play sound for new call if dispatcher is NOT active ---
+    // --- Sound handled by listenForNewCalls() function with panic detection ---
     const newCalls = calls.filter(call => !previousCallsMap.has(call.id));
     if (newCalls.length > 0 && !dispatcherActive) {
-        // Only play for truly new calls
-        console.log('[AUDIO] New call sound should play (newambulancecall)');
-        playSoundByKey('newambulancecall');
+        // Sound is now handled by the dedicated listenForNewCalls() function
+        console.log('[AUDIO] New call detected - sound handled by listenForNewCalls()');
     }
     // --- Play sound for updated call info (not new) ---
     let playedUpdate = false;
@@ -4666,7 +4665,7 @@ function listenForNewCalls() {
                 playSoundByKey('panictones');
                 console.log('[PANIC SOUND] New panic call detected - playing panic tones');
             } else {
-                playSoundByKey('ambulance-new-call');
+                playSoundByKey('newambulancecall');
                 console.log('[SOUND] New regular call detected - playing ambulance new call sound');
             }
         }

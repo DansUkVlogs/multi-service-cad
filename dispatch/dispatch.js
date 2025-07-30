@@ -981,6 +981,177 @@ function listenForCallUpdates() {
     );
 }
 
+// --- PANIC ALERT REAL-TIME LISTENER FOR DISPATCH ---
+(function setupPanicAlertsListener() {
+    console.log('[DISPATCH PANIC] Setting up panic alerts listener for dispatch');
+    const panicAlertsRef = collection(db, 'panicAlerts');
+    let lastPanicDocIds = [];
+    let lastSelectedTab = 0;
+
+    onSnapshot(panicAlertsRef, (snapshot) => {
+        console.log('[DISPATCH PANIC] Panic alerts listener triggered, snapshot size:', snapshot.size);
+        // Gather all valid panic alerts except placeholders
+        const panicUnits = [];
+        const currentPanicDocIds = [];
+        
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            // Debug log each panic alert
+            console.log('[DISPATCH PANIC] Found panic alert:', data);
+            // Filtering: ignore only empty, null, undefined, 'None', 'placeholder' (case-insensitive)
+            if (
+                data.unitId &&
+                typeof data.unitId === 'string' &&
+                data.unitId.trim() !== '' &&
+                data.unitId.toLowerCase() !== 'none' &&
+                data.unitId.toLowerCase() !== 'placeholder'
+            ) {
+                console.log('[DISPATCH PANIC] --> PASSES FILTER, will be shown in popup');
+                panicUnits.push({ ...data, docId: docSnap.id });
+                currentPanicDocIds.push(docSnap.id);
+            } else {
+                console.log('[DISPATCH PANIC] --> FILTERED OUT');
+            }
+        });
+        
+        console.log('[DISPATCH PANIC] Filtered panic units:', panicUnits);
+        console.log('[DISPATCH PANIC] Current panic doc IDs:', currentPanicDocIds);
+        console.log('[DISPATCH PANIC] Last panic doc IDs:', lastPanicDocIds);
+        
+        // Detect new panic alerts
+        const newPanicIds = currentPanicDocIds.filter(id => !lastPanicDocIds.includes(id));
+        if (newPanicIds.length > 0) {
+            console.log('[DISPATCH PANIC] New panic alerts detected:', newPanicIds);
+            // For dispatch, show all panic alerts regardless of source
+            console.log('[DISPATCH PANIC] Playing panic sound for new panic alerts');
+            // Sound is already handled by listenForCallUpdates when panic calls are created
+        }
+        
+        // Detect removed panic alerts
+        const removedPanicIds = lastPanicDocIds.filter(id => !currentPanicDocIds.includes(id));
+        if (removedPanicIds.length > 0) {
+            console.log('[DISPATCH PANIC] Panic alerts removed:', removedPanicIds);
+            
+            if (currentPanicDocIds.length === 0) {
+                console.log('[DISPATCH PANIC] All panic alerts cleared, UI updated');
+            } else {
+                console.log('[DISPATCH PANIC] Some panic alerts cleared (but others remain), UI updated');
+            }
+        }
+        
+        // If there are any, show the popup with tabs
+        if (panicUnits.length > 0) {
+            // Try to keep the same tab selected if possible
+            let selectedTab = lastSelectedTab;
+            if (selectedTab >= panicUnits.length) selectedTab = 0;
+            showPanicPopupTabs(panicUnits, selectedTab);
+            lastPanicDocIds = currentPanicDocIds;
+            lastSelectedTab = selectedTab;
+        } else {
+            removePanicPopup();
+            lastPanicDocIds = [];
+            lastSelectedTab = 0;
+        }
+    });
+
+    // Show a popup/modal for one or more panic alerts, with tabs
+    function showPanicPopupTabs(panicUnits, selectedTab) {
+        removePanicPopup();
+        // Create popup
+        const popup = document.createElement('div');
+        popup.id = 'panic-popup';
+        popup.style.position = 'fixed';
+        popup.style.bottom = '32px';
+        popup.style.right = '32px';
+        popup.style.zIndex = '2000';
+        popup.style.background = '#fff';
+        popup.style.border = '3px solid #ff2222';
+        popup.style.borderRadius = '16px';
+        popup.style.boxShadow = '0 8px 32px rgba(255,0,0,0.18)';
+        popup.style.padding = '28px 36px 18px 36px';
+        popup.style.minWidth = '320px';
+        popup.style.maxWidth = '90vw';
+        popup.style.fontSize = '1.18rem';
+        popup.style.fontWeight = '700';
+        popup.style.color = '#b71c1c';
+        popup.style.display = 'flex';
+        popup.style.flexDirection = 'column';
+        popup.style.alignItems = 'center';
+        popup.style.gap = '12px';
+
+        // Tabs if more than one
+        let tabsHtml = '';
+        if (panicUnits.length > 1) {
+            tabsHtml = '<div id="panic-tabs" style="display:flex;gap:8px;margin-bottom:10px;">';
+            for (var i = 0; i < panicUnits.length; i++) {
+                var unit = panicUnits[i];
+                var btnStyle = (i === selectedTab) ? 'background:#ff2222;color:#fff;' : 'background:#eee;color:#b71c1c;';
+                tabsHtml += '<button class="panic-tab-btn" data-tab="' + i + '" style="padding:6px 18px;border-radius:8px;border:none;font-weight:bold;cursor:pointer;' + btnStyle + '">' + (unit.callsign || 'Unknown') + '</button>';
+            }
+            tabsHtml += '</div>';
+        }
+
+        // Main content for selected tab
+        var unit = panicUnits[selectedTab];
+        var contentHtml = '';
+        contentHtml += '<div style="font-size:2rem;color:#ff2222;font-weight:bold;">PANIC ALERT</div>';
+        contentHtml += '<div style="font-size:1.1rem;color:#b71c1c;">Unit: <b>' + (unit.callsign || 'Unknown') + '</b></div>';
+        contentHtml += '<div style="font-size:1.1rem;color:#b71c1c;">Service: <b>' + (unit.service || 'Unknown') + '</b></div>';
+        contentHtml += '<div style="font-size:1.1rem;color:#b71c1c;">Location: <b>' + (unit.callLocation || 'Unknown') + '</b></div>';
+        
+        contentHtml += '<button id="panic-popup-minimize" style="margin-top:10px;padding:8px 18px;border-radius:8px;background:#ff2222;color:#fff;font-weight:bold;border:none;cursor:pointer;">Minimize</button>';
+        popup.innerHTML = tabsHtml + contentHtml;
+        document.body.appendChild(popup);
+
+        // Tab switching
+        if (panicUnits.length > 1) {
+            popup.querySelectorAll('.panic-tab-btn').forEach(btn => {
+                btn.onclick = () => {
+                    const idx = parseInt(btn.getAttribute('data-tab'));
+                    lastSelectedTab = idx;
+                    showPanicPopupTabs(panicUnits, idx);
+                };
+            });
+        }
+
+        // Minimize button
+        document.getElementById('panic-popup-minimize').onclick = function() {
+            popup.style.display = 'none';
+            // Add a mini button to restore
+            if (!document.getElementById('panic-mini-btn')) {
+                const miniBtn = document.createElement('button');
+                miniBtn.id = 'panic-mini-btn';
+                miniBtn.textContent = 'See Active PANIC Units';
+                miniBtn.style.position = 'fixed';
+                miniBtn.style.bottom = '32px';
+                miniBtn.style.right = '32px';
+                miniBtn.style.zIndex = '2001';
+                miniBtn.style.background = '#ff2222';
+                miniBtn.style.color = '#fff';
+                miniBtn.style.fontWeight = 'bold';
+                miniBtn.style.border = 'none';
+                miniBtn.style.borderRadius = '12px';
+                miniBtn.style.padding = '14px 24px';
+                miniBtn.style.fontSize = '1.1rem';
+                miniBtn.style.boxShadow = '0 4px 16px rgba(255,0,0,0.18)';
+                miniBtn.onclick = function() {
+                    popup.style.display = 'flex';
+                    miniBtn.remove();
+                };
+                document.body.appendChild(miniBtn);
+            }
+        };
+    }
+
+    // Remove the popup and mini button
+    function removePanicPopup() {
+        const popup = document.getElementById('panic-popup');
+        if (popup) popup.remove();
+        const mini = document.getElementById('panic-mini-btn');
+        if (mini) mini.remove();
+    }
+})();
+
 // Add a real-time listener for the `units` collection to update the Manage Units section
 function listenForUnitStatusUpdates() {
     const unitsRef = collection(db, "units");
@@ -2063,7 +2234,9 @@ const audioPaths = {
     newcall: "https://s3.sonoransoftware.com/cad/default/call_open.mp3",
     callupdate: "https://s3.sonoransoftware.com/cad/default/call_edit.mp3",
     callclosed: "https://s3.sonoransoftware.com/cad/default/call_close.mp3",
-    newnote: "https://s3.sonoransoftware.com/cad/default/notification1.mp3"
+    newnote: "https://s3.sonoransoftware.com/cad/default/notification1.mp3",
+    tones: "https://s3.sonoransoftware.com/cad/default/signal_100.mp3",
+    panictones: "https://s3.sonoransoftware.com/cad/default/tone_panic.mp3"
 };
 
 // Helper function to play a sound
