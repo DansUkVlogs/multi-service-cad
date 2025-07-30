@@ -1544,7 +1544,7 @@ function setupDispatcherCountDisplay() {
         countDisplay.style.fontWeight = 'bold';
         countDisplay.style.fontSize = '1.1em';
         countDisplay.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
-        countDisplay.style.zIndex = '9998';
+        countDisplay.style.zIndex = '1400';
         document.body.appendChild(countDisplay);
     }
     // Listen for changes in the dispatchers collection
@@ -2726,18 +2726,22 @@ document.addEventListener('DOMContentLoaded',()=>{
     if (!historyBtn) {
         historyBtn = document.createElement('button');
         historyBtn.id = 'broadcast-history-btn';
-        historyBtn.textContent = '📢 History';
+        historyBtn.textContent = '📢';
         historyBtn.title = 'Show Broadcast History';
         historyBtn.style.position = 'fixed';
-        historyBtn.style.bottom = '70px';
-        historyBtn.style.right = '24px';
+        historyBtn.style.bottom = '140px';
+        historyBtn.style.left = '20px';
         historyBtn.style.background = '#1976d2';
         historyBtn.style.color = '#fff';
-        historyBtn.style.padding = '10px 22px';
-        historyBtn.style.borderRadius = '10px';
+        historyBtn.style.border = 'none';
+        historyBtn.style.borderRadius = '50%';
+        historyBtn.style.width = '50px';
+        historyBtn.style.height = '50px';
+        historyBtn.style.fontSize = '18px';
         historyBtn.style.fontWeight = 'bold';
-        historyBtn.style.zIndex = '10011';
+        historyBtn.style.zIndex = '1600';
         historyBtn.style.cursor = 'pointer';
+        historyBtn.style.boxShadow = '0 4px 12px rgba(25, 118, 210, 0.3)';
         document.body.appendChild(historyBtn);
     }
     historyBtn.onclick = () => openBroadcastHistoryModal();
@@ -3028,7 +3032,7 @@ function displayDispatcherSessionId() {
     if (!el) {
         el = document.createElement('div');
         el.id = 'dispatcher-id-display';
-        el.style = 'position:fixed;bottom:10px;left:10px;background:#222;color:#fff;padding:6px 12px;border-radius:6px;z-index:9999;font-size:14px;';
+        el.style = 'position:fixed;bottom:10px;left:10px;background:#222;color:#fff;padding:6px 12px;border-radius:6px;z-index:1300;font-size:14px;';
         document.body.appendChild(el);
     }
     el.textContent = `Dispatcher-ID: ${sessionId}`;
@@ -3042,14 +3046,7 @@ function displayUserIdentityButton() {
         identityBtn.id = 'user-identity-btn';
         identityBtn.textContent = '👤 Edit User Details';
         identityBtn.title = 'Click to edit your Discord name and IRL name for logging';
-        identityBtn.style.cssText = `
-            position: fixed; bottom: 130px; right: 24px; 
-            background: #1976d2; color: #fff; border: none; 
-            padding: 8px 16px; border-radius: 6px; 
-            font-size: 13px; font-weight: bold; 
-            cursor: pointer; z-index: 9999;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        `;
+        // Remove inline styles - positioning is now controlled by CSS
         identityBtn.addEventListener('click', showUserIdentityModal);
         document.body.appendChild(identityBtn);
     }
