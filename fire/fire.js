@@ -165,6 +165,7 @@ let userAttachedCallId = null;
 let selfAttachLockActive = false;
 let dispatcherLockActive = false;
 let isSelfAttachInProgress = false; // Track when self-attach operation is happening
+let isSelfDetachInProgress = false; // Track when self-detach operation is happening
 
 // Utility: Check network connectivity (keep for UI, not for DB ops)
 function checkNetworkAndNotify() {
@@ -532,29 +533,55 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!attachedCallId && lastAttachedCallId) {
             (async () => {
                 let shouldShowPopup = true;
-                try {
-                    const callClosingDocRef = doc(db, 'callClosingUnits', `${lastAttachedCallId}_${unitId}`);
-                    const callClosingDoc = await getDoc(callClosingDocRef);
-                    if (callClosingDoc.exists()) {
-                        await deleteDoc(callClosingDocRef);
-                        shouldShowPopup = false;
-                        showNotification('You have been detached from the call.', 'info');
-                        clearCallDetailsSection();
+                
+                // Check if this is a self-detach (user initiated)
+                if (isSelfDetachInProgress) {
+                    // Self-detach: NO message, NO sound
+                    console.log('Self-detach detected - suppressing standown message and sound');
+                    shouldShowPopup = false;
+                } else {
+                    try {
+                        const callClosingDocRef = doc(db, 'callClosingUnits', `${lastAttachedCallId}_${unitId}`);
+                        const callClosingDoc = await getDoc(callClosingDocRef);
+                        if (callClosingDoc.exists()) {
+                            await deleteDoc(callClosingDocRef);
+                            // Check who closed the call and whether to show standown
+                            const closingData = callClosingDoc.data();
+                            if (closingData && closingData.closedByUnit) {
+                                if (closingData.closedByUnit === unitId) {
+                                    // Unit closed their own call: NO message, NO sound
+                                    console.log('Unit closed own call - suppressing standown message and sound');
+                                    shouldShowPopup = false;
+                                } else {
+                                    // Another unit closed the call: SHOW message, PLAY sound
+                                    console.log('Another unit closed the call - showing standown message and sound');
+                                    shouldShowPopup = true;
+                                }
+                            } else {
+                                // Dispatcher closed call: NO message, NO sound (per requirements)
+                                console.log('Dispatcher closed call - suppressing standown message and sound');
+                                shouldShowPopup = false;
+                            }
+                            showNotification('You have been detached from the call.', 'info');
+                            clearCallDetailsSection();
+                        }
+                    } catch (e) {
+                        // If Firestore fails, default to showing popup for regular detaches
+                        console.warn('Error checking call closing status:', e);
+                        shouldShowPopup = true;
                     }
-                } catch (e) {
-                    shouldShowPopup = true;
                 }
+                
                 lastAttachedCallId = null;
                 if (callDetailsUnsub) { callDetailsUnsub(); callDetailsUnsub = null; }
                 clearCallDetailsSection();
                 lastCallData = null;
                 window._prevAttachedUnitIds = new Set();
+                
                 if (shouldShowPopup) {
+                    // Regular dispatcher detach: SHOW message, PLAY sound
                     showStandownModal();
                     playSoundByKey("tones");
-                }
-                else if (!shouldShowPopup) {
-                    playDetachSound();
                 }
             })();
         }
@@ -2846,11 +2873,19 @@ function setupSelfAttachButton() {
                     // Log self detach before removing
                     await logSelfDetach(userAttachedCallId);
                     
+                    // Set flag to indicate self-detach is in progress
+                    isSelfDetachInProgress = true;
+                    
                     // Remove all attachment documents for this unit
                     const deletePromises = attachmentSnapshot.docs.map(doc => 
                         deleteDoc(doc.ref)
                     );
                     await Promise.all(deletePromises);
+                    
+                    // Clear the flag after a delay to allow listeners to detect it
+                    setTimeout(() => {
+                        isSelfDetachInProgress = false;
+                    }, 1000);
                     
                     // Update state
                     isUserAttachedToCall = false;
@@ -3187,6 +3222,7 @@ async function executeCloseCall() {
     
     const callId = window.selectedCall.id;
     const detachedUnits = []; // Track detached units for rollback
+    const closingUnitId = sessionStorage.getItem('unitId'); // Track who is closing the call
     
     try {
         showNotification('Closing call...', 'info');
@@ -3201,6 +3237,28 @@ async function executeCloseCall() {
         
         if (attachedUnitSnapshot.empty) {
             console.log(`[CLOSE CALL] No units attached to call ${callId}`);
+        }
+        
+        // Step 1.5: Create callClosingUnits entries for all attached units to track closure reason
+        for (const attachedDoc of attachedUnitSnapshot.docs) {
+            const unitData = attachedDoc.data();
+            const unitId = unitData.unitID;
+            
+            if (unitId) {
+                try {
+                    const closingDocRef = doc(db, 'callClosingUnits', `${callId}_${unitId}`);
+                    await setDoc(closingDocRef, {
+                        callId: callId,
+                        unitId: unitId,
+                        closedByUnit: closingUnitId, // Track who closed the call
+                        closedAt: new Date(),
+                        reason: 'unit_closed_call'
+                    });
+                    console.log(`[CLOSE CALL] Created closing marker for unit ${unitId}`);
+                } catch (error) {
+                    console.warn(`[CLOSE CALL] Failed to create closing marker for unit ${unitId}:`, error);
+                }
+            }
         }
         
         // Step 2: Detach all units and move them to availableUnits

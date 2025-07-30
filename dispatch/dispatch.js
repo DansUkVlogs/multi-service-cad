@@ -1916,28 +1916,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 const unitId = unitData.unitID;
                 if (!unitId) continue;
                 try {
-                    // Determine service type for this unit (fire, police, ambulance, etc)
-                    let closedBy = 'dispatch';
-                    // Try to get the unit's type from the units collection
-                    let unitType = null;
-                    try {
-                        const unitRef = doc(db, 'units', unitId);
-                        const unitSnap = await getDoc(unitRef);
-                        if (unitSnap.exists()) {
-                            unitType = unitSnap.data().unitType || null;
-                        }
-                    } catch (e) {}
-                    if (unitType) {
-                        closedBy = unitType.toLowerCase(); // e.g., 'fire', 'police', 'ambulance'
-                    }
+                    // Dispatcher closing call - no closedByUnit (null indicates dispatcher)
                     await setDoc(doc(db, 'callClosingUnits', `${callId}_${unitId}`), {
                         callId,
                         unitId,
-                        timestamp: new Date(),
-                        closedBy,
+                        closedByUnit: null, // null indicates dispatcher closed the call
+                        closedAt: new Date(),
+                        reason: 'dispatcher_closed_call'
                     });
+                    console.log(`[DISPATCH CLOSE] Created closing marker for unit ${unitId}`);
                 } catch (err) {
-                    // Ignore errors, continue
+                    console.warn(`[DISPATCH CLOSE] Failed to create closing marker for unit ${unitId}:`, err);
                 }
             }
             // Step 2: Detach all units and move them to availableUnits
