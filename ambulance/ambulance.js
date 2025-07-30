@@ -604,10 +604,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     window._prevAttachedUnitIds = currUnitIds;
 
-                    // If this is the first time (attach), show details and play attach sound
+                    // If this is the first time (attach), show details and play attach sound only if not self-initiated
                     if (!lastCallData) {
                         updateCallDetailsSection(callData);
-                        playAttachSound();
+                        // Only play attach sound if it's not a self-attach operation
+                        if (!isSelfAttachInProgress) {
+                            playAttachSound();
+                        }
                         lastCallData = callData;
                         return;
                     }
@@ -747,6 +750,7 @@ let isUserAttachedToCall = false;
 let userAttachedCallId = null;
 let selfAttachLockActive = false;
 let dispatcherLockActive = false;
+let isSelfAttachInProgress = false; // Track when self-attach operation is happening
 
 // Utility: Check network connectivity (keep for UI, not for DB ops)
 function checkNetworkAndNotify() {
@@ -2963,12 +2967,20 @@ function setupSelfAttachButton() {
                 const unitSnap = await getDoc(doc(db, 'units', unitId));
                 const callsign = unitSnap.exists() ? unitSnap.data().callsign : 'Unknown';
                 
+                // Set flag to indicate self-attach is in progress
+                isSelfAttachInProgress = true;
+                
                 // Attach unit to call
                 await addDoc(collection(db, 'attachedUnit'), {
                     callID: window.selectedCall.id,
                     unitID: unitId,
                     timestamp: serverTimestamp()
                 });
+                
+                // Clear the flag after a short delay to ensure listener processes the attachment
+                setTimeout(() => {
+                    isSelfAttachInProgress = false;
+                }, 1000);
                 
                 // Update state
                 isUserAttachedToCall = true;
