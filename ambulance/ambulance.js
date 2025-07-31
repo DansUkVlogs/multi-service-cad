@@ -604,12 +604,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     window._prevAttachedUnitIds = currUnitIds;
 
-                    // If this is the first time (attach), show details and play attach sound only if not self-initiated
+                    // If this is the first time (attach), show details and play attach sound only if dispatcher assigned
                     if (!lastCallData) {
                         updateCallDetailsSection(callData);
-                        // Only play attach sound if it's not a self-attach operation
-                        if (!isSelfAttachInProgress) {
+                        // Play attach sound only when dispatcher is active and assigns the unit
+                        if (!isSelfAttachInProgress && dispatcherActive) {
                             playAttachSound();
+                            console.log('[SOUND] Unit attached by dispatcher - playing attachment sound');
+                        } else if (isSelfAttachInProgress) {
+                            console.log('[SOUND] Self-attach operation - suppressing attachment sound');
+                        } else if (!dispatcherActive) {
+                            console.log('[SOUND] No dispatcher active - suppressing attachment sound');
                         }
                         lastCallData = callData;
                         return;
@@ -4733,8 +4738,13 @@ function listenForNewCalls() {
                 playSoundByKey('panictones');
                 console.log('[PANIC SOUND] New panic call detected - playing panic tones');
             } else {
-                playSoundByKey('newambulancecall');
-                console.log('[SOUND] New regular call detected - playing ambulance new call sound');
+                // Only play new call sound when no dispatcher is active
+                if (!dispatcherActive) {
+                    playSoundByKey('newambulancecall');
+                    console.log('[SOUND] New regular call detected - playing ambulance new call sound (no dispatcher active)');
+                } else {
+                    console.log('[SOUND] New regular call detected but dispatcher is active - suppressing new call sound');
+                }
             }
         }
 
