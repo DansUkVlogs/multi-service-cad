@@ -254,9 +254,26 @@ async function renderAttachedUnitsForCall(callId) {
         return;
     }
     
-    const attachedUnitsContainer = document.getElementById(`attached-units-${callId}`);
+    // Try multiple times to find the container in case of DOM timing issues
+    let attachedUnitsContainer = null;
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    while (!attachedUnitsContainer && attempts < maxAttempts) {
+        attachedUnitsContainer = document.getElementById(`attached-units-${callId}`);
+        if (!attachedUnitsContainer) {
+            console.warn(`Container not found for call ${callId} on attempt ${attempts + 1}/${maxAttempts}`);
+            attempts++;
+            if (attempts < maxAttempts) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        } else {
+            break;
+        }
+    }
+    
     if (!attachedUnitsContainer) {
-        console.warn(`Container not found for call ${callId}`);
+        console.error(`Container not found for call ${callId} after ${maxAttempts} attempts`);
         return;
     }
 
@@ -456,7 +473,21 @@ async function displayCalls(calls) {
     });
 
     // Attached units will be rendered by the real-time listener (listenForAttachedUnitsUpdates)
-    // No need to call renderAttachedUnitsForCall here to avoid duplication
+    // But add a backup to ensure they are rendered even if the listener is delayed
+    setTimeout(async () => {
+        console.log("Backup: Checking if attached units need to be rendered for all calls");
+        for (const call of calls) {
+            const container = document.getElementById(`attached-units-${call.id}`);
+            if (container && container.children.length === 0) {
+                console.log(`Backup: Rendering attached units for call ${call.id} (container was empty)`);
+                try {
+                    await renderAttachedUnitsForCall(call.id);
+                } catch (error) {
+                    console.error(`Backup: Error rendering attached units for call ${call.id}:`, error);
+                }
+            }
+        }
+    }, 100);
 }
 
 // Helper to refresh all attached units for all calls (can be called after DOM is ready)
@@ -955,7 +986,7 @@ function listenForCallUpdates() {
             setTimeout(() => {
                 console.log("Triggering attached units refresh after calls update");
                 triggerAttachedUnitsRefresh();
-            }, 300);
+            }, 500);
 
             // Ensure the selected call details are updated if it is still selected
             if (selectedCallId) {
@@ -1318,15 +1349,38 @@ function listenForAttachedUnitsUpdates() {
                 return;
             }
             
+            console.log(`Processing attached units for ${allCalls.length} calls`);
+            
             // Refresh attached units for all calls in the "All Calls" section
             for (let i = 0; i < allCalls.length; i++) {
                 const call = allCalls[i];
                 const container = document.getElementById(`attached-units-${call.id}`);
                 if (container) {
                     console.log(`Rendering attached units for call ${call.id} (${i + 1}/${allCalls.length})`);
-                    await renderAttachedUnitsForCall(call.id);
+                    try {
+                        await renderAttachedUnitsForCall(call.id);
+                        // Add a small delay between calls to prevent overwhelming the database
+                        if (i < allCalls.length - 1) {
+                            await new Promise(resolve => setTimeout(resolve, 50));
+                        }
+                    } catch (callError) {
+                        console.error(`Error rendering attached units for call ${call.id}:`, callError);
+                        // Continue with other calls even if one fails
+                    }
                 } else {
-                    console.warn(`Container not found for call ${call.id}`);
+                    console.warn(`Container not found for call ${call.id} - DOM might not be ready yet`);
+                    // Try again after a short delay for missing containers
+                    setTimeout(async () => {
+                        const retryContainer = document.getElementById(`attached-units-${call.id}`);
+                        if (retryContainer) {
+                            console.log(`Retry: Rendering attached units for call ${call.id}`);
+                            try {
+                                await renderAttachedUnitsForCall(call.id);
+                            } catch (retryError) {
+                                console.error(`Retry failed for call ${call.id}:`, retryError);
+                            }
+                        }
+                    }, 250);
                 }
             }
 
