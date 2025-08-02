@@ -567,21 +567,137 @@ document.addEventListener('DOMContentLoaded', () => {
         playSoundByKey('callupdate');
     }
 
+    // Set up listener for status changes of units attached to the same call
+    function setupAttachedUnitsStatusListener(callId) {
+        console.log(`[SOUND DEBUG] Setting up attached units status listener for call ${callId}, current unit: ${unitId}`);
+        
+        // Clean up existing listener
+        if (window.attachedUnitsStatusUnsub) {
+            console.log(`[SOUND DEBUG] Cleaning up existing listener`);
+            window.attachedUnitsStatusUnsub();
+            window.attachedUnitsStatusUnsub = null;
+        }
+
+        // Store unit statuses to detect changes
+        const unitStatuses = new Map();
+        let unitUnsubscribers = new Map();
+
+        // Listen for changes in attached units for this call
+        const attachedUnitQuery = query(collection(db, 'attachedUnit'), where('callID', '==', callId));
+        
+        const attachedUnitsListener = onSnapshot(attachedUnitQuery, (attachedSnapshot) => {
+            console.log(`[SOUND DEBUG] Attached units snapshot received for call ${callId}, docs count: ${attachedSnapshot.docs.length}`);
+            
+            // Get current attached unit IDs (excluding self)
+            const currentAttachedUnitIds = new Set();
+            const allAttachedUnitIds = new Set();
+            attachedSnapshot.forEach(doc => {
+                const unitID = doc.data().unitID;
+                if (unitID) {
+                    allAttachedUnitIds.add(unitID);
+                    if (unitID !== unitId) { // Exclude self to avoid duplicate sounds
+                        currentAttachedUnitIds.add(unitID);
+                    }
+                }
+            });
+
+            console.log(`[SOUND DEBUG] All attached units:`, Array.from(allAttachedUnitIds));
+            console.log(`[SOUND DEBUG] Other attached units (excluding self ${unitId}):`, Array.from(currentAttachedUnitIds));
+
+            // Clean up listeners for units no longer attached
+            unitUnsubscribers.forEach((unsub, unitID) => {
+                if (!currentAttachedUnitIds.has(unitID)) {
+                    console.log(`[SOUND DEBUG] Removing listener for detached unit ${unitID}`);
+                    unsub();
+                    unitUnsubscribers.delete(unitID);
+                    unitStatuses.delete(unitID);
+                }
+            });
+
+            // Set up listeners for newly attached units
+            currentAttachedUnitIds.forEach(attachedUnitId => {
+                if (!unitUnsubscribers.has(attachedUnitId)) {
+                    console.log(`[SOUND DEBUG] Setting up status listener for newly attached unit ${attachedUnitId}`);
+                    
+                    const unitStatusListener = onSnapshot(doc(db, 'units', attachedUnitId), (unitDoc) => {
+                        if (unitDoc.exists()) {
+                            const unitData = unitDoc.data();
+                            const currentStatus = unitData.status;
+                            const previousStatus = unitStatuses.get(attachedUnitId);
+
+                            console.log(`[SOUND DEBUG] Unit ${attachedUnitId} status update: "${previousStatus}" -> "${currentStatus}"`);
+
+                            // If this is the first time we're seeing this unit, just store the status
+                            if (previousStatus === undefined) {
+                                unitStatuses.set(attachedUnitId, currentStatus);
+                                console.log(`[SOUND DEBUG] Initial status stored for unit ${attachedUnitId}: "${currentStatus}"`);
+                                return;
+                            }
+
+                            // If status changed, play statuschange sound
+                            if (currentStatus !== previousStatus) {
+                                console.log(`[SOUND DEBUG] *** STATUS CHANGE DETECTED *** Unit ${attachedUnitId} status changed from "${previousStatus}" to "${currentStatus}" - PLAYING STATUSCHANGE SOUND`);
+                                playSoundByKey('statuschange');
+                                unitStatuses.set(attachedUnitId, currentStatus);
+                            } else {
+                                console.log(`[SOUND DEBUG] Unit ${attachedUnitId} status unchanged: "${currentStatus}"`);
+                            }
+                        } else {
+                            console.log(`[SOUND DEBUG] Unit ${attachedUnitId} document does not exist`);
+                        }
+                    }, (error) => {
+                        console.error(`[SOUND DEBUG] Error listening to unit ${attachedUnitId}:`, error);
+                    });
+
+                    unitUnsubscribers.set(attachedUnitId, unitStatusListener);
+                }
+            });
+
+            if (currentAttachedUnitIds.size === 0) {
+                console.log(`[SOUND DEBUG] No other units attached to this call yet`);
+            }
+        }, (error) => {
+            console.error(`[SOUND DEBUG] Error listening to attached units for call ${callId}:`, error);
+        });
+
+        // Store combined unsubscriber function
+        window.attachedUnitsStatusUnsub = () => {
+            console.log(`[SOUND DEBUG] Cleaning up all attached units status listeners for call ${callId}`);
+            attachedUnitsListener();
+            unitUnsubscribers.forEach(unsub => unsub());
+            unitUnsubscribers.clear();
+            unitStatuses.clear();
+        };
+    }
+
     // Listen for changes in attachedUnit for this unit
     const attachedUnitQuery = query(collection(db, 'attachedUnit'), where('unitID', '==', unitId));
     onSnapshot(attachedUnitQuery, (snapshot) => {
+        console.log(`[SOUND DEBUG] Attachment snapshot for unit ${unitId}, docs found: ${snapshot.docs.length}`);
+        
         let attachedCallId = null;
         if (!snapshot.empty) {
             attachedCallId = snapshot.docs[0].data().callID;
+            console.log(`[SOUND DEBUG] Unit ${unitId} is attached to call: ${attachedCallId}`);
+        } else {
+            console.log(`[SOUND DEBUG] Unit ${unitId} is not attached to any call`);
         }
-        // Attach event (self-initiated only)
+        
+        // Attach event (includes both dispatcher-assigned and self-attach)
         if (attachedCallId && attachedCallId !== lastAttachedCallId) {
+            console.log(`[SOUND DEBUG] *** ATTACH EVENT *** Unit ${unitId} attached to call ${attachedCallId} (previous: ${lastAttachedCallId})`);
+            
             if (!selfAttachLockActive) {
                 logSelfAttach(attachedCallId);
             }
             lastAttachedCallId = attachedCallId;
             // Set up real-time listener for the call details and attached units
             if (callDetailsUnsub) callDetailsUnsub();
+            
+            // Set up listener for unit status changes of other attached units
+            console.log(`[SOUND DEBUG] Setting up attached units status listener for call ${attachedCallId}`);
+            setupAttachedUnitsStatusListener(attachedCallId);
+            
             // Listen for call document changes
             callDetailsUnsub = onSnapshot(doc(db, 'calls', attachedCallId), async (docSnap) => {
                 if (docSnap.exists()) {
@@ -653,6 +769,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const detachingCallId = lastAttachedCallId;
             lastAttachedCallId = null;
             if (callDetailsUnsub) { callDetailsUnsub(); callDetailsUnsub = null; }
+            if (window.attachedUnitsStatusUnsub) { 
+                window.attachedUnitsStatusUnsub(); 
+                window.attachedUnitsStatusUnsub = null; 
+            }
             clearCallDetailsSection();
             lastCallData = null;
             // --- GLOBAL DETACH LOGIC: Only show standown popup/sound if not detaching due to call close (tracked in Firestore) ---
