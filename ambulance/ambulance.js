@@ -564,6 +564,7 @@ document.addEventListener('DOMContentLoaded', () => {
         playSoundByKey('callclosed');
     }
     function playUpdateSound() {
+        console.log('[SOUND DEBUG] playUpdateSound called - about to play callupdate');
         playSoundByKey('callupdate');
     }
 
@@ -702,23 +703,6 @@ document.addEventListener('DOMContentLoaded', () => {
             callDetailsUnsub = onSnapshot(doc(db, 'calls', attachedCallId), async (docSnap) => {
                 if (docSnap.exists()) {
                     const callData = { id: docSnap.id, ...docSnap.data() };
-                    // Listen for attached/detached units for this call
-                    const attachedUnitCallQuery = query(collection(db, 'attachedUnit'), where('callID', '==', attachedCallId));
-                    // Track previous attached unit IDs
-                    if (!window._prevAttachedUnitIds) window._prevAttachedUnitIds = new Set();
-                    let prevUnitIds = new Set(window._prevAttachedUnitIds);
-                    let currUnitIds = new Set();
-                    const attachedUnitSnapshot = await getDocs(attachedUnitCallQuery);
-                    attachedUnitSnapshot.forEach(docu => {
-                        const data = docu.data();
-                        if (data.unitID) currUnitIds.add(data.unitID);
-                    });
-                    // Detect attach/detach
-                    let attachedChanged = false;
-                    if (prevUnitIds.size !== currUnitIds.size || [...prevUnitIds].some(id => !currUnitIds.has(id)) || [...currUnitIds].some(id => !prevUnitIds.has(id))) {
-                        attachedChanged = true;
-                    }
-                    window._prevAttachedUnitIds = currUnitIds;
 
                     // If this is the first time (attach), show details and play attach sound only if dispatcher assigned
                     if (!lastCallData) {
@@ -742,8 +726,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         callData['status'] !== lastCallData['status'] ||
                         callData['location'] !== lastCallData['location'] ||
                         callData['callerName'] !== lastCallData['callerName'] ||
-                        callData['callType'] !== lastCallData['callType'] ||
-                        attachedChanged
+                        callData['callType'] !== lastCallData['callType']
                     ) {
                         playUpdateSound();
                     }
@@ -756,6 +739,48 @@ document.addEventListener('DOMContentLoaded', () => {
                     lastCallData = null;
                 }
             });
+
+            // SEPARATE listener for attachment/detachment detection
+            const attachedUnitCallQuery = query(collection(db, 'attachedUnit'), where('callID', '==', attachedCallId));
+            let prevAttachedUnitIds = new Set();
+            
+            const attachmentListener = onSnapshot(attachedUnitCallQuery, (attachedSnapshot) => {
+                console.log(`[SOUND DEBUG] Attachment change detected for call ${attachedCallId}`);
+                
+                const currentUnitIds = new Set();
+                attachedSnapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (data.unitID) currentUnitIds.add(data.unitID);
+                });
+                
+                console.log(`[SOUND DEBUG] Previous units:`, Array.from(prevAttachedUnitIds));
+                console.log(`[SOUND DEBUG] Current units:`, Array.from(currentUnitIds));
+                
+                // Skip initial snapshot
+                if (prevAttachedUnitIds.size === 0) {
+                    prevAttachedUnitIds = new Set(currentUnitIds);
+                    console.log(`[SOUND DEBUG] Initial attachment state recorded`);
+                    return;
+                }
+                
+                // Detect changes
+                const attachedChanged = prevAttachedUnitIds.size !== currentUnitIds.size || 
+                    [...prevAttachedUnitIds].some(id => !currentUnitIds.has(id)) || 
+                    [...currentUnitIds].some(id => !prevAttachedUnitIds.has(id));
+                
+                if (attachedChanged) {
+                    console.log(`[SOUND DEBUG] *** ATTACHMENT CHANGE DETECTED *** - playing callupdate sound`);
+                    console.log('[SOUND DEBUG] playUpdateSound called - about to play callupdate');
+                    playUpdateSound();
+                } else {
+                    console.log(`[SOUND DEBUG] No attachment changes detected`);
+                }
+                
+                prevAttachedUnitIds = new Set(currentUnitIds);
+            });
+            
+            // Store attachment listener for cleanup
+            window.attachmentListener = attachmentListener;
         }
         // Detach event (self-initiated only)
         if (!attachedCallId && lastAttachedCallId) {
@@ -772,6 +797,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (window.attachedUnitsStatusUnsub) { 
                 window.attachedUnitsStatusUnsub(); 
                 window.attachedUnitsStatusUnsub = null; 
+            }
+            if (window.attachmentListener) {
+                window.attachmentListener();
+                window.attachmentListener = null;
             }
             clearCallDetailsSection();
             lastCallData = null;
@@ -974,19 +1003,31 @@ let soundQueue = [];
 let isStartupModalActive = true;
 
 function playSound(audioUrl) {
+    console.log('[AUDIO] playSound called with url:', audioUrl);
+    console.log('[AUDIO] Current state - isStartupModalActive:', window.isStartupModalActive, 'userHasInteracted:', window.userHasInteracted);
+    
     if (isStartupModalActive) {
         console.log('[AUDIO] Muted due to startup modal:', audioUrl);
         return;
     }
-    console.log('[AUDIO] playSound called with url:', audioUrl, 'userHasInteracted:', userHasInteracted);
-    if (!audioUrl) return;
+    
+    if (!audioUrl) {
+        console.log('[AUDIO] No audio URL provided, skipping sound');
+        return;
+    }
+    
     if (!userHasInteracted) {
+        console.log('[AUDIO] User has not interacted yet, queuing sound:', audioUrl);
         soundQueue.push(audioUrl);
         return;
     }
+    
+    console.log('[AUDIO] All checks passed, attempting to play sound:', audioUrl);
     try {
         const audio = new Audio(audioUrl);
-        audio.play().catch((err) => {
+        audio.play().then(() => {
+            console.log('[AUDIO] Sound played successfully:', audioUrl);
+        }).catch((err) => {
             console.error('[AUDIO] playSound error (play promise):', err);
             // If play fails, re-queue the sound
             soundQueue.push(audioUrl);
@@ -1052,13 +1093,16 @@ function loadAudioPaths() {
 // Patch playSound to wait for audioPaths if not loaded
 function playSoundByKey(key) {
     console.log('[AUDIO] playSoundByKey called with key:', key, 'audioPathsLoaded:', audioPathsLoaded, 'audioPaths:', audioPaths);
+    console.log('[AUDIO] Additional state - isStartupModalActive:', window.isStartupModalActive, 'userHasInteracted:', window.userHasInteracted);
     if (!audioPathsLoaded) {
+        console.log('[AUDIO] Audio paths not loaded, queuing sound request');
         // Queue the request until audioPaths is loaded
         pendingSoundRequests.push([audioPaths && audioPaths[key] ? audioPaths[key] : null]);
         loadAudioPaths();
         return;
     }
     const url = audioPaths && audioPaths[key] ? audioPaths[key] : null;
+    console.log('[AUDIO] Resolved URL for key', key, ':', url);
     playSound(url);
 }
 
