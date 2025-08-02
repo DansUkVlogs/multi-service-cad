@@ -304,34 +304,38 @@ body {
 }
 
 .calls-fade-top {
-    top: 23%;
+    top: 18%;
 }
 
 .calls-fade-top, .calls-fade-bottom {
     position: absolute;
     left: 0;
     width: 100%;
-    height: 36px;
-    min-height: 24px;
-    max-height: 48px;
+    height: 60px;
+    min-height: 48px;
+    max-height: 72px;
     pointer-events: none;
     z-index: 20;
     transition: opacity 0.3s;
-    background: linear-gradient(to bottom, black 70%, transparent 100%);
+    background: linear-gradient(90deg, #e3f2fd 0%, #bbdefb 100%);
+    mask: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
+    -webkit-mask: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
     opacity: 1;
 }
 .calls-fade-bottom {
     position: absolute;
     left: 0;
     width: 100%;
-    height: 48px;
-    min-height: 48px;
-    max-height: 48px;
+    height: 72px;
+    min-height: 60px;
+    max-height: 84px;
     pointer-events: none;
     z-index: 20;
     transition: opacity 0.3s;
     bottom: 5px;
-    background: linear-gradient(to top, black 70%, transparent 100%);
+    background: linear-gradient(90deg, #e3f2fd 0%, #bbdefb 100%);
+    mask: linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
+    -webkit-mask: linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
     opacity: 1;
 }
 .calls-fade-top.hidden, .calls-fade-bottom.hidden {
@@ -1416,37 +1420,6 @@ body.modal-active .modal-overlay {
         font-size: 1rem;
         padding: 7px 12px;
     }
-}
-
-.calls-fade-top, .calls-fade-bottom {
-    position: absolute;
-    left: 0;
-    width: 100%;
-    height: 30px;
-    min-height: 24px;
-    max-height: 48px;
-    pointer-events: none;
-    z-index: 20;
-    transition: opacity 0.3s;
-    background: linear-gradient(to bottom, #004d00 70%, transparent 100%);
-    opacity: 1;
-}
-.calls-fade-bottom {
-    position: absolute;
-    left: 0;
-    width: 100%;
-    height: 36px;
-    min-height: 24px;
-    max-height: 48px;
-    pointer-events: none;
-    z-index: 20;
-    transition: opacity 0.3s;
-    bottom: 0;
-    background: linear-gradient(to top, #004d00 70%, transparent 100%);
-    opacity: 1;
-}
-.calls-fade-top.hidden, .calls-fade-bottom.hidden {
-    opacity: 0;
 }
 
 /* Define a CSS variable for the calls list header height at the top of the file or in :root */
