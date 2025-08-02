@@ -260,9 +260,9 @@ body {
     width: 100%;
     height: 100%; /* Ensure both columns fill the parent */
     align-items: stretch; /* Make children the same height */
-    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
     border-radius: 18px;
-    box-shadow: 0 4px 24px rgba(21, 101, 192, 0.07);
+    box-shadow: 0 4px 24px rgba(183, 28, 28, 0.07);
     padding: 18px 12px;
 }
 
@@ -283,12 +283,12 @@ body {
     left: 0;
     right: 0;
     z-index: 2;
-    background: linear-gradient(90deg, #e3f2fd 0%, #bbdefb 100%);
+    background: transparent;
     padding-bottom: 10px;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    border-bottom: 1px solid #b6f0c1;
+    border-bottom: 1px solid #ffcdd2;
 }
 
 /* Calls List Content scrolls */
@@ -311,33 +311,31 @@ body {
     position: absolute;
     left: 0;
     width: 100%;
-    height: 60px;
-    min-height: 48px;
-    max-height: 72px;
+    height: 90px;
+    min-height: 75px;
+    max-height: 110px;
     pointer-events: none;
     z-index: 20;
     transition: opacity 0.3s;
-    background: linear-gradient(to bottom, 
-        rgba(255, 235, 238, 1) 0%, 
-        rgba(255, 205, 210, 1) 30%, 
-        rgba(255, 205, 210, 0) 100%);
+    background: linear-gradient(90deg, #ffcdd2 0%, #ffebee 100%);
+    mask: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
+    -webkit-mask: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
     opacity: 1;
 }
 .calls-fade-bottom {
     position: absolute;
     left: 0;
     width: 100%;
-    height: 72px;
-    min-height: 60px;
-    max-height: 84px;
+    height: 100px;
+    min-height: 85px;
+    max-height: 120px;
     pointer-events: none;
     z-index: 20;
     transition: opacity 0.3s;
     bottom: 5px;
-    background: linear-gradient(to top, 
-        rgba(255, 235, 238, 1) 0%, 
-        rgba(255, 205, 210, 1) 30%, 
-        rgba(255, 205, 210, 0) 100%);
+    background: linear-gradient(90deg, #ffebee 0%, #ffcdd2 100%);
+    mask: linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
+    -webkit-mask: linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
     opacity: 1;
 }
 .calls-fade-top.hidden, .calls-fade-bottom.hidden {
@@ -568,10 +566,10 @@ body {
 }
 
 .calls-list {
-    background: #ffebee; /* Light red */
+    background: transparent;
     color: #b71c1c;
     padding: 20px;
-    border-radius: 10px;
+    border-radius: 0;
     flex: 0.5; /* Adjust width to take up half the page */
     height: 100%;
     min-height: 100%;
@@ -1422,37 +1420,6 @@ body.modal-active .modal-overlay {
         font-size: 1rem;
         padding: 7px 12px;
     }
-}
-
-.calls-fade-top, .calls-fade-bottom {
-    position: absolute;
-    left: 0;
-    width: 100%;
-    height: 48px;
-    min-height: 36px;
-    max-height: 60px;
-    pointer-events: none;
-    z-index: 20;
-    transition: opacity 0.3s;
-    background: linear-gradient(to bottom, #ffebee 70%, transparent 100%);
-    opacity: 1;
-}
-.calls-fade-bottom {
-    position: absolute;
-    left: 0;
-    width: 100%;
-    height: 60px;
-    min-height: 48px;
-    max-height: 72px;
-    pointer-events: none;
-    z-index: 20;
-    transition: opacity 0.3s;
-    bottom: 0;
-    background: linear-gradient(to top, #ffebee 70%, transparent 100%);
-    opacity: 1;
-}
-.calls-fade-top.hidden, .calls-fade-bottom.hidden {
-    opacity: 0;
 }
 
 /* Define a CSS variable for the calls list header height at the top of the file or in :root */
