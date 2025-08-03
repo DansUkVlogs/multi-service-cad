@@ -2,22 +2,324 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Admin Panel</title>
+  <title>Admin Control Panel - CAD System</title>
   <link rel="stylesheet" href="admin.css">
   <link rel="icon" href="../imgs/icon.png" type="image/png">
 </head>
 <body>
-  <header style="text-align: center; margin-bottom: 20px;">
-    <img src="../imgs/logo.png" alt="Logo" style="width: 150px; height: auto; margin-bottom: 10px; border: 2px solid #ccc; border-radius: 10px;">
-    <h1>🚨 Admin Control Panel</h1>
+  <!-- Header -->
+  <header class="admin-header">
+    <div class="header-content">
+      <img src="../imgs/logo.png" alt="Logo" class="admin-logo">
+      <div class="header-title">
+        <h1>🔐 Admin Control Panel</h1>
+        <p>British Empire CAD System Management</p>
+      </div>
+      <div class="header-actions">
+        <button id="logoutBtn" class="logout-btn">Logout</button>
+        <a href="../index.html" class="back-home-btn">← Home</a>
+      </div>
+    </div>
   </header>
 
-  <div id="stats">
-    <p>Total Users: <span id="userCount">Loading...</span></p>
-    <p>Active Calls: <span id="callCount">Loading...</span></p>
+  <!-- Tab Navigation -->
+  <nav class="tab-navigation">
+    <button class="tab-btn active" data-tab="dashboard">📊 Dashboard</button>
+    <button class="tab-btn" data-tab="live-activity">📡 Live Activity</button>
+    <button class="tab-btn" data-tab="user-management">👥 User Management</button>
+    <button class="tab-btn" data-tab="call-management">🚨 Call Management</button>
+    <button class="tab-btn" data-tab="system-logs">📋 System Logs</button>
+    <button class="tab-btn" data-tab="settings">⚙️ Settings</button>
+  </nav>
+
+  <!-- Tab Content Container -->
+  <main class="tab-container">
+    
+    <!-- Dashboard Tab -->
+    <div id="dashboard" class="tab-content active">
+      <div class="dashboard-grid">
+        <!-- Metrics Cards -->
+        <div class="metrics-row">
+          <div class="metric-card">
+            <div class="metric-icon">👥</div>
+            <div class="metric-info">
+              <div class="metric-value" id="totalUsers">-</div>
+              <div class="metric-label">Total Active Users</div>
+            </div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon">🚨</div>
+            <div class="metric-info">
+              <div class="metric-value" id="activeCalls">-</div>
+              <div class="metric-label">Active Calls</div>
+            </div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon">✅</div>
+            <div class="metric-info">
+              <div class="metric-value" id="systemStatus">Online</div>
+              <div class="metric-label">System Status</div>
+            </div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon">⚠️</div>
+            <div class="metric-info">
+              <div class="metric-value" id="recentAlerts">0</div>
+              <div class="metric-label">Recent Alerts</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Service Status Grid -->
+        <div class="section-card">
+          <h3>Service Status Overview</h3>
+          <div class="service-grid" id="serviceGrid">
+            <div class="service-status">
+              <div class="service-icon">🚔</div>
+              <div class="service-name">Police</div>
+              <div class="service-count" id="policeCount">-</div>
+            </div>
+            <div class="service-status">
+              <div class="service-icon">🚑</div>
+              <div class="service-name">Ambulance</div>
+              <div class="service-count" id="ambulanceCount">-</div>
+            </div>
+            <div class="service-status">
+              <div class="service-icon">🚒</div>
+              <div class="service-name">Fire</div>
+              <div class="service-count" id="fireCount">-</div>
+            </div>
+            <div class="service-status">
+              <div class="service-icon">📡</div>
+              <div class="service-name">Dispatch</div>
+              <div class="service-count" id="dispatchCount">-</div>
+            </div>
+            <div class="service-status">
+              <div class="service-icon">👤</div>
+              <div class="service-name">Civilian</div>
+              <div class="service-count" id="civilianCount">-</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Activity Feed -->
+        <div class="section-card">
+          <h3>Recent Activity</h3>
+          <div class="activity-feed" id="recentActivityFeed">
+            <div class="activity-item">
+              <div class="activity-time">Loading...</div>
+              <div class="activity-text">Fetching recent activities...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Activity Tab -->
+    <div id="live-activity" class="tab-content">
+      <div class="section-card">
+        <div class="section-header">
+          <h3>Real-time Activity Monitor</h3>
+          <div class="activity-controls">
+            <button id="pauseActivityBtn" class="control-btn">⏸️ Pause</button>
+            <button id="clearActivityBtn" class="control-btn">🗑️ Clear</button>
+            <label class="auto-refresh-toggle">
+              <input type="checkbox" id="autoRefreshToggle" checked>
+              Auto-refresh
+            </label>
+          </div>
+        </div>
+        <div class="activity-filters">
+          <select id="serviceFilter">
+            <option value="">All Services</option>
+            <option value="Police">Police</option>
+            <option value="Ambulance">Ambulance</option>
+            <option value="Fire">Fire</option>
+            <option value="Dispatch">Dispatch</option>
+            <option value="Civilian">Civilian</option>
+          </select>
+          <select id="actionFilter">
+            <option value="">All Actions</option>
+            <option value="Login">Login</option>
+            <option value="Status Change">Status Change</option>
+            <option value="Call Attach">Call Attach</option>
+            <option value="Call Detach">Call Detach</option>
+          </select>
+          <input type="text" id="activitySearch" placeholder="Search activities...">
+        </div>
+        <div class="live-activity-feed" id="liveActivityFeed">
+          <!-- Real-time activity items will be inserted here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- User Management Tab -->
+    <div id="user-management" class="tab-content">
+      <div class="section-card">
+        <div class="section-header">
+          <h3>Connected Users</h3>
+          <div class="user-controls">
+            <button id="refreshUsersBtn" class="control-btn">🔄 Refresh</button>
+            <select id="userServiceFilter">
+              <option value="">All Services</option>
+              <option value="Police">Police</option>
+              <option value="Ambulance">Ambulance</option>
+              <option value="Fire">Fire</option>
+              <option value="Dispatch">Dispatch</option>
+              <option value="Civilian">Civilian</option>
+            </select>
+          </div>
+        </div>
+        <div class="users-table-container">
+          <table class="users-table" id="usersTable">
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Service</th>
+                <th>Status</th>
+                <th>Callsign/ID</th>
+                <th>Last Active</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody">
+              <tr>
+                <td colspan="6" class="loading-cell">Loading users...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Call Management Tab -->
+    <div id="call-management" class="tab-content">
+      <div class="section-card">
+        <div class="section-header">
+          <h3>Active Calls Management</h3>
+          <div class="call-controls">
+            <button id="refreshCallsBtn" class="control-btn">🔄 Refresh</button>
+            <button id="newCallBtn" class="control-btn primary">➕ New Call</button>
+          </div>
+        </div>
+        <div class="calls-grid" id="activeCallsGrid">
+          <!-- Active calls will be displayed here -->
+        </div>
+      </div>
+      
+      <div class="section-card">
+        <h3>Call History</h3>
+        <div class="call-history" id="callHistory">
+          <!-- Call history will be displayed here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- System Logs Tab -->
+    <div id="system-logs" class="tab-content">
+      <div class="section-card">
+        <div class="section-header">
+          <h3>System Activity Logs</h3>
+          <div class="log-controls">
+            <button id="exportLogsBtn" class="control-btn">📥 Export</button>
+            <button id="clearLogsBtn" class="control-btn danger">🗑️ Clear All</button>
+            <select id="logDateFilter">
+              <option value="today">Today</option>
+              <option value="week">Last Week</option>
+              <option value="month">Last Month</option>
+              <option value="all">All Time</option>
+            </select>
+          </div>
+        </div>
+        <div class="log-filters">
+          <input type="text" id="logSearch" placeholder="Search logs...">
+          <select id="logServiceFilter">
+            <option value="">All Services</option>
+            <option value="Police">Police</option>
+            <option value="Ambulance">Ambulance</option>
+            <option value="Fire">Fire</option>
+            <option value="Dispatch">Dispatch</option>
+            <option value="Civilian">Civilian</option>
+          </select>
+          <select id="logActionFilter">
+            <option value="">All Actions</option>
+            <option value="Login">Login</option>
+            <option value="Status Change">Status Change</option>
+            <option value="Call Management">Call Management</option>
+          </select>
+        </div>
+        <div class="logs-table-container">
+          <table class="logs-table" id="logsTable">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>User</th>
+                <th>Service</th>
+                <th>Action</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="logsTableBody">
+              <tr>
+                <td colspan="5" class="loading-cell">Loading logs...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Tab -->
+    <div id="settings" class="tab-content">
+      <div class="settings-grid">
+        <div class="section-card">
+          <h3>🔊 Broadcast System</h3>
+          <div class="broadcast-section">
+            <textarea id="broadcastMessage" placeholder="Enter broadcast message..." rows="4"></textarea>
+            <div class="broadcast-options">
+              <label>
+                <input type="checkbox" id="broadcastAll" checked>
+                Send to all services
+              </label>
+              <div class="service-checkboxes" id="serviceCheckboxes">
+                <label><input type="checkbox" value="Police"> Police</label>
+                <label><input type="checkbox" value="Ambulance"> Ambulance</label>
+                <label><input type="checkbox" value="Fire"> Fire</label>
+                <label><input type="checkbox" value="Dispatch"> Dispatch</label>
+                <label><input type="checkbox" value="Civilian"> Civilian</label>
+              </div>
+            </div>
+            <button id="sendBroadcastBtn" class="control-btn primary">📢 Send Broadcast</button>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <h3>⚠️ Emergency Controls</h3>
+          <div class="emergency-controls">
+            <button id="emergencyAlertBtn" class="control-btn danger">🚨 Emergency Alert</button>
+            <button id="systemMaintenanceBtn" class="control-btn warning">🔧 Maintenance Mode</button>
+            <button id="forceLogoutAllBtn" class="control-btn danger">🚪 Force Logout All</button>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <h3>🔐 Admin Management</h3>
+          <div class="admin-settings">
+            <button id="changePasswordBtn" class="control-btn">🔑 Change Password</button>
+            <button id="viewSessionsBtn" class="control-btn">👁️ View Sessions</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Loading...</div>
   </div>
 
-  <script type="module" src="../firebase/firebase.js"></script>
   <script type="module" src="admin.js"></script>
 </body>
 </html>

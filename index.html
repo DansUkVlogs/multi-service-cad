@@ -92,6 +92,27 @@
   
   <script type="module" src="firebase/firebase.js"></script>
   <script type="module" src="index.js"></script>
+  <!-- Admin Login Modal -->
+  <div id="adminLoginModal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.65);z-index:10000;align-items:center;justify-content:center;">
+    <div style="background:#fff;padding:36px 32px 28px 32px;border-radius:18px;box-shadow:0 8px 32px rgba(139,69,19,0.25);min-width:380px;max-width:95vw;text-align:center;border:2px solid #8b4513;">
+      <h2 style="margin-bottom:18px;color:#8b4513;font-size:1.8rem;">🔐 Admin Access</h2>
+      <p style="margin-bottom:24px;color:#666;font-size:1.1rem;">Enter admin credentials to access the control panel</p>
+      <div style="margin-bottom:18px;">
+        <label for="adminUsername" style="font-weight:bold;color:#8b4513;">Username</label><br>
+        <input id="adminUsername" type="text" style="width:90%;padding:12px 14px;margin-top:6px;border-radius:8px;border:2px solid #d2b48c;font-size:1.1em;" placeholder="Enter username" autocomplete="username">
+      </div>
+      <div style="margin-bottom:24px;">
+        <label for="adminPassword" style="font-weight:bold;color:#8b4513;">Password</label><br>
+        <input id="adminPassword" type="password" style="width:90%;padding:12px 14px;margin-top:6px;border-radius:8px;border:2px solid #d2b48c;font-size:1.1em;" placeholder="Enter password" autocomplete="current-password">
+      </div>
+      <div style="display:flex;gap:12px;justify-content:center;">
+        <button id="adminLoginBtn" style="background:#8b4513;color:#fff;padding:12px 24px;border:none;border-radius:8px;font-weight:bold;font-size:1.1em;cursor:pointer;">Login</button>
+        <button id="adminCancelBtn" style="background:#999;color:#fff;padding:12px 24px;border:none;border-radius:8px;font-weight:bold;font-size:1.1em;cursor:pointer;">Cancel</button>
+      </div>
+      <div id="adminLoginError" style="color:#d32f2f;margin-top:12px;font-weight:bold;display:none;"></div>
+    </div>
+  </div>
+
   <script>
   // Add click handlers for counter navigation
   document.addEventListener('DOMContentLoaded', function() {
@@ -99,6 +120,12 @@
       counter.addEventListener('click', function() {
         const role = counter.getAttribute('data-role');
         const url = counter.getAttribute('data-url');
+        
+        // Check if this is the admin/total counter
+        if (role === 'admin') {
+          showAdminLoginModal();
+          return;
+        }
         
         // Store role in localStorage for compatibility
         localStorage.setItem('userRole', role);
@@ -110,6 +137,65 @@
           window.location.href = url;
         }, 150);
       });
+    });
+
+    // Admin login modal functionality
+    function showAdminLoginModal() {
+      const modal = document.getElementById('adminLoginModal');
+      modal.style.display = 'flex';
+      document.getElementById('adminUsername').focus();
+    }
+
+    function hideAdminLoginModal() {
+      const modal = document.getElementById('adminLoginModal');
+      modal.style.display = 'none';
+      document.getElementById('adminUsername').value = '';
+      document.getElementById('adminPassword').value = '';
+      document.getElementById('adminLoginError').style.display = 'none';
+    }
+
+    function showAdminError(message) {
+      const errorDiv = document.getElementById('adminLoginError');
+      errorDiv.textContent = message;
+      errorDiv.style.display = 'block';
+    }
+
+    function validateAdminLogin() {
+      const username = document.getElementById('adminUsername').value.trim();
+      const password = document.getElementById('adminPassword').value.trim();
+      
+      // Simple validation (username: admin, password: admin)
+      if (username === 'admin' && password === 'admin') {
+        // Store admin session
+        sessionStorage.setItem('adminLoggedIn', 'true');
+        sessionStorage.setItem('adminLoginTime', Date.now().toString());
+        
+        // Navigate to admin page
+        window.location.href = 'admin/admin.html';
+      } else {
+        showAdminError('Invalid username or password');
+        // Clear password field
+        document.getElementById('adminPassword').value = '';
+        document.getElementById('adminPassword').focus();
+      }
+    }
+
+    // Event listeners for admin modal
+    document.getElementById('adminLoginBtn').addEventListener('click', validateAdminLogin);
+    document.getElementById('adminCancelBtn').addEventListener('click', hideAdminLoginModal);
+    
+    // Allow Enter key to submit login
+    document.getElementById('adminPassword').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        validateAdminLogin();
+      }
+    });
+    
+    // Close modal when clicking outside
+    document.getElementById('adminLoginModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        hideAdminLoginModal();
+      }
     });
   });
   </script>
