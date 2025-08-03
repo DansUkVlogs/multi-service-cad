@@ -19,15 +19,17 @@ let unsubscribeListeners = [];
 
 // Initialize admin panel
 document.addEventListener('DOMContentLoaded', function() {
-    initializeTabs();
-    initializeLogout();
-    loadDashboard();
-    
     // Check if user is authenticated
-    if (!sessionStorage.getItem('adminAuthenticated')) {
+    if (!sessionStorage.getItem('adminLoggedIn')) {
+        console.log('No admin session found, redirecting to index');
         window.location.href = '../index.html';
         return;
     }
+
+    // Initialize interface
+    initializeTabs();
+    initializeLogout();
+    loadDashboard();
 
     // Start auto-refresh for live data
     startAutoRefresh();
@@ -53,13 +55,30 @@ function switchTab(tabId) {
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.remove('active');
     });
-    document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+    const activeButton = document.querySelector(`[data-tab="${tabId}"]`);
+    if (activeButton) {
+        activeButton.classList.add('active');
+    }
 
     // Update tab content
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.remove('active');
     });
-    document.getElementById(`${tabId}-tab`).classList.add('active');
+    
+    // Map tab IDs to content IDs (some tabs have different naming)
+    let contentId = tabId;
+    if (tabId === 'users') {
+        contentId = 'user-management';
+    } else if (tabId === 'calls') {
+        contentId = 'call-management';
+    } else if (tabId === 'logs') {
+        contentId = 'system-logs';
+    }
+    
+    const activeContent = document.getElementById(contentId);
+    if (activeContent) {
+        activeContent.classList.add('active');
+    }
 
     // Load tab-specific data
     currentTab = tabId;
@@ -74,12 +93,15 @@ function loadTabData(tabId) {
         case 'live-activity':
             loadLiveActivity();
             break;
+        case 'user-management':
         case 'users':
             loadUsers();
             break;
+        case 'call-management':
         case 'calls':
             loadCalls();
             break;
+        case 'system-logs':
         case 'logs':
             loadLogs();
             break;
@@ -594,7 +616,8 @@ function initializeLogout() {
     const logoutButton = document.getElementById('logout-btn');
     if (logoutButton) {
         logoutButton.addEventListener('click', () => {
-            sessionStorage.removeItem('adminAuthenticated');
+            sessionStorage.removeItem('adminLoggedIn');
+            sessionStorage.removeItem('adminLoginTime');
             window.location.href = '../index.html';
         });
     }
