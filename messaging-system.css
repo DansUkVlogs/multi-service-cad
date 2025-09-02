@@ -1,0 +1,491 @@
+/* messaging-system.css */
+/* Styles for the centralized messaging system */
+
+/* ================================
+   MESSAGE MODAL STYLES
+   ================================ */
+
+.message-modal {
+    max-width: 500px;
+    width: 90%;
+}
+
+.recipient-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    background: var(--card-background, #f8f9fa);
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 4px solid var(--primary-color, #007bff);
+}
+
+.recipient-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: var(--primary-color, #007bff);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: white;
+}
+
+.recipient-details {
+    flex: 1;
+}
+
+.recipient-name {
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--text-primary, #333);
+    margin-bottom: 4px;
+}
+
+.recipient-service {
+    font-size: 14px;
+    color: var(--text-secondary, #666);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: var(--text-primary, #333);
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid var(--border-color, #e0e0e0);
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+    background: var(--input-background, white);
+    color: var(--text-primary, #333);
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--primary-color, #007bff);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.character-count {
+    text-align: right;
+    font-size: 12px;
+    color: var(--text-secondary, #666);
+    margin-top: 5px;
+}
+
+.message-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-primary, #333);
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary-color, #007bff);
+}
+
+.checkmark {
+    font-size: 14px;
+}
+
+/* ================================
+   INCOMING MESSAGE MODAL STYLES
+   ================================ */
+
+.incoming-message {
+    z-index: 10000;
+}
+
+.incoming-message-modal {
+    max-width: 450px;
+    width: 90%;
+    animation: messageSlideIn 0.3s ease-out;
+}
+
+@keyframes messageSlideIn {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.message-from {
+    font-weight: 600;
+    color: var(--text-primary, #333);
+    margin-bottom: 5px;
+}
+
+.message-time {
+    font-size: 12px;
+    color: var(--text-secondary, #666);
+    margin-bottom: 15px;
+}
+
+.message-content {
+    background: var(--card-background, #f8f9fa);
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid var(--primary-color, #007bff);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-primary, #333);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* ================================
+   PRIORITY STYLES
+   ================================ */
+
+.priority-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.priority-info {
+    background: #e3f2fd;
+    color: #1976d2;
+    border-left-color: #1976d2 !important;
+}
+
+.priority-urgent {
+    background: #fff3e0;
+    color: #f57c00;
+    border-left-color: #f57c00 !important;
+}
+
+.priority-critical {
+    background: #ffebee;
+    color: #d32f2f;
+    border-left-color: #d32f2f !important;
+}
+
+.priority-emergency {
+    background: #fce4ec;
+    color: #c2185b;
+    border-left-color: #c2185b !important;
+    animation: priorityPulse 1s infinite;
+}
+
+@keyframes priorityPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+/* Modal overlay priority colors */
+.modal-overlay.priority-info {
+    background: rgba(25, 118, 210, 0.1);
+}
+
+.modal-overlay.priority-urgent {
+    background: rgba(245, 124, 0, 0.15);
+}
+
+.modal-overlay.priority-critical {
+    background: rgba(211, 47, 47, 0.2);
+}
+
+.modal-overlay.priority-emergency {
+    background: rgba(194, 24, 91, 0.25);
+}
+
+/* ================================
+   BUTTON STYLES
+   ================================ */
+
+.control-btn {
+    padding: 10px 20px;
+    border: 2px solid var(--border-color, #e0e0e0);
+    border-radius: 6px;
+    background: var(--button-background, white);
+    color: var(--text-primary, #333);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.control-btn:hover {
+    background: var(--button-hover, #f8f9fa);
+    border-color: var(--primary-color, #007bff);
+}
+
+.control-btn.primary {
+    background: var(--primary-color, #007bff);
+    color: white;
+    border-color: var(--primary-color, #007bff);
+}
+
+.control-btn.primary:hover {
+    background: var(--primary-dark, #0056b3);
+    border-color: var(--primary-dark, #0056b3);
+}
+
+.control-btn.danger {
+    background: #dc3545;
+    color: white;
+    border-color: #dc3545;
+}
+
+.control-btn.danger:hover {
+    background: #c82333;
+    border-color: #c82333;
+}
+
+/* ================================
+   MODAL OVERLAY STYLES
+   ================================ */
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.modal-content {
+    background: var(--modal-background, white);
+    border-radius: 12px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 25px 15px;
+    border-bottom: 2px solid var(--border-color, #e0e0e0);
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary, #333);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--text-secondary, #666);
+    padding: 5px;
+    border-radius: 50%;
+    width: 35px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease;
+}
+
+.modal-close:hover {
+    background: var(--danger-light, #ffebee);
+    color: var(--danger-color, #d32f2f);
+}
+
+.modal-body {
+    padding: 20px 25px;
+}
+
+.modal-footer {
+    padding: 15px 25px 20px;
+    border-top: 2px solid var(--border-color, #e0e0e0);
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+/* ================================
+   RESPONSIVE STYLES
+   ================================ */
+
+@media (max-width: 768px) {
+    .modal-content {
+        margin: 10px;
+        max-height: calc(100vh - 20px);
+    }
+    
+    .message-modal,
+    .incoming-message-modal {
+        width: 95%;
+        max-width: none;
+    }
+    
+    .modal-header {
+        padding: 15px 20px 10px;
+    }
+    
+    .modal-body {
+        padding: 15px 20px;
+    }
+    
+    .modal-footer {
+        padding: 10px 20px 15px;
+        flex-direction: column-reverse;
+    }
+    
+    .control-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .recipient-info {
+        flex-direction: column;
+        text-align: center;
+        gap: 10px;
+    }
+    
+    .recipient-avatar {
+        align-self: center;
+    }
+}
+
+/* ================================
+   DARK THEME SUPPORT
+   ================================ */
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --modal-background: #2d3748;
+        --card-background: #4a5568;
+        --input-background: #4a5568;
+        --button-background: #4a5568;
+        --button-hover: #2d3748;
+        --text-primary: #f7fafc;
+        --text-secondary: #a0aec0;
+        --border-color: #4a5568;
+        --primary-color: #4299e1;
+        --primary-dark: #3182ce;
+        --danger-color: #f56565;
+        --danger-light: rgba(245, 101, 101, 0.1);
+    }
+}
+
+/* ================================
+   NOTIFICATION STYLES
+   ================================ */
+
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 14px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 10001;
+    animation: notificationSlideIn 0.3s ease-out;
+    max-width: 350px;
+}
+
+.notification.success {
+    background: #4caf50;
+    color: white;
+}
+
+.notification.error {
+    background: #f44336;
+    color: white;
+}
+
+.notification.info {
+    background: #2196f3;
+    color: white;
+}
+
+@keyframes notificationSlideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* ================================
+   ACCESSIBILITY
+   ================================ */
+
+.modal-overlay:focus-within .modal-content {
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), 0 0 0 3px var(--primary-color, #007bff);
+}
+
+.control-btn:focus {
+    outline: 2px solid var(--primary-color, #007bff);
+    outline-offset: 2px;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--primary-color, #007bff);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .modal-content {
+        border: 2px solid;
+    }
+    
+    .control-btn {
+        border-width: 3px;
+    }
+    
+    .form-control {
+        border-width: 3px;
+    }
+}

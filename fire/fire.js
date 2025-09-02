@@ -10,6 +10,10 @@ import { getFirestore, doc, deleteDoc, getDoc, collection, addDoc, updateDoc, ge
 import { getStatusColor, getContrastingTextColor } from "../dispatch/statusColor.js";
 import { getUnitTypeColor } from '../dispatch/statusColor.js';
 import { logUserAction } from '../firebase/logUserAction.js';
+import { initializeMessaging, sendMessage, sendUserMessage, markMessageAsRead, markAllMessagesAsRead } from '../messaging-system.js';
+
+// Import force logout system
+import { initializeForceLogout, cleanupForceLogout } from "../firebase/forceLogout.js";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -438,6 +442,19 @@ let broadcastBarMsg = document.getElementById('broadcast-bar-message');
 
 // All Firestore attach/detach/callclosed/standown logic must be initialized after Firebase and DOM are ready
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize messaging system for fire page
+    const fireUser = {
+        type: 'fire',
+        id: sessionStorage.getItem('unitId') || 'fire-unit',
+        name: sessionStorage.getItem('callsign') || 'Fire Unit',
+        canSendMessages: false, // Fire units typically only receive messages from admin
+        canReceiveMessages: true
+    };
+    initializeMessaging(fireUser);
+    
+    // Initialize force logout system
+    initializeForceLogout(db);
+
     // Avoid duplicate listeners
     if (window._FireAttachListenerActive) {
         // Already initialized, skip further setup
@@ -4801,5 +4818,328 @@ function listenForNewCalls() {
 document.addEventListener('DOMContentLoaded', () => {
     // Small delay to ensure audio system is ready
     setTimeout(listenForNewCalls, 1000);
+});
+
+// Admin Messages System
+let adminMessageListeners = [];
+
+function setupAdminMessageListeners() {
+    console.log('[ADMIN MSG] Setting up admin message listeners...');
+    
+    // Clean up existing listeners
+    adminMessageListeners.forEach(unsubscribe => unsubscribe());
+    adminMessageListeners = [];
+
+    const unitId = sessionStorage.getItem('unitId');
+    const civilianId = sessionStorage.getItem('civilianId');
+    
+    console.log('[ADMIN MSG] Monitoring unit:', unitId, 'civilian:', civilianId);
+
+    // Listen for unit messages
+    if (unitId) {
+        const unitDocRef = doc(db, 'units', unitId);
+        const unsubscribeUnit = onSnapshot(unitDocRef, (doc) => {
+            if (doc.exists()) {
+                const data = doc.data();
+                if (data.adminMessages && Array.isArray(data.adminMessages)) {
+                    console.log('[ADMIN MSG] Unit messages updated:', data.adminMessages.length);
+                    updateAdminMessagesDisplay();
+                }
+            }
+        });
+        adminMessageListeners.push(unsubscribeUnit);
+    }
+
+    // Listen for civilian messages
+    if (civilianId) {
+        const civilianDocRef = doc(db, 'civilians', civilianId);
+        const unsubscribeCivilian = onSnapshot(civilianDocRef, (doc) => {
+            if (doc.exists()) {
+                const data = doc.data();
+                if (data.adminMessages && Array.isArray(data.adminMessages)) {
+                    console.log('[ADMIN MSG] Civilian messages updated:', data.adminMessages.length);
+                    updateAdminMessagesDisplay();
+                }
+            }
+        });
+        adminMessageListeners.push(unsubscribeCivilian);
+    }
+}
+
+async function updateAdminMessagesDisplay() {
+    try {
+        const messages = await processAdminMessages();
+        console.log('[ADMIN MSG] Processed messages:', messages);
+        
+        const container = document.getElementById('admin-messages-container');
+        const countElement = document.getElementById('admin-messages-count');
+        
+        if (messages.length > 0) {
+            container.style.display = 'block';
+            countElement.textContent = `${messages.length} new message${messages.length !== 1 ? 's' : ''}`;
+        } else {
+            container.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('[ADMIN MSG] Error updating display:', error);
+    }
+}
+
+async function processAdminMessages() {
+    const unitId = sessionStorage.getItem('unitId');
+    const civilianId = sessionStorage.getItem('civilianId');
+    const cutoffTime = Date.now() - (24 * 60 * 60 * 1000); // 24 hours ago
+    let allMessages = [];
+
+    // Get unit messages
+    if (unitId) {
+        try {
+            const unitDoc = await getDoc(doc(db, 'units', unitId));
+            if (unitDoc.exists()) {
+                const unitData = unitDoc.data();
+                if (unitData.adminMessages && Array.isArray(unitData.adminMessages)) {
+                    const unitMessages = unitData.adminMessages
+                        .filter(msg => msg.timestamp > cutoffTime && !msg.read)
+                        .map(msg => ({ ...msg, source: 'unit', recipient: 'Unit' }));
+                    allMessages.push(...unitMessages);
+                }
+            }
+        } catch (error) {
+            console.error('[ADMIN MSG] Error fetching unit messages:', error);
+        }
+    }
+
+    // Get civilian messages
+    if (civilianId) {
+        try {
+            const civilianDoc = await getDoc(doc(db, 'civilians', civilianId));
+            if (civilianDoc.exists()) {
+                const civilianData = civilianDoc.data();
+                if (civilianData.adminMessages && Array.isArray(civilianData.adminMessages)) {
+                    const civilianMessages = civilianData.adminMessages
+                        .filter(msg => msg.timestamp > cutoffTime && !msg.read)
+                        .map(msg => ({ ...msg, source: 'civilian', recipient: 'Civilian' }));
+                    allMessages.push(...civilianMessages);
+                }
+            }
+        } catch (error) {
+            console.error('[ADMIN MSG] Error fetching civilian messages:', error);
+        }
+    }
+
+    // Sort by timestamp (newest first)
+    allMessages.sort((a, b) => b.timestamp - a.timestamp);
+    
+    return allMessages;
+}
+
+function showAdminMessagesModal() {
+    console.log('[ADMIN MSG] Opening modal...');
+    const modal = document.getElementById('admin-messages-modal');
+    modal.style.display = 'block';
+    loadAdminMessages();
+}
+
+async function loadAdminMessages() {
+    try {
+        const messages = await processAdminMessages();
+        const messagesList = document.getElementById('admin-messages-list');
+        
+        if (messages.length === 0) {
+            messagesList.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #666;">
+                    <div style="font-size: 3rem; margin-bottom: 16px;">📭</div>
+                    <div style="font-size: 1.1rem;">No new admin messages</div>
+                    <div style="font-size: 0.9rem; margin-top: 8px;">Messages from the last 24 hours will appear here</div>
+                </div>
+            `;
+            return;
+        }
+
+        const messagesHTML = messages.map(msg => {
+            const priorityColors = {
+                high: '#dc3545',
+                medium: '#fd7e14', 
+                low: '#28a745'
+            };
+            
+            const priorityColor = priorityColors[msg.priority] || '#6c757d';
+            const timeStr = new Date(msg.timestamp).toLocaleString();
+            
+            return `
+                <div class="admin-message-item" data-message-id="${msg.id}" data-source="${msg.source}" style="
+                    border: 1px solid #e0e0e0;
+                    border-radius: 8px;
+                    padding: 16px;
+                    margin-bottom: 12px;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    background: white;
+                    border-left: 4px solid ${priorityColor};
+                " onmouseover="this.style.background='#f8f9fa'; this.style.transform='translateX(4px)'" 
+                   onmouseout="this.style.background='white'; this.style.transform='translateX(0)'">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="
+                                background: ${priorityColor};
+                                color: white;
+                                padding: 2px 8px;
+                                border-radius: 12px;
+                                font-size: 0.8rem;
+                                font-weight: bold;
+                                text-transform: uppercase;
+                            ">${msg.priority}</span>
+                            <span style="color: #666; font-size: 0.85rem;">
+                                To: ${msg.recipient}
+                            </span>
+                        </div>
+                        <span style="color: #999; font-size: 0.8rem;">${timeStr}</span>
+                    </div>
+                    <div style="color: #333; line-height: 1.4; word-wrap: break-word;">
+                        ${msg.message}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        messagesList.innerHTML = messagesHTML;
+
+        // Add click handlers to mark individual messages as read
+        document.querySelectorAll('.admin-message-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const messageId = item.dataset.messageId;
+                const source = item.dataset.source;
+                markMessageAsRead(messageId, source);
+                item.style.opacity = '0.6';
+                item.style.pointerEvents = 'none';
+            });
+        });
+
+    } catch (error) {
+        console.error('[ADMIN MSG] Error loading messages:', error);
+        document.getElementById('admin-messages-list').innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #dc3545;">
+                <div style="font-size: 3rem; margin-bottom: 16px;">⚠️</div>
+                <div>Error loading messages</div>
+            </div>
+        `;
+    }
+}
+
+async function markMessageAsRead(messageId, source) {
+    try {
+        const collectionName = source === 'unit' ? 'units' : 'civilians';
+        const docId = source === 'unit' ? sessionStorage.getItem('unitId') : sessionStorage.getItem('civilianId');
+        
+        if (!docId) return;
+
+        const docRef = doc(db, collectionName, docId);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            if (data.adminMessages && Array.isArray(data.adminMessages)) {
+                const updatedMessages = data.adminMessages.map(msg => 
+                    msg.id === messageId ? { ...msg, read: true } : msg
+                );
+                
+                await updateDoc(docRef, { adminMessages: updatedMessages });
+                console.log('[ADMIN MSG] Marked message as read:', messageId);
+            }
+        }
+    } catch (error) {
+        console.error('[ADMIN MSG] Error marking message as read:', error);
+    }
+}
+
+async function markAllMessagesAsRead() {
+    try {
+        const unitId = sessionStorage.getItem('unitId');
+        const civilianId = sessionStorage.getItem('civilianId');
+
+        // Mark unit messages as read
+        if (unitId) {
+            const unitDocRef = doc(db, 'units', unitId);
+            const unitDoc = await getDoc(unitDocRef);
+            if (unitDoc.exists()) {
+                const unitData = unitDoc.data();
+                if (unitData.adminMessages && Array.isArray(unitData.adminMessages)) {
+                    const updatedUnitMessages = unitData.adminMessages.map(msg => ({ ...msg, read: true }));
+                    await updateDoc(unitDocRef, { adminMessages: updatedUnitMessages });
+                }
+            }
+        }
+
+        // Mark civilian messages as read
+        if (civilianId) {
+            const civilianDocRef = doc(db, 'civilians', civilianId);
+            const civilianDoc = await getDoc(civilianDocRef);
+            if (civilianDoc.exists()) {
+                const civilianData = civilianDoc.data();
+                if (civilianData.adminMessages && Array.isArray(civilianData.adminMessages)) {
+                    const updatedCivilianMessages = civilianData.adminMessages.map(msg => ({ ...msg, read: true }));
+                    await updateDoc(civilianDocRef, { adminMessages: updatedCivilianMessages });
+                }
+            }
+        }
+
+        console.log('[ADMIN MSG] All messages marked as read');
+        loadAdminMessages(); // Reload to show updated state
+        
+    } catch (error) {
+        console.error('[ADMIN MSG] Error marking all messages as read:', error);
+    }
+}
+
+function closeAdminMessagesModal() {
+    const modal = document.getElementById('admin-messages-modal');
+    modal.style.display = 'none';
+}
+
+function dismissAdminMessages() {
+    const container = document.getElementById('admin-messages-container');
+    container.style.display = 'none';
+}
+
+// Event listeners for admin messages
+document.addEventListener('DOMContentLoaded', () => {
+    // View messages button
+    const viewBtn = document.getElementById('view-admin-messages-btn');
+    if (viewBtn) {
+        viewBtn.addEventListener('click', showAdminMessagesModal);
+    }
+
+    // Dismiss button
+    const dismissBtn = document.getElementById('dismiss-admin-messages-btn');
+    if (dismissBtn) {
+        dismissBtn.addEventListener('click', dismissAdminMessages);
+    }
+
+    // Close modal button
+    const closeBtn = document.getElementById('close-admin-messages-modal');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeAdminMessagesModal);
+    }
+
+    // Mark all read button
+    const markAllBtn = document.getElementById('mark-all-read-btn');
+    if (markAllBtn) {
+        markAllBtn.addEventListener('click', markAllMessagesAsRead);
+    }
+
+    // Close modal when clicking outside
+    const modal = document.getElementById('admin-messages-modal');
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeAdminMessagesModal();
+            }
+        });
+    }
+
+    // Initialize admin message listeners
+    setTimeout(() => {
+        setupAdminMessageListeners();
+    }, 2000);
 });
 

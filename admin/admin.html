@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>Admin Control Panel - CAD System</title>
   <link rel="stylesheet" href="admin.css">
+  <link rel="stylesheet" href="../messaging-system.css">
   <link rel="icon" href="../imgs/icon.png" type="image/png">
 </head>
 <body>
@@ -74,31 +75,7 @@
         <div class="section-card">
           <h3>Service Status Overview</h3>
           <div class="service-grid" id="serviceGrid">
-            <div class="service-status">
-              <div class="service-icon">🚔</div>
-              <div class="service-name">Police</div>
-              <div class="service-count" id="policeCount">-</div>
-            </div>
-            <div class="service-status">
-              <div class="service-icon">🚑</div>
-              <div class="service-name">Ambulance</div>
-              <div class="service-count" id="ambulanceCount">-</div>
-            </div>
-            <div class="service-status">
-              <div class="service-icon">🚒</div>
-              <div class="service-name">Fire</div>
-              <div class="service-count" id="fireCount">-</div>
-            </div>
-            <div class="service-status">
-              <div class="service-icon">📡</div>
-              <div class="service-name">Dispatch</div>
-              <div class="service-count" id="dispatchCount">-</div>
-            </div>
-            <div class="service-status">
-              <div class="service-icon">👤</div>
-              <div class="service-name">Civilian</div>
-              <div class="service-count" id="civilianCount">-</div>
-            </div>
+            <!-- Service cards will be dynamically loaded here -->
           </div>
         </div>
 
@@ -318,6 +295,76 @@
   <div id="loadingOverlay" class="loading-overlay" style="display: none;">
     <div class="loading-spinner"></div>
     <div class="loading-text">Loading...</div>
+  </div>
+
+  <!-- Message Composition Modal -->
+  <div id="messageModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content message-modal">
+      <div class="modal-header">
+        <h3>💬 Send Message</h3>
+        <button class="modal-close" onclick="closeMessageModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="message-recipient">
+          <label>Recipient:</label>
+          <div class="recipient-info">
+            <span class="service-icon" id="recipientIcon">👤</span>
+            <span class="recipient-name" id="recipientName">Unknown User</span>
+            <span class="recipient-service" id="recipientService">Unknown Service</span>
+          </div>
+        </div>
+        
+        <div class="message-priority">
+          <label for="messagePriority">Priority Level:</label>
+          <select id="messagePriority">
+            <option value="info">ℹ️ Info - General notification</option>
+            <option value="urgent">⚠️ Urgent - Important message</option>
+            <option value="emergency">🚨 Emergency - Critical alert</option>
+          </select>
+        </div>
+        
+        <div class="message-text">
+          <label for="messageContent">Message:</label>
+          <textarea id="messageContent" placeholder="Enter your message..." rows="4" maxlength="500"></textarea>
+          <div class="character-count">
+            <span id="charCount">0</span>/500 characters
+          </div>
+        </div>
+        
+        <div class="message-options">
+          <label>
+            <input type="checkbox" id="requireAcknowledgment">
+            Require acknowledgment
+          </label>
+          <label>
+            <input type="checkbox" id="persistentMessage">
+            Persistent (reappear on reload)
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="control-btn" onclick="closeMessageModal()">Cancel</button>
+        <button class="control-btn primary" onclick="sendMessage()">
+          <span class="send-icon">📤</span> Send Message
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Details Modal -->
+  <div id="userDetailsModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content user-details-modal">
+      <div class="modal-header">
+        <h3>👁️ User Details</h3>
+        <button class="modal-close" onclick="closeUserDetailsModal()">✕</button>
+      </div>
+      <div class="modal-body" id="userDetailsContent">
+        <!-- User details will be populated here -->
+      </div>
+      <div class="modal-footer">
+        <button class="control-btn" onclick="closeUserDetailsModal()">Close</button>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="admin.js"></script>

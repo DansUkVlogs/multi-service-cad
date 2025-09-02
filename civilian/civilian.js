@@ -2,6 +2,10 @@
 import { db } from "../firebase/firebase.js";
 import { collection, addDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { logUserAction } from '../firebase/logUserAction.js';
+import { initializeMessaging, sendMessage, sendUserMessage, markMessageAsRead, markAllMessagesAsRead } from '../messaging-system.js';
+
+// Import force logout system
+import { initializeForceLogout, cleanupForceLogout } from "../firebase/forceLogout.js";
 
 let liveCharacterId = null; // Store the unique ID of the live character
 
@@ -452,6 +456,19 @@ function openNewCallModal() {
 
 // Ensure the buttons are functional on page load
 document.addEventListener("DOMContentLoaded", () => {
+    // Initialize messaging system for civilian page
+    const civilianUser = {
+        type: 'civilian',
+        id: `civilian-${Date.now()}`,
+        name: 'Civilian',
+        canSendMessages: false, // Civilians typically only receive messages from admin
+        canReceiveMessages: true
+    };
+    initializeMessaging(civilianUser);
+    
+    // Initialize force logout system
+    initializeForceLogout(db);
+
     populateCharacterSlots();
 
     const profilePictureInput = document.getElementById("profile-picture-input");

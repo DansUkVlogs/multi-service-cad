@@ -6,6 +6,10 @@ import { logUserAction } from "../firebase/logUserAction.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { getFirestore, doc, deleteDoc, setDoc, addDoc, getDoc, getDocs, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { getStatusColor, getUnitTypeColor, getContrastingTextColor } from "./statusColor.js";
+import { initializeMessaging, sendMessage, sendUserMessage, markMessageAsRead, markAllMessagesAsRead } from '../messaging-system.js';
+
+// Import force logout system
+import { initializeForceLogout, cleanupForceLogout } from "../firebase/forceLogout.js";
 
 // --- Sound Mute Control for Startup Modal ---
 let muteSounds = true; // Mute all sounds until modal is closed
@@ -2312,6 +2316,19 @@ function playSound(soundKey) {
 
 // --- Broadcast Button UI (under New Call) ---
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize messaging system for dispatch page
+    const dispatchUser = {
+        type: 'dispatch',
+        id: sessionStorage.getItem('dispatcherId') || `dispatcher-${Date.now()}`,
+        name: sessionStorage.getItem('dispatcherName') || 'Dispatcher',
+        canSendMessages: false, // Dispatch typically only receives messages from admin
+        canReceiveMessages: true
+    };
+    initializeMessaging(dispatchUser);
+    
+    // Initialize force logout system
+    initializeForceLogout(db);
+
     const addCallBtn = document.getElementById('addCallBtn');
     if (!addCallBtn) return;
     // Remove old broadcast buttons if present

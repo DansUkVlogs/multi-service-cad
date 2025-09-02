@@ -5,6 +5,15 @@ import { getStatusColor, getContrastingTextColor } from "../dispatch/statusColor
 import { getUnitTypeColor } from '../dispatch/statusColor.js';
 import { logUserAction } from '../firebase/logUserAction.js';
 
+// Import centralized messaging system
+import { 
+    initializeMessaging, 
+    cleanupMessaging
+} from "../messaging-system.js";
+
+// Import force logout system
+import { initializeForceLogout, cleanupForceLogout } from "../firebase/forceLogout.js";
+
 // --- Firebase configuration and initialization ---
 const firebaseConfig = {
     apiKey: "AIzaSyBWM3d9NXDzItCM4z3lZK2LC0z41tPw-bE",
@@ -157,6 +166,8 @@ async function logBroadcastReceived(broadcast) {
 // --- Real-time listener for dispatcher-driven attach/detach and call updates (Ambulance Page) ---
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Note: Messaging system will be initialized after successful unit login in saveDetails()
+
     // --- PATCH: BROADCAST UNIT SELECTION LOGIC ---
     // Replace any logic that populates the broadcast unit selection dropdown to use ALL units, not just available
     // Example: If you have a function like getAvailableUnitsForBroadcast, replace it with getAllUnitsForBroadcast below
@@ -1432,6 +1443,22 @@ async function saveDetails() {
             unitId = unitDocRef.id;
             sessionStorage.setItem("unitId", unitId);
         }
+        
+        // Initialize messaging system now that we have a valid unitId
+        const ambulanceUser = {
+            type: 'ambulance',
+            id: unitId,
+            name: callsignInput,
+            canSendMessages: false,
+            canReceiveMessages: true
+        };
+        
+        console.log('🔍 DEBUG: Initializing messaging for ambulance with ID:', unitId);
+        initializeMessaging(ambulanceUser);
+        
+        // Initialize force logout system
+        initializeForceLogout(db);
+        
         if (civilianId && civilianId !== "None") {
             civilianDocRef = doc(db, "civilians", civilianId);
             await setDoc(civilianDocRef, civilianData, { merge: true });
@@ -4929,5 +4956,292 @@ function listenForNewCalls() {
 document.addEventListener('DOMContentLoaded', () => {
     // Small delay to ensure audio system is ready
     setTimeout(listenForNewCalls, 1000);
+    
+    // Initialize admin message system
+    setTimeout(initializeAdminMessages, 1500);
 });
+
+// --- ADMIN MESSAGE SYSTEM ---
+let adminMessagesListener = null;
+let currentAdminMessages = [];
+
+// Initialize admin message display system
+async function initializeAdminMessages() {
+    try {
+        await setupAdminMessageListeners();
+        setupAdminMessageEventHandlers();
+        console.log('Admin message system initialized');
+    } catch (error) {
+        console.error('Error initializing admin message system:', error);
+    }
+}
+
+// Set up event handlers for admin message UI
+function setupAdminMessageEventHandlers() {
+    const viewBtn = document.getElementById('view-admin-messages-btn');
+    const dismissBtn = document.getElementById('dismiss-admin-messages-btn');
+    const closeBtn = document.getElementById('close-admin-messages-btn');
+    const markAllReadBtn = document.getElementById('mark-all-read-btn');
+
+    if (viewBtn) {
+        viewBtn.addEventListener('click', showAdminMessagesModal);
+    }
+    
+    if (dismissBtn) {
+        dismissBtn.addEventListener('click', hideAdminMessagesBar);
+    }
+    
+    if (closeBtn) {
+        closeBtn.addEventListener('click', hideAdminMessagesModal);
+    }
+    
+    if (markAllReadBtn) {
+        markAllReadBtn.addEventListener('click', markAllMessagesAsRead);
+    }
+}
+
+// Set up real-time listeners for admin messages
+async function setupAdminMessageListeners() {
+    const unitId = sessionStorage.getItem('unitId');
+    const civilianId = sessionStorage.getItem('civilianId');
+    
+    if (!unitId) {
+        console.log('No unit ID found, skipping admin message setup');
+        return;
+    }
+
+    // Listen for messages to the unit
+    const unitDocRef = doc(db, 'units', unitId);
+    onSnapshot(unitDocRef, (doc) => {
+        if (doc.exists()) {
+            const unitData = doc.data();
+            const unitMessages = unitData.adminMessages || [];
+            processAdminMessages(unitMessages, 'unit', unitData.callsign || unitId);
+        }
+    }, (error) => {
+        console.error('Error listening to unit admin messages:', error);
+    });
+
+    // If there's an associated civilian, listen for their messages too
+    if (civilianId && civilianId !== 'None') {
+        const civilianDocRef = doc(db, 'civilians', civilianId);
+        onSnapshot(civilianDocRef, (doc) => {
+            if (doc.exists()) {
+                const civilianData = doc.data();
+                const civilianMessages = civilianData.adminMessages || [];
+                processAdminMessages(civilianMessages, 'civilian', civilianData.firstName + ' ' + civilianData.lastName);
+            }
+        }, (error) => {
+            console.error('Error listening to civilian admin messages:', error);
+        });
+    }
+}
+
+// Process and display admin messages
+function processAdminMessages(messages, recipientType, recipientName) {
+    // Filter for unread messages from the last 24 hours
+    const now = new Date();
+    const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+    
+    const recentMessages = messages.filter(msg => {
+        const messageTime = msg.timestamp?.toDate ? msg.timestamp.toDate() : new Date(msg.timestamp);
+        return messageTime > twentyFourHoursAgo && !msg.read;
+    });
+
+    // Update the current messages array
+    const messagesWithMeta = recentMessages.map(msg => ({
+        ...msg,
+        recipientType,
+        recipientName
+    }));
+
+    // Merge with existing messages from other sources
+    currentAdminMessages = currentAdminMessages.filter(msg => msg.recipientType !== recipientType);
+    currentAdminMessages = [...currentAdminMessages, ...messagesWithMeta];
+
+    // Sort by timestamp (newest first)
+    currentAdminMessages.sort((a, b) => {
+        const timeA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
+        const timeB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
+        return timeB - timeA;
+    });
+
+    updateAdminMessagesDisplay();
+}
+
+// Update the admin messages display
+function updateAdminMessagesDisplay() {
+    const container = document.getElementById('admin-messages-container');
+    const countElement = document.getElementById('admin-messages-count');
+    
+    if (!container || !countElement) return;
+
+    const messageCount = currentAdminMessages.length;
+    
+    if (messageCount > 0) {
+        container.style.display = 'block';
+        countElement.textContent = `${messageCount} new message${messageCount === 1 ? '' : 's'}`;
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+// Show admin messages modal
+function showAdminMessagesModal() {
+    const modal = document.getElementById('admin-messages-modal');
+    const messagesList = document.getElementById('admin-messages-list');
+    
+    if (!modal || !messagesList) return;
+
+    // Clear existing content
+    messagesList.innerHTML = '';
+
+    if (currentAdminMessages.length === 0) {
+        messagesList.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;">No new messages</div>';
+    } else {
+        currentAdminMessages.forEach(message => {
+            const messageElement = createMessageElement(message);
+            messagesList.appendChild(messageElement);
+        });
+    }
+
+    modal.style.display = 'flex';
+}
+
+// Create message element for display
+function createMessageElement(message) {
+    const messageDiv = document.createElement('div');
+    messageDiv.style.cssText = `
+        padding: 16px;
+        margin-bottom: 12px;
+        background: ${getPriorityColor(message.priority)};
+        border-radius: 8px;
+        border-left: 4px solid ${getPriorityBorderColor(message.priority)};
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    `;
+
+    const timestamp = message.timestamp?.toDate ? message.timestamp.toDate() : new Date(message.timestamp);
+    const timeString = timestamp.toLocaleString();
+
+    messageDiv.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="
+                    background: ${getPriorityBadgeColor(message.priority)};
+                    color: white;
+                    padding: 4px 8px;
+                    border-radius: 12px;
+                    font-size: 0.8rem;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                ">${message.priority || 'INFO'}</span>
+                <span style="font-size: 0.85rem; color: #666;">To: ${message.recipientName} (${message.recipientType})</span>
+            </div>
+            <span style="font-size: 0.8rem; color: #666;">${timeString}</span>
+        </div>
+        <div style="
+            font-size: 1rem;
+            line-height: 1.5;
+            color: #333;
+            margin-bottom: 8px;
+            padding: 8px;
+            background: rgba(255,255,255,0.7);
+            border-radius: 4px;
+        ">${message.content}</div>
+        <div style="font-size: 0.8rem; color: #666; font-style: italic;">
+            From: Admin • ID: ${message.id}
+        </div>
+    `;
+
+    return messageDiv;
+}
+
+// Get priority-based colors
+function getPriorityColor(priority) {
+    switch (priority?.toLowerCase()) {
+        case 'emergency': return '#ffebee';
+        case 'critical': return '#fff3e0';
+        case 'urgent': return '#f3e5f5';
+        default: return '#e8f5e8';
+    }
+}
+
+function getPriorityBorderColor(priority) {
+    switch (priority?.toLowerCase()) {
+        case 'emergency': return '#d32f2f';
+        case 'critical': return '#f57c00';
+        case 'urgent': return '#7b1fa2';
+        default: return '#388e3c';
+    }
+}
+
+function getPriorityBadgeColor(priority) {
+    switch (priority?.toLowerCase()) {
+        case 'emergency': return '#d32f2f';
+        case 'critical': return '#f57c00';
+        case 'urgent': return '#7b1fa2';
+        default: return '#388e3c';
+    }
+}
+
+// Hide admin messages bar
+function hideAdminMessagesBar() {
+    const container = document.getElementById('admin-messages-container');
+    if (container) {
+        container.style.display = 'none';
+    }
+}
+
+// Hide admin messages modal
+function hideAdminMessagesModal() {
+    const modal = document.getElementById('admin-messages-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// Mark all messages as read
+async function markAllMessagesAsRead() {
+    try {
+        const unitId = sessionStorage.getItem('unitId');
+        const civilianId = sessionStorage.getItem('civilianId');
+
+        // Mark unit messages as read
+        if (unitId) {
+            const unitDocRef = doc(db, 'units', unitId);
+            const unitDoc = await getDoc(unitDocRef);
+            
+            if (unitDoc.exists()) {
+                const unitData = unitDoc.data();
+                const messages = unitData.adminMessages || [];
+                const updatedMessages = messages.map(msg => ({ ...msg, read: true }));
+                
+                await updateDoc(unitDocRef, { adminMessages: updatedMessages });
+            }
+        }
+
+        // Mark civilian messages as read
+        if (civilianId && civilianId !== 'None') {
+            const civilianDocRef = doc(db, 'civilians', civilianId);
+            const civilianDoc = await getDoc(civilianDocRef);
+            
+            if (civilianDoc.exists()) {
+                const civilianData = civilianDoc.data();
+                const messages = civilianData.adminMessages || [];
+                const updatedMessages = messages.map(msg => ({ ...msg, read: true }));
+                
+                await updateDoc(civilianDocRef, { adminMessages: updatedMessages });
+            }
+        }
+
+        // Clear current messages and hide UI
+        currentAdminMessages = [];
+        updateAdminMessagesDisplay();
+        hideAdminMessagesModal();
+        
+        console.log('All admin messages marked as read');
+    } catch (error) {
+        console.error('Error marking messages as read:', error);
+    }
+}
 
