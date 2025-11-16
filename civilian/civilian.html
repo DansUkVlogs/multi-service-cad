@@ -64,10 +64,31 @@
                     </div>
                 </form>
             </div>
-            <!-- Modal for creating a new call -->
+            <!-- Modal for selecting call type -->
+            <div id="callTypeModal" class="modal" style="display: none;">
+                <div class="modal-content call-type-modal">
+                    <span class="close" id="callTypeClose">&times;</span>
+                    <h2>📞 Select Call Type</h2>
+                    <p>Choose how you'd like to make your emergency call:</p>
+                    <div class="call-type-options">
+                        <button id="textCallBtn" class="call-type-btn text-call">
+                            <div class="call-type-icon">💬</div>
+                            <div class="call-type-label">Text Call</div>
+                            <div class="call-type-desc">Fill out a form with call details</div>
+                        </button>
+                        <button id="voiceCallBtn" class="call-type-btn voice-call">
+                            <div class="call-type-icon">📞</div>
+                            <div class="call-type-label">Voice Call</div>
+                            <div class="call-type-desc">Make a phone call to emergency services</div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal for creating a new text call -->
             <div id="newCallModal" class="modal" style="display: none;">
                 <div class="modal-content">
-                    <span class="close">&times;</span>
+                    <span class="close" id="newCallClose">&times;</span>
                     <h2>Create New Call</h2>
                     <form id="newCallForm">
                         <div class="form-group">
@@ -93,6 +114,32 @@
                         </div>
                         <button type="submit" class="submit-call">Place Call</button>
                     </form>
+                </div>
+            </div>
+
+            <!-- Modal for voice call (phone interface) -->
+            <div id="voiceCallModal" class="modal" style="display: none;">
+                <div class="modal-content phone-modal">
+                    <span class="close" id="voiceCallClose">&times;</span>
+                    <div class="phone-interface">
+                        <div class="phone-screen">
+                            <div class="phone-header">
+                                <div class="phone-time" id="phoneTime">12:34</div>
+                                <div class="phone-signal">📶</div>
+                            </div>
+                            <div class="phone-call-info">
+                                <div class="calling-text">Calling...</div>
+                                <div class="emergency-number">999</div>
+                                <div class="caller-name" id="phoneCallerName">Emergency Services</div>
+                            </div>
+                            <div class="phone-controls">
+                                <button class="phone-btn end-call" id="endCallBtn">
+                                    <span class="phone-btn-icon">📞</span>
+                                    <span class="phone-btn-label">End Call</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>

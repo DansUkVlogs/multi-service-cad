@@ -441,3 +441,215 @@ button:disabled {
 ::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(135deg, #9933cc, #800080);
 }
+
+/* Call Type Selection Modal */
+.call-type-modal {
+    text-align: center;
+    max-width: 500px;
+}
+
+.call-type-modal h2 {
+    margin-bottom: 10px;
+    font-size: 1.8rem;
+}
+
+.call-type-modal p {
+    color: #666;
+    margin-bottom: 30px;
+    font-size: 1.1rem;
+}
+
+.call-type-options {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.call-type-btn {
+    background: rgba(255, 255, 255, 0.9);
+    border: 3px solid #800080;
+    border-radius: 15px;
+    padding: 25px 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 180px;
+    text-align: center;
+    box-shadow: 0 6px 20px rgba(128, 0, 128, 0.2);
+}
+
+.call-type-btn:hover {
+    background: linear-gradient(135deg, #800080, #9933cc);
+    color: white;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(128, 0, 128, 0.4);
+}
+
+.call-type-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
+}
+
+.call-type-label {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #800080;
+}
+
+.call-type-btn:hover .call-type-label {
+    color: white;
+}
+
+.call-type-desc {
+    font-size: 0.9rem;
+    color: #666;
+    line-height: 1.3;
+}
+
+.call-type-btn:hover .call-type-desc {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Phone Interface Modal */
+.phone-modal {
+    background: #1a1a1a;
+    border-radius: 25px;
+    padding: 0;
+    width: 350px;
+    max-width: 90%;
+    overflow: hidden;
+    border: 8px solid #333;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+.phone-modal .close {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    color: white;
+    font-size: 24px;
+    z-index: 10;
+}
+
+.phone-interface {
+    background: #000;
+    height: 600px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 20px;
+    border-radius: 20px;
+}
+
+.phone-screen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    color: white;
+}
+
+.phone-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #333;
+    margin-bottom: 20px;
+}
+
+.phone-time {
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+
+.phone-signal {
+    font-size: 1rem;
+}
+
+.phone-call-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.calling-text {
+    font-size: 1rem;
+    color: #999;
+    margin-bottom: 10px;
+}
+
+.emergency-number {
+    font-size: 3rem;
+    font-weight: bold;
+    margin-bottom: 15px;
+    color: #ff4444;
+}
+
+.caller-name {
+    font-size: 1.2rem;
+    color: #ccc;
+    margin-bottom: 40px;
+}
+
+.phone-controls {
+    display: flex;
+    justify-content: center;
+    padding: 20px 0;
+}
+
+.phone-btn {
+    background: #ff4444;
+    border: none;
+    border-radius: 50%;
+    width: 70px;
+    height: 70px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: white;
+    font-weight: bold;
+}
+
+.phone-btn:hover {
+    background: #cc3333;
+    transform: scale(1.05);
+}
+
+.phone-btn-icon {
+    font-size: 1.5rem;
+    margin-bottom: 2px;
+}
+
+.phone-btn-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+}
+
+/* Responsive adjustments for call type modal */
+@media (max-width: 600px) {
+    .call-type-options {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .call-type-btn {
+        width: 250px;
+    }
+    
+    .phone-modal {
+        width: 90%;
+        height: auto;
+    }
+    
+    .phone-interface {
+        height: 500px;
+    }
+}

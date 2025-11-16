@@ -444,7 +444,119 @@ async function unlive() {
     }
 }
 
-// Function to handle creating a new call
+// Function to handle opening call type selection modal
+function openCallTypeModal() {
+    const callTypeModal = document.getElementById("callTypeModal");
+    callTypeModal.style.display = "block";
+
+    // Close button handler
+    const closeBtn = document.getElementById("callTypeClose");
+    closeBtn.onclick = () => {
+        callTypeModal.style.display = "none";
+    };
+
+    // Text call button handler
+    const textCallBtn = document.getElementById("textCallBtn");
+    textCallBtn.onclick = () => {
+        callTypeModal.style.display = "none";
+        openNewCallModal();
+    };
+
+    // Voice call button handler
+    const voiceCallBtn = document.getElementById("voiceCallBtn");
+    voiceCallBtn.onclick = () => {
+        callTypeModal.style.display = "none";
+        openVoiceCallModal();
+    };
+
+    // Close on outside click
+    callTypeModal.addEventListener('click', (e) => {
+        if (e.target === callTypeModal) {
+            callTypeModal.style.display = "none";
+        }
+    });
+}
+
+// Function to handle voice call modal (phone interface)
+function openVoiceCallModal() {
+    const voiceCallModal = document.getElementById("voiceCallModal");
+    const phoneTime = document.getElementById("phoneTime");
+    const phoneCallerName = document.getElementById("phoneCallerName");
+    
+    // Set current time
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: false 
+    });
+    phoneTime.textContent = timeString;
+
+    // Set caller name
+    const firstName = document.getElementById("first-name").value.trim();
+    const lastName = document.getElementById("last-name").value.trim();
+    if (firstName && lastName) {
+        phoneCallerName.textContent = `${firstName} ${lastName}`;
+    } else {
+        phoneCallerName.textContent = "Unknown Caller";
+    }
+
+    voiceCallModal.style.display = "block";
+
+    // Create and play ringing tone
+    const ringTone = new Audio('../audio/dialing-tone.mp3');
+    ringTone.loop = true;
+    ringTone.volume = 0.5;
+    
+    // Play the ringing tone
+    ringTone.play().catch(error => {
+        console.log('Could not play ringing tone:', error);
+    });
+
+    // Function to stop ringing and close modal
+    const stopRingingAndClose = () => {
+        ringTone.pause();
+        ringTone.currentTime = 0;
+        voiceCallModal.style.display = "none";
+    };
+
+    // Close button handler
+    const closeBtn = document.getElementById("voiceCallClose");
+    closeBtn.onclick = () => {
+        stopRingingAndClose();
+    };
+
+    // End call button handler
+    const endCallBtn = document.getElementById("endCallBtn");
+    endCallBtn.onclick = async () => {
+        stopRingingAndClose();
+        
+        try {
+            // Log the voice call action
+            await logUserAction(db, 'voice_call', {
+                callerName: phoneCallerName.textContent,
+                service: 'Emergency Services',
+                callType: 'voice',
+                civilianId: liveCharacterId,
+                timestamp: new Date()
+            });
+
+            showNotification("Voice call ended. Emergency services have been notified.", "success");
+        } catch (error) {
+            console.error("Error logging voice call:", error);
+            showNotification("Call ended.", "success");
+        }
+    };
+
+    // Close on outside click
+    voiceCallModal.addEventListener('click', (e) => {
+        if (e.target === voiceCallModal) {
+            stopRingingAndClose();
+        }
+    });
+}
+
+// Function to handle creating a new text call
 function openNewCallModal() {
     const newCallModal = document.getElementById("newCallModal");
     const callerNameInput = document.getElementById("callerName");
@@ -460,10 +572,17 @@ function openNewCallModal() {
 
     newCallModal.style.display = "block"; // Show the modal
 
-    const closeModalBtn = newCallModal.querySelector(".close");
+    const closeModalBtn = document.getElementById("newCallClose");
     closeModalBtn.onclick = () => {
         newCallModal.style.display = "none"; // Hide the modal when the close button is clicked
     };
+
+    // Close on outside click
+    newCallModal.addEventListener('click', (e) => {
+        if (e.target === newCallModal) {
+            newCallModal.style.display = "none";
+        }
+    });
 
     const newCallForm = document.getElementById("newCallForm");
     newCallForm.onsubmit = async (event) => {
@@ -583,7 +702,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     goLiveBtn.onclick = goLive;
 
-    newCallBtn.onclick = openNewCallModal;
+    newCallBtn.onclick = openCallTypeModal;
 
     // Handle page unload or navigation
     window.addEventListener("beforeunload", unlive);
