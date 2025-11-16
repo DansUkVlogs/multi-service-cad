@@ -6,7 +6,7 @@ import { logUserAction } from "../firebase/logUserAction.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { getFirestore, doc, deleteDoc, setDoc, addDoc, getDoc, getDocs, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { getStatusColor, getUnitTypeColor, getContrastingTextColor } from "./statusColor.js";
-import { initializeMessaging, sendMessage, sendUserMessage, markMessageAsRead, markAllMessagesAsRead } from '../messaging-system.js';
+import { initializeMessaging, cleanupMessaging, sendMessage, sendUserMessage, markMessageAsRead, markAllMessagesAsRead } from '../messaging-system.js';
 
 // Import force logout system
 import { initializeForceLogout, cleanupForceLogout } from "../firebase/forceLogout.js";
@@ -694,7 +694,7 @@ async function renderAttachedUnits(callId) {
             unitDiv.classList.add('unit-card');
             unitDiv.dataset.unitId = unitID;
             unitDiv.setAttribute('data-unit-id', unitID);
-            unitDiv.style.backgroundColor = statusColor;
+            unitDiv.style.backgroundColor = '#fff';
             unitDiv.style.color = textColor;
             unitDiv.style.setProperty('--unit-type-color', unitTypeColor);
             unitDiv.style.setProperty('--text-color', textColor);
@@ -867,7 +867,7 @@ function renderUnitCards(units) {
         const unitDiv = document.createElement('div');
         unitDiv.classList.add('unit-card');
         unitDiv.dataset.unitId = unit.id;
-        unitDiv.style.backgroundColor = statusColor;
+        unitDiv.style.backgroundColor = '#fff';
         unitDiv.style.color = textColor;
         unitDiv.style.setProperty('--unit-type-color', unitTypeColor);
         unitDiv.style.setProperty('--text-color', textColor);
@@ -1518,6 +1518,17 @@ function showDispatcherDutyModal() {
     document.getElementById('start-dispatch-duty-btn').onclick = async function() {
         await addDispatcherSession();
         await logUserAction(db, 'start_dispatcher_duty', {});
+        // Immediately update dispatcher ID display in DOM for force logout compatibility
+        let sessionId = sessionStorage.getItem('dispatcherSessionId');
+        let el = document.getElementById('dispatcher-id-display');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'dispatcher-id-display';
+            el.style = 'position:fixed;bottom:10px;left:10px;background:#222;color:#fff;padding:6px 12px;border-radius:6px;z-index:1300;font-size:14px;';
+            document.body.appendChild(el);
+        }
+        el.textContent = `Current DispatcherID: ${sessionId}`;
+
         modal.remove();
         document.body.classList.remove('modal-open');
         muteSounds = false; // Unmute sounds after modal is closed
@@ -1623,12 +1634,30 @@ window.addEventListener('DOMContentLoaded', () => {
 // Add a dispatcher session to Firestore for this tab/session
 async function addDispatcherSession() {
     const sessionId = getSessionId();
+    // Store sessionId in both dispatcherSessionId and dispatcherId for force logout compatibility
+    sessionStorage.setItem('dispatcherId', sessionId);
+    sessionStorage.setItem('dispatcherSessionId', sessionId);
     try {
         await setDoc(doc(db, 'dispatchers', sessionId), {
             startedAt: new Date(),
             // Optionally, add more info (e.g., user info) here
         });
         updateDispatcherSessionIdDisplay(); // <-- Update the display after session is created
+
+        // Re-initialize messaging now that we have a real dispatcher ID (clean previous listeners first)
+        try {
+            cleanupMessaging();
+        } catch (e) {
+            console.warn('⚠️ cleanupMessaging failed before re-init dispatcher messaging', e);
+        }
+        const dispatchUserReal = {
+            type: 'dispatcher',
+            id: sessionId,
+            name: sessionStorage.getItem('dispatcherName') || 'Dispatcher',
+            canSendMessages: true,
+            canReceiveMessages: true
+        };
+        initializeMessaging(dispatchUserReal);
     } catch (error) {
         console.error('Error adding dispatcher session:', error);
     }
@@ -3095,7 +3124,8 @@ function displayDispatcherSessionId() {
         el.style = 'position:fixed;bottom:10px;left:10px;background:#222;color:#fff;padding:6px 12px;border-radius:6px;z-index:1300;font-size:14px;';
         document.body.appendChild(el);
     }
-    el.textContent = `Dispatcher-ID: ${sessionId}`;
+    // Set text to match forceLogout.js expectation
+    el.textContent = `Current DispatcherID: ${sessionId}`;
 }
 
 // Display user identity button (for editing Discord/IRL names)

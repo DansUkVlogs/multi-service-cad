@@ -1,7 +1,7 @@
 // Force Logout System
 // This file handles admin-initiated force logouts for all user types
 
-import { getFirestore, doc, deleteDoc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { getFirestore, doc, deleteDoc, getDoc, updateDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 let forceLogoutListener = null;
 let db = null;
@@ -14,46 +14,65 @@ export function initializeForceLogout(database) {
 
 // Set up listener for force logout events
 function setupForceLogoutListener() {
-    const userId = sessionStorage.getItem('unitId') || sessionStorage.getItem('civilianId') || sessionStorage.getItem('dispatcherId');
-    if (!userId) return;
-
-    // Determine user type and collection
-    let collection, userType;
-    if (sessionStorage.getItem('unitId')) {
-        collection = 'units';
-        userType = 'unit';
-    } else if (sessionStorage.getItem('civilianId')) {
-        collection = 'civilians';
-        userType = 'civilian';
-    } else if (sessionStorage.getItem('dispatcherId')) {
-        collection = 'dispatchers';
-        userType = 'dispatcher';
-    }
-
-    if (!collection) return;
-
-    console.log(`[FORCE LOGOUT] Monitoring ${userType} ${userId} for force logout`);
-
-    // Listen for changes to the user document
-    const userDocRef = doc(db, collection, userId);
-    forceLogoutListener = onSnapshot(userDocRef, (docSnapshot) => {
-        if (!docSnapshot.exists()) {
-            // Document was deleted - this is a force logout
-            console.log(`[FORCE LOGOUT] ${userType} ${userId} was force logged out`);
-            handleForceLogout(userType);
-        } else {
-            const data = docSnapshot.data();
-            // Check for force logout flag
-            if (data.forceLogout === true) {
-                console.log(`[FORCE LOGOUT] ${userType} ${userId} received force logout flag`);
-                handleForceLogout(userType);
-            }
+    // Listen for all docs in forceLogOff collection
+    const forceLogOffColRef = collection(db, 'forceLogOff');
+    forceLogoutListener = onSnapshot(forceLogOffColRef, (snapshot) => {
+        // Get displayed unit, civilian, and dispatcher IDs from the page (works for all services)
+        let displayedUnitId = null;
+        let displayedCivilianId = null;
+        let displayedDispatcherId = null;
+        const unitIdEl = document.getElementById('unit-id-display');
+        const civilianIdEl = document.getElementById('civilian-id-display');
+        const dispatcherIdEl = document.getElementById('dispatcher-id-display');
+        if (unitIdEl) {
+            // Extract just the ID from 'Current UnitID: ...' (allow non-space chars)
+            const match = unitIdEl.textContent.match(/Current UnitID:\s*(\S+)/);
+            displayedUnitId = match ? match[1] : '';
         }
+        if (civilianIdEl) {
+            // Extract just the ID from 'Current CivilianID: ...' (allow non-space chars)
+            const match = civilianIdEl.textContent.match(/Current CivilianID:\s*(\S+)/);
+            displayedCivilianId = match ? match[1] : '';
+        }
+        if (dispatcherIdEl) {
+            // Extract just the ID from 'Current DispatcherID: ...' (allow non-space chars)
+            const match = dispatcherIdEl.textContent.match(/Current DispatcherID:\s*(\S+)/);
+            displayedDispatcherId = match ? match[1] : '';
+        }
+        // Extra debug logging for dispatcher force logout troubleshooting
+        const sessionDispatcherId = sessionStorage.getItem('dispatcherId');
+        console.log('[FORCE LOGOUT DEBUG] sessionStorage dispatcherId:', sessionDispatcherId);
+        console.log('[FORCE LOGOUT DEBUG] DOM displayedDispatcherId:', displayedDispatcherId);
+
+    console.log('[FORCE LOGOUT DEBUG] Displayed UnitID:', displayedUnitId, 'Displayed CivilianID:', displayedCivilianId, 'Displayed DispatcherID:', displayedDispatcherId);
+
+        snapshot.forEach(docSnapshot => {
+            const data = docSnapshot.data();
+            console.log(`[FORCE LOGOUT DEBUG] Checking doc ${docSnapshot.id}:`, data);
+            if (data.active === true) {
+                let matchType = null;
+                // Extra debug: log dispatcherId from Firestore doc
+                if (data.dispatcherId) {
+                    console.log('[FORCE LOGOUT DEBUG] Firestore doc dispatcherId:', data.dispatcherId);
+                }
+                if (data.unitId && displayedUnitId && data.unitId === displayedUnitId) matchType = 'unit';
+                else if (data.civilianId && displayedCivilianId && data.civilianId === displayedCivilianId) matchType = 'civilian';
+                else if (data.dispatcherId && displayedDispatcherId && data.dispatcherId === displayedDispatcherId) matchType = 'dispatcher';
+                if (matchType) {
+                    console.log(`[FORCE LOGOUT] forceLogOff/${docSnapshot.id} active: true for this user (${matchType})`);
+                    handleForceLogout(matchType, docSnapshot.id);
+                } else {
+                    console.log(`[FORCE LOGOUT DEBUG] No match for doc ${docSnapshot.id}.`);
+                }
+            } else {
+                console.log(`[FORCE LOGOUT DEBUG] Doc ${docSnapshot.id} is not active.`);
+            }
+        });
     });
 }
 
 // Handle the actual force logout
-async function handleForceLogout(userType) {
+async function handleForceLogout(userType, docId) {
     // Clean up the listener
     if (forceLogoutListener) {
         forceLogoutListener();
@@ -62,6 +81,17 @@ async function handleForceLogout(userType) {
 
     // Show force logout modal
     showForceLogoutModal(userType);
+
+    // Optionally, mark the forceLogOff doc as inactive so it doesn't trigger again
+    try {
+        if (db && docId) {
+            const docRef = doc(db, 'forceLogOff', docId);
+            await updateDoc(docRef, { active: false });
+            console.log(`[FORCE LOGOUT] Marked forceLogOff/${docId} as inactive.`);
+        }
+    } catch (err) {
+        console.error(`[FORCE LOGOUT] Error marking forceLogOff/${docId} inactive:`, err);
+    }
 }
 
 // Show the force logout modal
@@ -234,7 +264,6 @@ function showForceLogoutModal(userType) {
 async function performLogoutCleanup(userType) {
     try {
         console.log(`[FORCE LOGOUT] Performing cleanup for ${userType}`);
-        
         // Get user IDs
         const unitId = sessionStorage.getItem('unitId');
         const civilianId = sessionStorage.getItem('civilianId');
@@ -242,25 +271,36 @@ async function performLogoutCleanup(userType) {
 
         // Handle different user types
         if (userType === 'unit' || (userType === 'civilian' && unitId)) {
-            // For units or civilians associated with units
             await cleanupUnit(unitId);
             if (civilianId) {
                 await cleanupCivilian(civilianId);
             }
         } else if (userType === 'civilian' && !unitId) {
-            // For standalone civilians
             await cleanupCivilian(civilianId);
         } else if (userType === 'dispatcher') {
-            // For dispatchers
             await cleanupDispatcher(dispatcherId);
         }
 
-        // Clear session storage
+        // Remove forceLogOff document for this user BEFORE clearing sessionStorage
+        const userId = unitId || civilianId || dispatcherId;
+        console.log(`[FORCE LOGOUT] Attempting to remove forceLogOff doc for userId: ${userId}`);
+        if (userId) {
+            try {
+                await deleteDoc(doc(db, 'forceLogOff', userId));
+                console.log(`[FORCE LOGOUT] Removed forceLogOff/${userId}`);
+            } catch (err) {
+                console.error(`[FORCE LOGOUT] Error removing forceLogOff/${userId}:`, err);
+            }
+        } else {
+            console.warn('[FORCE LOGOUT] No userId found for forceLogOff deletion.');
+        }
+
+        // Now clear session storage
         sessionStorage.clear();
-        
+
         // Show cleanup success message briefly
         showCleanupMessage();
-        
+
         // Redirect to home after a brief delay
         setTimeout(() => {
             window.location.href = '../index.html';
@@ -268,7 +308,6 @@ async function performLogoutCleanup(userType) {
 
     } catch (error) {
         console.error('[FORCE LOGOUT] Error during cleanup:', error);
-        // Still redirect even if cleanup fails
         sessionStorage.clear();
         window.location.href = '../index.html';
     }

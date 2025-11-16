@@ -455,6 +455,70 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize force logout system
     initializeForceLogout(db);
 
+        // --- PATCH: Ensure ID display after login/setup ---
+        function displayCurrentIDs() {
+            const civilianId = sessionStorage.getItem("civilianId") || "None";
+            const unitId = sessionStorage.getItem("unitId") || "None";
+            const hospital = sessionStorage.getItem("hospitalButton_lastHospital") || null;
+            const base = sessionStorage.getItem("baseButton_lastBase") || null;
+            const standby = sessionStorage.getItem("standbyButton_lastStandby") || null;
+            let location = hospital || base || standby || "None";
+            const civilianIdDisplay = document.getElementById("civilian-id-display");
+            const unitIdDisplay = document.getElementById("unit-id-display");
+            if (civilianIdDisplay) {
+                civilianIdDisplay.innerHTML = `<span class=\"unit-pill\" style=\"background: #eaf6fb; color: #0074d9; font-weight: bold; padding: 5px 16px; border-radius: 16px; font-size: 15px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin: 2px 0; display: inline-block;\">Current CivilianID: ${civilianId}</span>`;
+            }
+            if (unitIdDisplay) {
+                unitIdDisplay.innerHTML = `<span class=\"unit-pill\" style=\"background: #eaf6fb; color: #0074d9; font-weight: bold; padding: 5px 16px; border-radius: 16px; font-size: 15px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin: 2px 0; display: inline-block;\">Current UnitID: ${unitId}</span>`;
+            }
+            let statusBox = document.getElementById("current-location-box");
+            if (!statusBox) {
+                statusBox = document.createElement("div");
+                statusBox.id = "current-location-box";
+                statusBox.style.display = "flex";
+                statusBox.style.gap = "12px";
+                statusBox.style.margin = "10px 0 0 0";
+                statusBox.style.flexWrap = "wrap";
+                statusBox.style.justifyContent = "flex-start";
+                statusBox.style.alignItems = "center";
+                if (unitIdDisplay) unitIdDisplay.after(statusBox);
+            }
+            statusBox.innerHTML = "";
+            const locationPill = document.createElement("span");
+            locationPill.className = "unit-pill";
+            locationPill.style.background = "#eaf6fb";
+            locationPill.style.color = "#0074d9";
+            locationPill.style.fontWeight = "bold";
+            locationPill.style.padding = "5px 16px";
+            locationPill.style.borderRadius = "16px";
+            locationPill.style.fontSize = "15px";
+            locationPill.style.boxShadow = "0 1px 4px rgba(0,0,0,0.06)";
+            locationPill.style.margin = "2px 0";
+            locationPill.style.display = "inline-block";
+            locationPill.textContent = `Currently Selected Location: ${location}`;
+            statusBox.appendChild(locationPill);
+        }
+
+        // Patch: Call displayCurrentIDs after login/setup and after saving details
+        window.displayCurrentIDs = displayCurrentIDs;
+
+        // Patch: Ensure displayCurrentIDs is called after saving details and after loading character
+        document.addEventListener('userLoggedIn', displayCurrentIDs);
+        document.addEventListener('characterLoaded', displayCurrentIDs);
+
+        // Patch: Call displayCurrentIDs on DOMContentLoaded to show IDs if already logged in
+        displayCurrentIDs();
+
+        // --- PATCH: Ensure force logout modal triggers reliably ---
+        // Re-initialize force logout system if sessionStorage changes (unitId/civilianId)
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'unitId' || e.key === 'civilianId') {
+                if (sessionStorage.getItem('unitId') && sessionStorage.getItem('unitId') !== 'None') {
+                    initializeForceLogout(db);
+                }
+            }
+        });
+
     // Avoid duplicate listeners
     if (window._FireAttachListenerActive) {
         // Already initialized, skip further setup
@@ -1244,6 +1308,21 @@ async function saveDetails() {
             unitDocRef = await addDoc(dbUnit, unitData);
             unitId = unitDocRef.id;
             sessionStorage.setItem("unitId", unitId);
+            // Reinitialize messaging with the real unitId and callsign
+            try {
+                const fireUserReal = {
+                    type: 'fire',
+                    id: unitId,
+                    name: callsignInput,
+                    canSendMessages: false,
+                    canReceiveMessages: true
+                };
+                initializeMessaging(fireUserReal);
+            } catch (e) {
+                console.warn('[FIRE] Failed to reinitialize messaging with real unitId', e);
+            }
+            // Initialize force logout system now that unitId exists
+            try { initializeForceLogout(db); } catch (e) { console.warn('[FIRE] initializeForceLogout failed', e); }
         }
         if (civilianId && civilianId !== "None") {
             civilianDocRef = doc(db, "civilians", civilianId);
@@ -1252,6 +1331,23 @@ async function saveDetails() {
             civilianDocRef = await addDoc(dbCiv, civilianData);
             civilianId = civilianDocRef.id;
             sessionStorage.setItem("civilianId", civilianId);
+        }
+        // If we now have a civilianId linked to this unit, reinitialize messaging to listen for it too
+        try {
+            if (civilianId && civilianId !== 'None') {
+                cleanupMessaging();
+                const fireUserWithExtras = {
+                    type: 'fire',
+                    id: unitId,
+                    name: callsignInput,
+                    canSendMessages: false,
+                    canReceiveMessages: true,
+                    extraIds: [ { id: civilianId, type: 'civilian' } ]
+                };
+                initializeMessaging(fireUserWithExtras);
+            }
+        } catch (e) {
+            console.warn('[FIRE] Failed to reinitialize messaging with civilian extraId', e);
         }
         // Update the displayed IDs
         displayCurrentIDs();
@@ -5026,70 +5122,7 @@ async function loadAdminMessages() {
     }
 }
 
-async function markMessageAsRead(messageId, source) {
-    try {
-        const collectionName = source === 'unit' ? 'units' : 'civilians';
-        const docId = source === 'unit' ? sessionStorage.getItem('unitId') : sessionStorage.getItem('civilianId');
-        
-        if (!docId) return;
 
-        const docRef = doc(db, collectionName, docId);
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            if (data.adminMessages && Array.isArray(data.adminMessages)) {
-                const updatedMessages = data.adminMessages.map(msg => 
-                    msg.id === messageId ? { ...msg, read: true } : msg
-                );
-                
-                await updateDoc(docRef, { adminMessages: updatedMessages });
-                console.log('[ADMIN MSG] Marked message as read:', messageId);
-            }
-        }
-    } catch (error) {
-        console.error('[ADMIN MSG] Error marking message as read:', error);
-    }
-}
-
-async function markAllMessagesAsRead() {
-    try {
-        const unitId = sessionStorage.getItem('unitId');
-        const civilianId = sessionStorage.getItem('civilianId');
-
-        // Mark unit messages as read
-        if (unitId) {
-            const unitDocRef = doc(db, 'units', unitId);
-            const unitDoc = await getDoc(unitDocRef);
-            if (unitDoc.exists()) {
-                const unitData = unitDoc.data();
-                if (unitData.adminMessages && Array.isArray(unitData.adminMessages)) {
-                    const updatedUnitMessages = unitData.adminMessages.map(msg => ({ ...msg, read: true }));
-                    await updateDoc(unitDocRef, { adminMessages: updatedUnitMessages });
-                }
-            }
-        }
-
-        // Mark civilian messages as read
-        if (civilianId) {
-            const civilianDocRef = doc(db, 'civilians', civilianId);
-            const civilianDoc = await getDoc(civilianDocRef);
-            if (civilianDoc.exists()) {
-                const civilianData = civilianDoc.data();
-                if (civilianData.adminMessages && Array.isArray(civilianData.adminMessages)) {
-                    const updatedCivilianMessages = civilianData.adminMessages.map(msg => ({ ...msg, read: true }));
-                    await updateDoc(civilianDocRef, { adminMessages: updatedCivilianMessages });
-                }
-            }
-        }
-
-        console.log('[ADMIN MSG] All messages marked as read');
-        loadAdminMessages(); // Reload to show updated state
-        
-    } catch (error) {
-        console.error('[ADMIN MSG] Error marking all messages as read:', error);
-    }
-}
 
 function closeAdminMessagesModal() {
     const modal = document.getElementById('admin-messages-modal');

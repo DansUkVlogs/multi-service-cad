@@ -560,6 +560,130 @@ body {
   transform: translateY(-2px);
 }
 
+/* Unit card styles (matching dispatch) for attached units tiles */
+.unit-card {
+  /* Admin: match dispatch call-detail style for available units and attached units */
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  align-items: stretch;
+  width: 100%;
+  max-width: 920px;
+  box-sizing: border-box;
+  background: #ffffff;
+  color: var(--text-color, #222);
+  border-radius: 10px;
+  padding: 25px 5px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+  border-left: 6px solid var(--unit-border, rgba(0,0,0,0.06));
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  border: 1px solid black;
+}
+.unit-card:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
+
+/* Top row for service/type/callsign (left) and status/id (right) */
+.unit-card .call-detail-unit-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.unit-card .call-detail-unit-top > div { min-width: 0; }
+
+.unit-card .unit-service-abbr {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  flex-shrink: 0;
+}
+
+.unit-card .unit-specific-type {
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: #222;
+  white-space: nowrap;
+}
+
+.unit-card .unit-callsign-box { display: block; font-family: 'Courier New', monospace; font-weight:900; font-size:1.02rem; color:#111; margin-top:6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Status pill and ID on the right */
+.unit-card .unit-status-label { display: inline-block; padding: 6px 10px; border-radius: 8px; font-weight: 800; }
+.unit-card .unit-status-label.available { background:#43A047; color:#fff; }
+.unit-card .unit-status-label.onscene { background:#FB8C00; color:#fff; }
+.unit-card .unit-status-label.offline { background:#E53935; color:#fff; }
+.unit-card .call-detail-unit-top .unit-id { font-size:0.85rem; color:#666; margin-top:8px; text-align:right; }
+
+/* Meta line under the main row */
+.unit-card .call-detail-unit-meta { margin-top:10px; font-size:0.92rem; color:#444; min-height:1.2rem; }
+
+/* Safety: ensure inner flex children can shrink */
+.unit-card * { box-sizing: border-box; }
+.unit-card .call-detail-unit-top > * { min-width: 0; }
+
+/* Attached units on call list (compact, fixed-size scroll area) */
+.call-card .attached-units-scroll {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: center;
+  /* increased padding so tiles have breathing room */
+  padding: 20px 20px;
+  /* Slightly larger fixed height so taller tiles fit */
+  min-height: 75px;
+  max-height: 75px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.call-card .attached-units-scroll .unit-card {
+  /* compact row layout for attached-unit pills inside call list */
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  height: 50px;
+  padding: 8px 12px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+  min-width: 120px;
+  max-width: 220px;
+  box-shadow: none;
+  border-radius: 10px;
+}
+
+.call-card .attached-units-scroll .unit-card .unit-service-abbr {
+  padding: 6px 8px;
+  font-size: 0.85rem;
+}
+
+.call-card .attached-units-scroll .unit-card .unit-specific-type {
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* small scrollbar for attached-units area */
+.call-card .attached-units-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+.call-card .attached-units-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.call-card .attached-units-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.12);
+  border-radius: 8px;
+}
+
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .header-content {
@@ -1886,10 +2010,957 @@ textarea.form-control::placeholder {
   animation: pulse 2s infinite;
 }
 
+/* System Logs Enhanced Styling */
+.log-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.log-stat {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  padding: 16px;
+  border-radius: 12px;
+  text-align: center;
+  border: 1px solid #dee2e6;
+}
+
+.log-stat .stat-value {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #495057;
+  margin-bottom: 4px;
+}
+
+.log-stat .stat-label {
+  font-size: 0.85rem;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.log-filters {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border: 1px solid #dee2e6;
+}
+
+.filter-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+  align-items: center;
+}
+
+.filter-row:last-child {
+  margin-bottom: 0;
+}
+
+.search-input {
+  flex: 2;
+  padding: 12px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background: linear-gradient(135deg, #ffffff 0%, #f8faff 100%);
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.06);
+  font-weight: 500;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.12), 0 2px 8px rgba(102, 126, 234, 0.08);
+  background: linear-gradient(135deg, #fafbff 0%, #f0f4ff 100%);
+}
+
+.search-input:hover:not(:focus) {
+  border-color: #94a3b8;
+  background: linear-gradient(135deg, #fafbff 0%, #f0f4ff 100%);
+}
+
+.filter-select {
+  flex: 1;
+  padding: 12px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background: linear-gradient(135deg, #ffffff 0%, #f8faff 100%);
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.06);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.12), 0 2px 8px rgba(102, 126, 234, 0.08);
+  background: linear-gradient(135deg, #fafbff 0%, #f0f4ff 100%);
+}
+
+.filter-select:hover:not(:focus) {
+  border-color: #94a3b8;
+  background: linear-gradient(135deg, #fafbff 0%, #f0f4ff 100%);
+}
+
+.filter-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.logs-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  transition: background-color 0.2s ease;
+}
+
+.logs-table th.sortable:hover {
+  background: #6d3410;
+}
+
+.sort-indicator {
+  font-size: 0.8rem;
+  margin-left: 4px;
+  opacity: 0.7;
+}
+
+.logs-table th.sortable.active .sort-indicator {
+  opacity: 1;
+  color: #fff;
+}
+
+.log-entry-new {
+  animation: slideInRight 0.5s ease-in-out;
+  background: #e8f5e8 !important;
+}
+
+.log-entry-new td {
+  background: #e8f5e8;
+}
+
+.user-info-cell {
+  font-size: 0.8rem;
+  color: #666;
+  max-width: 150px;
+}
+
+.user-info-cell .discord-name {
+  font-weight: 600;
+  color: #5865f2;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.user-info-cell .irl-name {
+  font-weight: 500;
+  color: #333;
+  display: block;
+}
+
+.service-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-block;
+}
+
+.service-badge.ambulance {
+  background: #e8f5e8;
+  color: #388e3c;
+}
+
+.service-badge.police {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.service-badge.fire {
+  background: #ffebee;
+  color: #d32f2f;
+}
+
+.service-badge.dispatch {
+  background: #fff3e0;
+  color: #f57c00;
+}
+
+.service-badge.civilian {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.service-badge.admin {
+  background: #fce4ec;
+  color: #c2185b;
+}
+
+.action-badge {
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  background: #f8f9fa;
+  color: #495057;
+  border: 1px solid #dee2e6;
+  display: inline-block;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.details-cell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.details-cell:hover {
+  white-space: normal;
+  word-wrap: break-word;
+  overflow: visible;
+  position: relative;
+  z-index: 10;
+  background: white;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.log-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding: 16px 0;
+  border-top: 1px solid #dee2e6;
+}
+
+.pagination-info {
+  font-size: 0.9rem;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.pagination-controls {
+  display: flex;
+  gap: 12px;
+}
+
+.logs-real-time-indicator {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #28a745;
+}
+
+.logs-real-time-indicator.paused {
+  color: #ffc107;
+}
+
+.logs-real-time-indicator .pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse 2s infinite;
+}
+
+.logs-real-time-indicator.paused .pulse-dot {
+  animation: none;
+}
+
 /* System status enhanced styling */
 #systemStatus {
   transition: all 0.3s ease;
   padding: 8px 12px;
   border-radius: 4px;
 }
+
+/* ================================
+   CALL MANAGEMENT STYLES
+   ================================ */
+
+/* Call Filters */
+.call-filters {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.call-filters .search-input {
+  flex: 1;
+  min-width: 250px;
+  padding: 12px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.call-filters .search-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.call-filters .filter-select {
+  padding: 12px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.call-filters .filter-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Calls Container */
+.calls-container {
+  max-height: 600px;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+/* Calls Grid */
+.calls-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 20px;
+  padding: 10px;
+}
+
+/* Call Card */
+.call-card {
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.call-card:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.call-card.selected {
+  border-color: #10b981;
+  background: #f0fdf4;
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.25);
+}
+
+/* Call Header */
+.call-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.call-service {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.service-icon {
+  font-size: 18px;
+}
+
+.service-name {
+  font-size: 14px;
+  color: #374151;
+}
+
+.call-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-text {
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Call Main Content */
+.call-main {
+  margin-bottom: 15px;
+}
+
+.call-type {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.priority-icon {
+  font-size: 16px;
+}
+
+.call-type-text {
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 16px;
+}
+
+.call-location {
+  color: #6b7280;
+  font-size: 14px;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.call-description {
+  color: #374151;
+  font-size: 14px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Call Footer */
+.call-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 15px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.call-time {
+  font-weight: 500;
+}
+
+.call-units {
+  font-weight: 500;
+  color: #3b82f6;
+}
+
+/* No Calls Message */
+.no-calls-message {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 40px 20px;
+  color: #6b7280;
+  font-size: 16px;
+}
+
+.loading-message {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 40px 20px;
+  color: #6b7280;
+  font-size: 16px;
+}
+
+/* Call Details Panel */
+.call-detail-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.call-details-content {
+  margin-top: 20px;
+}
+
+.call-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.call-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.call-detail-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.call-detail-item label {
+  font-weight: 600;
+  color: #374151;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.call-detail-item span {
+  font-size: 14px;
+  color: #1f2937;
+  padding: 8px;
+  background: #f8fafc;
+  border-radius: 6px;
+}
+
+/* Call Units Section */
+.call-units-section {
+  margin-top: 25px;
+  padding-top: 20px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.call-units-section h4 {
+  color: #374151;
+  margin-bottom: 15px;
+  font-size: 16px;
+}
+
+.units-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Horizontal attached units bar displayed under call cards */
+.attached-units-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-top: 10px;
+  align-items: center;
+}
+
+/* Call details panel content should be constrained for readability */
+#callDetailsPanel .call-details-content {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+/* When rendering attached units inside the call details section, show as wrapped tiles */
+#callAttachedUnits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Make the service label look like a pill */
+.call-service {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+/* Limit width of call card in details to avoid huge full-width blocks */
+#callDetailsPanel .call-card {
+  max-width: 920px;
+  margin: 0 auto 12px auto;
+}
+
+/* Styles for detailed unit tiles inside the Call Details panel */
+.unit-card.call-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 280px;
+  max-width: 920px;
+  min-height: 64px; /* ensure detail tiles are slightly taller */
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+}
+
+.unit-card.call-detail .unit-service-abbr {
+  font-size: 1rem;
+  padding: 8px 12px;
+  border-radius: 999px;
+}
+
+/* show callsign and status for call detail tiles */
+.unit-card.call-detail .unit-callsign-box { display: block; font-size: 1.02rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.unit-card.call-detail .unit-status-label { display: inline-block; padding: 6px 10px; border-radius: 8px; font-weight: 800; }
+
+.unit-card.call-detail .call-detail-unit-meta { color: #475569; }
+
+/* For detailed tiles, allow callsign and text to wrap/expand normally */
+.unit-card.call-detail .unit-callsign-inline {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+}
+
+.unit-card.call-detail .unit-main > * {
+  min-width: 0;
+}
+
+/* layout: when in details, present tiles in a grid for readability */
+#callAttachedUnits {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.unit-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.unit-callsign {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.unit-service {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.unit-status {
+  font-size: 12px;
+  color: #10b981;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.no-units {
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
+  padding: 20px;
+}
+
+/* Call Logs Panel */
+.call-log-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.call-logs-content {
+  margin-top: 20px;
+}
+
+.no-logs-message {
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
+  padding: 40px 20px;
+}
+
+/* Call log list inside Call Logs Panel */
+.call-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.call-log-item {
+  padding: 12px;
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #eef2ff;
+  box-shadow: 0 4px 12px rgba(102,126,234,0.04);
+}
+.call-log-time {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin-bottom: 6px;
+}
+.call-log-entry {
+  font-size: 0.95rem;
+  color: #333;
+}
+.call-log-meta {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  margin-left: 8px;
+}
+
+/* New Call Modal */
+.new-call-modal {
+  max-width: 600px;
+  width: 90%;
+}
+
+.new-call-modal .form-group {
+  margin-bottom: 20px;
+}
+
+.new-call-modal label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.new-call-modal input,
+.new-call-modal textarea,
+.new-call-modal select {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.new-call-modal input:focus,
+.new-call-modal textarea:focus,
+.new-call-modal select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.new-call-modal textarea {
+  height: 100px;
+  resize: vertical;
+}
+
+.new-call-modal input[readonly] {
+  background-color: #f8fafc;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+/* Modal Enhancements */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #1f2937;
+  font-size: 18px;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 24px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+/* Responsive Design for Call Management */
+@media (max-width: 768px) {
+  .calls-grid {
+    grid-template-columns: 1fr;
+  }
   
+  .call-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .call-filters .search-input {
+    min-width: auto;
+  }
+  
+  .call-detail-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .call-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .call-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+}
+  
+/* Call details card styling (admin viewCallDetails) */
+.call-basic-card {
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-shadow: 0 2px 6px rgba(12,12,12,0.04);
+  color: var(--text-color, #222);
+}
+.call-basic-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.call-basic-top .call-id {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #111;
+}
+.call-basic-top .call-id .code {
+  font-family: 'Courier New', monospace;
+  background: rgba(0,0,0,0.04);
+  padding: 4px 8px;
+  border-radius: 6px;
+  margin-left: 8px;
+  font-weight: 800;
+}
+.call-badges {
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+.call-basic-card .badge {
+  display:inline-block;
+  padding:6px 10px;
+  border-radius:999px;
+  font-weight:700;
+  font-size:0.85rem;
+  color:#fff;
+}
+.call-basic-card .badge.type {
+  background:#6c757d;
+  color:#fff;
+}
+.call-basic-card .badge.status { background:#10b981; }
+.call-basic-card .badge.status.open { background:#10b981; }
+.call-basic-card .badge.status.active { background:#06b6d4; }
+.call-basic-card .badge.status.pending { background:#f59e0b; }
+.call-basic-card .badge.status.closed { background:#6b7280; }
+.call-basic-card .badge.status.unknown { background:#6c757d; }
+.call-basic-card .badge.service.police { background:#1f6feb; }
+.call-basic-card .badge.service.fire { background:#e03e3e; }
+.call-basic-card .badge.service.ambulance { background:#17a2b8; }
+.call-basic-card .badge.service.multiple { background:#6f42c1; }
+.call-basic-card .badge.service.unknown { background:#6c757d; }
+
+.call-basic-grid {
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap:10px 14px;
+  align-items:start;
+}
+.call-basic-grid .call-field {
+  display:flex;
+  flex-direction:column;
+}
+.call-basic-grid .label {
+  font-size:0.75rem;
+  color:#666;
+  margin-bottom:6px;
+}
+.call-basic-grid .value {
+  font-size:0.95rem;
+  color:#222;
+  line-height:1.2;
+}
+.call-basic-grid .description {
+  white-space:pre-wrap;
+}
+
+@media (max-width: 720px) {
+  .call-basic-grid { grid-template-columns: 1fr; }
+  .call-basic-top { flex-direction: column; align-items: flex-start; gap:8px; }
+}

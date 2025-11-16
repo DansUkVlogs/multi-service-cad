@@ -2,7 +2,7 @@
 import { db } from "../firebase/firebase.js";
 import { collection, addDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { logUserAction } from '../firebase/logUserAction.js';
-import { initializeMessaging, sendMessage, sendUserMessage, markMessageAsRead, markAllMessagesAsRead } from '../messaging-system.js';
+import { initializeMessaging, cleanupMessaging, sendMessage, sendUserMessage, markMessageAsRead, markAllMessagesAsRead } from '../messaging-system.js';
 
 // Import force logout system
 import { initializeForceLogout, cleanupForceLogout } from "../firebase/forceLogout.js";
@@ -25,6 +25,17 @@ function populateCharacterSlots() {
             slotSelect.innerHTML += `<option value="${i}">Character ${i + 1} (Empty)</option>`;
         }
     }
+
+    // Add civilian ID display for force logout compatibility
+    let civilianId = sessionStorage.getItem('civilianId');
+    let el = document.getElementById('civilian-id-display');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'civilian-id-display';
+        el.style = 'position:fixed;bottom:10px;left:10px;background:#222;color:#fff;padding:6px 12px;border-radius:6px;z-index:1300;font-size:14px;';
+        document.body.appendChild(el);
+    }
+    el.textContent = `Current CivilianID: ${civilianId || ''}`;
 }
 
 // Function to load a character from the selected slot
@@ -72,9 +83,49 @@ async function loadCharacterFromSlot(slot) {
             console.error("Error logging character load:", error);
         }
 
+        // Try to find matching civilian in Firestore and set sessionStorage.civilianId
+        try {
+            const { getDocs, collection, where, query } = await import("https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js");
+            const civiliansRef = collection(db, "civilians");
+            const q = query(civiliansRef,
+                where("firstName", "==", characterData.firstName),
+                where("lastName", "==", characterData.lastName),
+                where("dob", "==", characterData.dob)
+            );
+            const snapshot = await getDocs(q);
+            if (!snapshot.empty) {
+                // Use the first match
+                const docId = snapshot.docs[0].id;
+                sessionStorage.setItem('civilianId', docId);
+                // Initialize messaging for this civilian ID
+                try {
+                    cleanupMessaging();
+                } catch (e) {
+                    console.warn('⚠️ cleanupMessaging failed before civilian init', e);
+                }
+                initializeMessaging({
+                    type: 'civilian',
+                    id: docId,
+                    name: `${characterData.firstName} ${characterData.lastName}`,
+                    canSendMessages: false,
+                    canReceiveMessages: true
+                });
+            } else {
+                sessionStorage.removeItem('civilianId');
+            }
+        } catch (err) {
+            console.warn("Could not find matching civilian in Firestore:", err);
+            sessionStorage.removeItem('civilianId');
+        }
+
+        // Update the civilian ID display
+        populateCharacterSlots();
+
         showNotification(`Loaded character: ${characterData.firstName} ${characterData.lastName}`, "success");
     } else {
         showNotification(`Slot ${parseInt(slot) + 1} is empty.`, "error");
+        sessionStorage.removeItem('civilianId');
+        populateCharacterSlots();
     }
 }
 
@@ -273,8 +324,22 @@ async function goLive() {
 
         liveCharacterId = docRef.id; // Store the unique ID of the live character
 
-        // Store the live character ID for session tracking
+        // Store the live character ID for session tracking and update display immediately
         sessionStorage.setItem('civilianId', liveCharacterId);
+        populateCharacterSlots();
+        // Reinitialize messaging now that we have a canonical civilianId (so incoming messages are received immediately)
+        try {
+            try { cleanupMessaging(); } catch (e) { console.warn('⚠️ cleanupMessaging failed before civilian init', e); }
+            initializeMessaging({
+                type: 'civilian',
+                id: liveCharacterId,
+                name: `${characterData.firstName} ${characterData.lastName}`,
+                canSendMessages: false,
+                canReceiveMessages: true
+            });
+        } catch (e) {
+            console.warn('[CIVILIAN] Failed to initialize messaging with live civilianId', e);
+        }
 
         // Log the go live action
         await logUserAction(db, 'go_live', {
@@ -348,7 +413,12 @@ async function unlive() {
         await deleteDoc(doc(db, "civilians", liveCharacterId));
         liveCharacterId = null; // Clear the stored ID
 
-        // Clear the session storage
+        // Clear the session storage and cleanup messaging listeners
+        try {
+            cleanupMessaging();
+        } catch (e) {
+            console.warn('⚠️ cleanupMessaging failed during unlive', e);
+        }
         sessionStorage.removeItem('civilianId');
 
         // Change the button back to "Go Live"
@@ -484,6 +554,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Disable "New Call" button by default
     newCallBtn.disabled = true;
+
+    // Messaging will be initialized when a real Civilian ID exists (after Go Live or load)
 
     saveCharacterBtn.onclick = async () => {
         const slotSelect = document.getElementById("slot-select");

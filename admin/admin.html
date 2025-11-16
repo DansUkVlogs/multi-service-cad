@@ -173,21 +173,79 @@
     <div id="call-management" class="tab-content">
       <div class="section-card">
         <div class="section-header">
-          <h3>Active Calls Management</h3>
+          <h3>🚨 Active Calls Management</h3>
           <div class="call-controls">
             <button id="refreshCallsBtn" class="control-btn">🔄 Refresh</button>
-            <button id="newCallBtn" class="control-btn primary">➕ New Call</button>
+            <button id="newCallBtn" class="control-btn primary">➕ Create Admin Call</button>
           </div>
         </div>
-        <div class="calls-grid" id="activeCallsGrid">
-          <!-- Active calls will be displayed here -->
+        
+        <!-- Call Filters -->
+        <div class="call-filters">
+          <input type="text" id="callSearchInput" placeholder="🔍 Search calls..." class="search-input">
+          <select id="callServiceFilter" class="filter-select">
+            <option value="">All Services</option>
+            <option value="Police">👮 Police</option>
+            <option value="Fire">🚒 Fire</option>
+            <option value="Ambulance">🚑 Ambulance</option>
+            <option value="Multiple">🏢 Multiple</option>
+          </select>
+          <select id="callStatusFilter" class="filter-select">
+            <option value="">All Status</option>
+            <option value="Active">🟢 Active</option>
+            <option value="Pending">🟡 Pending</option>
+            <option value="Complete">✅ Complete</option>
+          </select>
+        </div>
+        
+        <div class="calls-container">
+          <div class="calls-grid" id="activeCallsGrid">
+            <div class="loading-message">Loading active calls...</div>
+          </div>
         </div>
       </div>
       
-      <div class="section-card">
-        <h3>Call History</h3>
-        <div class="call-history" id="callHistory">
-          <!-- Call history will be displayed here -->
+      <!-- Call Details Panel -->
+      <div class="section-card" id="callDetailsPanel" style="display: none;">
+        <div class="section-header">
+          <h3>📋 Call Details</h3>
+          <div class="call-detail-controls">
+            <button id="closeCallBtn" class="control-btn danger">🔴 Close Call</button>
+            <button id="clearSelectionBtn" class="control-btn">↩️ Clear Selection</button>
+          </div>
+        </div>
+        
+        <div class="call-details-content">
+          <div class="call-basic-info" id="callBasicInfo">
+            <!-- Call basic information will be displayed here -->
+          </div>
+          
+          <div class="call-units-section">
+            <h4>👥 Attached Units</h4>
+            <div id="callAttachedUnits" class="units-list">
+              <!-- Attached units will be displayed here -->
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Call Logs Panel -->
+      <div class="section-card" id="callLogsPanel" style="display: none;">
+        <div class="section-header">
+          <h3>📝 Call Activity Logs</h3>
+          <div class="call-log-controls">
+            <button id="exportCallLogsBtn" class="control-btn">📥 Export Call Logs</button>
+            <button id="refreshCallLogsBtn" class="control-btn">🔄 Refresh</button>
+          </div>
+        </div>
+        
+        <div class="call-logs-content">
+          <div id="callLogsTable" class="logs-table-container">
+            <!-- Call-specific logs will be displayed here -->
+          </div>
+        </div>
+      </div>
+    </div>
         </div>
       </div>
     </div>
@@ -196,52 +254,93 @@
     <div id="system-logs" class="tab-content">
       <div class="section-card">
         <div class="section-header">
-          <h3>System Activity Logs</h3>
+          <h3>📋 System Activity Logs</h3>
           <div class="log-controls">
             <button id="exportLogsBtn" class="control-btn">📥 Export</button>
             <button id="clearLogsBtn" class="control-btn danger">🗑️ Clear All</button>
-            <select id="logDateFilter">
+            <button id="pauseLogsBtn" class="control-btn">⏸️ Pause Updates</button>
+            <div class="real-time-indicator" id="logsRealTimeIndicator">
+              <span class="pulse-dot">●</span> Live Updates
+            </div>
+          </div>
+        </div>
+        
+        <div class="log-stats">
+          <div class="log-stat">
+            <div class="stat-value" id="totalLogsCount">-</div>
+            <div class="stat-label">Total Logs</div>
+          </div>
+          <div class="log-stat">
+            <div class="stat-value" id="filteredLogsCount">-</div>
+            <div class="stat-label">Filtered Results</div>
+          </div>
+          <div class="log-stat">
+            <div class="stat-value" id="lastLogTime">-</div>
+            <div class="stat-label">Last Activity</div>
+          </div>
+        </div>
+        
+        <div class="log-filters">
+          <div class="filter-row">
+            <input type="text" id="logSearch" placeholder="🔍 Search logs (action, user, details)..." class="search-input">
+            <select id="logServiceFilter" class="filter-select">
+              <option value="">All Services</option>
+              <!-- Options will be populated dynamically from logs -->
+            </select>
+          </div>
+          
+          <div class="filter-row">
+            <select id="logUserFilter" class="filter-select">
+              <option value="">All Users</option>
+              <!-- Options will be populated dynamically -->
+            </select>
+            <select id="logActionFilter" class="filter-select">
+              <option value="">All Actions</option>
+              <!-- Options will be populated dynamically -->
+            </select>
+            <select id="logDateFilter" class="filter-select">
               <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
               <option value="week">Last Week</option>
               <option value="month">Last Month</option>
               <option value="all">All Time</option>
             </select>
           </div>
+          
+          <div class="filter-actions">
+            <button id="clearFiltersBtn" class="control-btn">🔄 Clear Filters</button>
+            <button id="refreshLogsBtn" class="control-btn primary">🔄 Refresh</button>
+          </div>
         </div>
-        <div class="log-filters">
-          <input type="text" id="logSearch" placeholder="Search logs...">
-          <select id="logServiceFilter">
-            <option value="">All Services</option>
-            <option value="Police">Police</option>
-            <option value="Ambulance">Ambulance</option>
-            <option value="Fire">Fire</option>
-            <option value="Dispatch">Dispatch</option>
-            <option value="Civilian">Civilian</option>
-          </select>
-          <select id="logActionFilter">
-            <option value="">All Actions</option>
-            <option value="Login">Login</option>
-            <option value="Status Change">Status Change</option>
-            <option value="Call Management">Call Management</option>
-          </select>
-        </div>
+        
         <div class="logs-table-container">
           <table class="logs-table" id="logsTable">
             <thead>
               <tr>
-                <th>Timestamp</th>
-                <th>User</th>
-                <th>Service</th>
-                <th>Action</th>
-                <th>Details</th>
+                <th class="sortable" data-sort="timestamp">📅 Timestamp <span class="sort-indicator">↓</span></th>
+                <th class="sortable" data-sort="callsign">👤 User</th>
+                <th class="sortable" data-sort="serviceType">🏢 Service</th>
+                <th class="sortable" data-sort="action">⚡ Action</th>
+                <th>📝 Details</th>
+                <th>🆔 User Info</th>
               </tr>
             </thead>
             <tbody id="logsTableBody">
               <tr>
-                <td colspan="5" class="loading-cell">Loading logs...</td>
+                <td colspan="6" class="loading-cell">Loading logs...</td>
               </tr>
             </tbody>
           </table>
+        </div>
+        
+        <div class="log-pagination">
+          <div class="pagination-info">
+            Showing <span id="logsShowing">0</span> of <span id="logsTotal">0</span> logs
+          </div>
+          <div class="pagination-controls">
+            <button id="loadMoreLogsBtn" class="control-btn">📄 Load More Logs</button>
+            <button id="loadAllLogsBtn" class="control-btn">📊 Load All Logs</button>
+          </div>
         </div>
       </div>
     </div>
@@ -363,6 +462,67 @@
       </div>
       <div class="modal-footer">
         <button class="control-btn" onclick="closeUserDetailsModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Admin Call Modal -->
+  <div id="newCallModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content new-call-modal">
+      <div class="modal-header">
+        <h3>➕ Create Admin Call</h3>
+        <button class="modal-close" onclick="closeNewCallModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="adminCallForm">
+          <div class="form-group">
+            <label for="adminCallerName">Caller Name</label>
+            <input type="text" id="adminCallerName" name="callerName" value="ADMIN DISPATCH" readonly>
+          </div>
+          
+          <div class="form-group">
+            <label for="adminCallDescription">Description *</label>
+            <textarea id="adminCallDescription" name="description" placeholder="Describe the incident..." required></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label for="adminCallLocation">Location *</label>
+            <input type="text" id="adminCallLocation" name="location" placeholder="Enter call location..." required>
+          </div>
+          
+          <div class="form-group">
+            <label for="adminCallService">Service *</label>
+            <select id="adminCallService" name="service" required>
+              <option value="">Select Service</option>
+              <option value="Police">👮 Police</option>
+              <option value="Fire">🚒 Fire</option>
+              <option value="Ambulance">🚑 Ambulance</option>
+              <option value="Multiple">🏢 Multiple</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="adminCallType">Call Type *</label>
+            <select id="adminCallType" name="callType" required>
+              <option value="">Select Call Type</option>
+              <!-- Will be populated based on service selection -->
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="adminCallPriority">Priority Level</label>
+            <select id="adminCallPriority" name="priority">
+              <option value="Low">🔵 Low Priority</option>
+              <option value="Medium" selected>🟡 Medium Priority</option>
+              <option value="High">🟠 High Priority</option>
+              <option value="Critical">🔴 Critical Priority</option>
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="control-btn" onclick="closeNewCallModal()">Cancel</button>
+        <button type="submit" form="adminCallForm" class="control-btn primary">🚨 Create Call</button>
       </div>
     </div>
   </div>

@@ -1467,6 +1467,24 @@ async function saveDetails() {
             civilianId = civilianDocRef.id;
             sessionStorage.setItem("civilianId", civilianId);
         }
+        // If we have a linked civilian ID, ensure messaging also listens for it
+        try {
+            if (civilianId && civilianId !== 'None') {
+                // Clean up any previous listeners to avoid duplicates
+                cleanupMessaging();
+                const ambulanceUserWithExtras = {
+                    type: 'ambulance',
+                    id: unitId,
+                    name: callsignInput,
+                    canSendMessages: false,
+                    canReceiveMessages: true,
+                    extraIds: [ { id: civilianId, type: 'civilian' } ]
+                };
+                initializeMessaging(ambulanceUserWithExtras);
+            }
+        } catch (e) {
+            console.warn('[AMBULANCE] Failed to reinitialize messaging with civilian extraId', e);
+        }
         // Update the displayed IDs
         displayCurrentIDs();
         // hide the background fade

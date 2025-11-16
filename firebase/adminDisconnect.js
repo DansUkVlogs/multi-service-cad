@@ -1,4 +1,6 @@
 // Admin Disconnect User System
+// Import force logoff function from admin.js
+import { forceLogOffUser } from '../admin/admin.js';
 // This file handles the admin's ability to force disconnect users
 
 import { getFirestore, doc, deleteDoc, getDoc, getDocs, collection, query, where } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
@@ -89,6 +91,8 @@ async function disconnectUnit(unitId) {
 
         // Remove unit from all collections
         await removeUnitFromCollections(unitId);
+    // Trigger force logoff for this unit
+    await forceLogOffUser(unitId, 'unit');
 
         // If there's an associated civilian, remove it too
         if (associatedCivilianId) {
@@ -109,6 +113,9 @@ async function disconnectUnit(unitId) {
 async function disconnectCivilian(civilianId) {
     try {
         console.log(`[ADMIN DISCONNECT] Disconnecting civilian: ${civilianId}`);
+
+        // Trigger force logoff for this civilian
+        await forceLogOffUser(civilianId, 'civilian');
 
         // Check if civilian is associated with a unit
         const civilianDoc = await getDoc(doc(db, 'civilians', civilianId));
@@ -155,13 +162,16 @@ async function disconnectDispatcher(dispatcherId) {
         // Remove dispatcher from dispatchers collection
         const dispatcherDocRef = doc(db, 'dispatchers', dispatcherId);
         const dispatcherExists = await getDoc(dispatcherDocRef);
-        
+
         if (dispatcherExists.exists()) {
             await deleteDoc(dispatcherDocRef);
             console.log(`[ADMIN DISCONNECT] Removed dispatcher ${dispatcherId} from dispatchers collection`);
         } else {
             console.log(`[ADMIN DISCONNECT] Dispatcher ${dispatcherId} not found in collection`);
         }
+
+        // Trigger force logoff for this dispatcher
+        await forceLogOffUser(dispatcherId, 'dispatcher');
 
         console.log(`[ADMIN DISCONNECT] Successfully disconnected dispatcher: ${dispatcherId}`);
         return true;

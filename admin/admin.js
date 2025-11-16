@@ -1,10 +1,31 @@
+import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+// Call this function with the user's ID to force log them off
+export async function forceLogOffUser(userId, userType) {
+    // Use the imported db instance from firebase.js
+    try {
+        let docData = { active: true };
+        if (userType === 'unit') docData.unitId = userId;
+        else if (userType === 'civilian') docData.civilianId = userId;
+        else if (userType === 'dispatcher') docData.dispatcherId = userId;
+        await setDoc(doc(db, 'forceLogOff', userId), docData);
+        console.log(`[ADMIN] Force logoff triggered for ${userType}: ${userId}`);
+    } catch (err) {
+        console.error(`[ADMIN] Error triggering force logoff for ${userType}: ${userId}`, err);
+    }
+}
+
+// Example usage: Add a button or call forceLogOffUser(unitId) when needed
+// document.getElementById('forceLogOffBtn').addEventListener('click', () => {
+//     const userId = ...; // get selected userId from UI
+//     forceLogOffUser(userId);
+// });
 // admin/admin.js
 import { db } from "../firebase/firebase.js";
 import {
   collection,
   getDocs,
   addDoc,
-  doc,
   getDoc,
   updateDoc,
   query,
@@ -29,6 +50,9 @@ import {
 
 // Import admin disconnect system
 import { initializeAdminDisconnect, disconnectUser } from "../firebase/adminDisconnect.js";
+
+// Reuse status color helpers from dispatch for unit tiles
+import { getStatusColor, getUnitTypeColor, getContrastingTextColor } from "../dispatch/statusColor.js";
 
 // Initialize auth
 const auth = getAuth();
@@ -1807,7 +1831,13 @@ async function loadCalls() {
         const callsQuery = query(callsRef, orderBy('timestamp', 'desc'), limit(20));
         const snapshot = await getDocs(callsQuery);
         
-        const container = document.getElementById('calls-grid');
+        // Support multiple possible container IDs (backwards-compatibility with existing admin.html)
+        const container = document.getElementById('calls-grid') || document.getElementById('activeCallsGrid') || document.getElementById('callsList');
+        if (!container) {
+            console.warn('[ADMIN] loadCalls: calls container element not found (expected id: calls-grid or activeCallsGrid). Aborting render.');
+            hideLoading();
+            return;
+        }
         container.innerHTML = '';
         
         if (snapshot.empty) {
@@ -1816,27 +1846,54 @@ async function loadCalls() {
             return;
         }
         
-        snapshot.forEach(doc => {
-            const data = doc.data();
+        const calls = [];
+        snapshot.forEach(doc => calls.push({ id: doc.id, data: doc.data() }));
+
+        // Render cards without action buttons; clicking a card selects it and shows details/logs
+        calls.forEach(({ id, data }) => {
             const callCard = document.createElement('div');
             callCard.className = 'call-card';
-            
-            const timestamp = data.timestamp?.toDate()?.toLocaleString() || 'Unknown';
-            
+            callCard.dataset.callId = id;
+
+            const serviceColor = getUnitTypeColor(data.service || 'Police');
+            const serviceTextColor = getContrastingTextColor(serviceColor);
+
+            // Format timestamp
+            let formattedTimestamp = 'Timestamp not available';
+            if (data.timestamp) {
+                const timestamp = data.timestamp.toDate ? data.timestamp.toDate() : new Date(data.timestamp);
+                formattedTimestamp = `${timestamp.toLocaleTimeString('en-GB')} ${timestamp.toLocaleDateString('en-GB')}`;
+            }
+
             callCard.innerHTML = `
-                <h4>Call #${doc.id.slice(-6)}</h4>
-                <p><strong>Type:</strong> ${data.type || 'Unknown'}</p>
-                <p><strong>Location:</strong> ${data.location || 'Unknown'}</p>
-                <p><strong>Status:</strong> ${data.status || 'Unknown'}</p>
-                <p><strong>Time:</strong> ${timestamp}</p>
-                <div style="margin-top: 12px;">
-                    <button class="control-btn primary" onclick="viewCallDetails('${doc.id}')">View Details</button>
-                    <button class="control-btn warning" onclick="updateCallStatus('${doc.id}')">Update Status</button>
+                <div class="call-info">
+                    <p class="call-service" style="background-color: ${serviceColor}; color: ${serviceTextColor};">${data.service || 'Service'}</p>
+                    <p class="call-location"><strong>Location:</strong> ${data.location || 'Unknown'}</p>
+                    <p class="call-status"><strong>Status:</strong> ${data.status || 'Awaiting Dispatch'}</p>
+                    <p class="call-timestamp"><strong>Time:</strong> ${formattedTimestamp}</p>
+                    <div class="attached-units-scroll" id="attached-units-${id}"></div>
                 </div>
             `;
-            
+
+            // Select on click
+            callCard.addEventListener('click', async () => {
+                // Highlight
+                document.querySelectorAll('.call-card.selected-call').forEach(c => c.classList.remove('selected-call'));
+                callCard.classList.add('selected-call');
+                // Show details/log
+                if (typeof viewCallDetails === 'function') {
+                    await viewCallDetails(id);
+                }
+            });
+
             container.appendChild(callCard);
         });
+
+        // Populate attached units bar for each call (non-blocking)
+        for (const { id } of calls) {
+            // fire-and-forget each rendering, they will log on error
+            adminRenderAttachedUnitsForCall(id).catch(e => console.error('[ADMIN] Error rendering attached units for call', id, e));
+        }
         
         hideLoading();
     } catch (error) {
@@ -2599,7 +2656,7 @@ window.viewUserDetails = async function(userId, userType) {
                 showNotification('Database not available', 'error');
                 return;
             }
-            
+
             let collectionName;
             switch(userType) {
                 case 'unit':
@@ -2615,16 +2672,61 @@ window.viewUserDetails = async function(userId, userType) {
                     showNotification('Unknown user type', 'error');
                     return;
             }
-            
-            // Get user details from appropriate collection
-            const userRef = collection(db, collectionName);
-            const snapshot = await getDocs(userRef);
-            
-            snapshot.forEach(doc => {
-                if (doc.id === userId) {
-                    userData = { id: doc.id, ...doc.data(), type: userType };
+
+            // Get user document directly (single document read)
+            try {
+                const userDocRef = doc(db, collectionName, userId);
+                const userDocSnap = await getDoc(userDocRef);
+                if (userDocSnap && userDocSnap.exists()) {
+                    const raw = userDocSnap.data() || {};
+
+                    // Build normalized user object similar to enhanced users
+                    const username = raw.callsign || raw.username || ((raw.firstName || raw.firstname) ? `${raw.firstName || raw.firstname} ${raw.lastName || raw.lastname || ''}`.trim() : `User ${userDocSnap.id.slice(-6)}`);
+                    const service = raw.unitType || (userType === 'dispatcher' ? 'Dispatch' : (userType === 'civilian' ? 'Civilian' : (raw.service || 'Unknown')));
+                    const status = raw.status || raw.state || 'Unknown';
+                    const callsign = raw.callsign || raw.callsignId || userDocSnap.id;
+                    const lastActive = raw.timestamp || raw.lastActive || null;
+
+                    userData = {
+                        id: userDocSnap.id,
+                        username,
+                        service,
+                        status,
+                        callsign,
+                        lastActive,
+                        type: userType,
+                        userId: raw.userId || null,
+                        rawData: raw
+                    };
+
+                    // Try to detect an associated civilian if present in raw data
+                    if (raw.civilianId || raw.associatedCivilianId || raw.associatedCivilian) {
+                        const civId = raw.civilianId || raw.associatedCivilianId || raw.associatedCivilian;
+                        try {
+                            const civRef = doc(db, 'civilians', civId);
+                            const civSnap = await getDoc(civRef);
+                            if (civSnap && civSnap.exists()) {
+                                const civ = civSnap.data() || {};
+                                const civName = `${civ.firstName || civ.firstname || ''} ${civ.lastName || civ.lastname || ''}`.trim() || civ.displayName || 'Unknown';
+                                userData.hasAssociation = true;
+                                userData.civilianName = civName || 'Unknown';
+                                userData.civilianId = civSnap.id;
+                            } else {
+                                userData.hasAssociation = true;
+                                userData.civilianId = civId;
+                                userData.civilianName = 'Unknown';
+                            }
+                        } catch (e) {
+                            console.warn('Error fetching associated civilian:', e);
+                            userData.hasAssociation = true;
+                            userData.civilianId = civId;
+                            userData.civilianName = 'Unknown';
+                        }
+                    }
                 }
-            });
+            } catch (err) {
+                console.error('Error fetching user document fallback:', err);
+            }
         }
         
         if (!userData) {
@@ -2753,22 +2855,9 @@ async function storeMessage(messageData) {
     }
 }
 
-// Function for viewing user details (enhanced version)
-window.viewUserDetails = function(userId, userType) {
-    console.log(`Viewing details for user: ${userId} (${userType})`);
-    
-    // Find the user in currentEnhancedUsers
-    const user = currentEnhancedUsers.find(u => u.id === userId);
-    
-    if (!user) {
-        console.warn(`User not found in enhanced users list: ${userId}`);
-        showNotification('User not found', 'error');
-        return;
-    }
-    
-    // Show the user details modal using the new modal system
-    showUserDetailsModal(user, userType);
-};
+// NOTE: The real viewUserDetails implementation is defined earlier (async) so
+// we intentionally do not redefine it here. Removing duplicate override so the
+// fallback Firestore fetch logic in the async implementation is used.
 
 // Enhanced user details modal using the new HTML modal structure
 function showUserDetailsModal(userData, userType) {
@@ -2788,7 +2877,11 @@ function showUserDetailsModal(userData, userType) {
     // Build the details HTML
     let detailsHTML = '<div class="user-details-grid">';
     
-    // Basic Information
+    // Basic Information - compute service text/class defensively so missing fields don't throw
+    const _serviceText = userData.service || userData.rawData?.unitType || (userData.type ? (userData.type.charAt(0).toUpperCase() + userData.type.slice(1)) : 'Unknown');
+    const _serviceClass = (_serviceText || 'unknown').toLowerCase().replace(/\s+/g, '-');
+    const _statusClass = (userData.status === 'Active' || userData.status === 'Online') ? 'online' : 'offline';
+
     detailsHTML += `
         <div class="user-detail-item">
             <div class="user-detail-label">Username</div>
@@ -2796,15 +2889,15 @@ function showUserDetailsModal(userData, userType) {
         </div>
         <div class="user-detail-item">
             <div class="user-detail-label">Service Type</div>
-            <div class="user-detail-value badge ${userData.service.toLowerCase()}">${userData.service}</div>
+            <div class="user-detail-value badge ${_serviceClass}">${_serviceText}</div>
         </div>
         <div class="user-detail-item">
             <div class="user-detail-label">Callsign/ID</div>
-            <div class="user-detail-value code">${userData.callsign || 'N/A'}</div>
+            <div class="user-detail-value code">${userData.callsign || userData.id || 'N/A'}</div>
         </div>
         <div class="user-detail-item">
             <div class="user-detail-label">Status</div>
-            <div class="user-detail-value badge ${userData.status === 'Active' || userData.status === 'Online' ? 'online' : 'offline'}">${userData.status || 'Unknown'}</div>
+            <div class="user-detail-value badge ${_statusClass}">${userData.status || 'Unknown'}</div>
         </div>
     `;
     
@@ -2995,9 +3088,278 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-window.viewCallDetails = function(callId) {
-    showNotification(`Viewing details for call: ${callId}`, 'info');
+window.viewCallDetails = async function(callId) {
+    try {
+        // Show the call details panel
+        const panel = document.getElementById('callDetailsPanel');
+        if (panel) panel.style.display = '';
+
+        const basicInfoEl = document.getElementById('callBasicInfo');
+        if (!basicInfoEl) {
+            console.warn('[ADMIN] callBasicInfo element not found');
+            showNotification(`Viewing call ${callId}`, 'info');
+            return;
+        }
+
+        // Fetch call document
+        const callRef = doc(db, 'calls', callId);
+        const callSnap = await getDoc(callRef);
+        if (!callSnap.exists()) {
+            showNotification('Call not found', 'error');
+            return;
+        }
+
+        const callData = callSnap.data();
+
+        // Format timestamp
+        let formattedTimestamp = 'Unknown';
+        if (callData.timestamp) {
+            const ts = callData.timestamp.toDate ? callData.timestamp.toDate() : new Date(callData.timestamp);
+            formattedTimestamp = `${ts.toLocaleTimeString('en-GB')} ${ts.toLocaleDateString('en-GB')}`;
+        }
+
+        // Render a compact call card instead of a plain list
+        const serviceText = callData.service || callData.serviceType || 'Multiple';
+        // Show call status in the second badge (user requested status instead of type)
+        const statusText = callData.status || callData.callStatus || callData.state || 'Unknown';
+        const statusClass = (statusText || 'unknown').toString().toLowerCase().replace(/\s+/g, '-');
+
+        basicInfoEl.innerHTML = `
+            <div class="call-basic-card">
+                <div class="call-basic-top">
+                    <div class="call-id">Call ID: <span class="code">${callId}</span></div>
+                    <div class="call-badges">
+                        <span class="badge service ${(serviceText||'').toString().toLowerCase().replace(/\s+/g,'-')}">${serviceText}</span>
+                        <span class="badge status ${statusClass}">${statusText}</span>
+                    </div>
+                </div>
+
+                <div class="call-basic-grid">
+                    <div class="call-field">
+                        <div class="label">Caller</div>
+                        <div class="value">${callData.callerName || 'Unknown'}</div>
+                    </div>
+                    <div class="call-field">
+                        <div class="label">Location</div>
+                        <div class="value">${callData.location || 'Unknown'}</div>
+                    </div>
+                    <div class="call-field">
+                        <div class="label">Time</div>
+                        <div class="value">${formattedTimestamp}</div>
+                    </div>
+                    <div class="call-field description-field" style="grid-column: 1 / -1;">
+                        <div class="label">Description</div>
+                        <div class="value description">${(callData.description || '').replace(/\n/g, '<br>')}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Render attached units as tiles (reuse dispatch unit-card style)
+        const attachedContainer = document.getElementById('callAttachedUnits');
+        if (!attachedContainer) {
+            console.warn('[ADMIN] callAttachedUnits container not found');
+            return;
+        }
+
+        // Clear previous
+        attachedContainer.innerHTML = '';
+
+        // Query attachedUnit collection
+        const attachedQuery = query(collection(db, 'attachedUnit'), where('callID', '==', callId));
+        const attachedSnap = await getDocs(attachedQuery);
+
+        if (attachedSnap.empty) {
+            attachedContainer.innerHTML = '<p>No Attached Units</p>';
+            return;
+        }
+
+        // Fetch unit docs and render tiles
+        const seen = new Set();
+        for (const docSnap of attachedSnap.docs) {
+            const { unitID } = docSnap.data();
+            if (!unitID || seen.has(unitID)) continue;
+            seen.add(unitID);
+
+            try {
+                const unitRef = doc(db, 'units', unitID);
+                const unitDoc = await getDoc(unitRef);
+                if (!unitDoc.exists()) continue;
+                const unitData = unitDoc.data();
+                const callsign = (unitData.callsign || 'N/A').trim();
+                const unitType = unitData.unitType || 'Unknown';
+                const specificType = unitData.specificType || '';
+                const status = unitData.status || 'Unknown';
+
+                const statusColor = getStatusColor(status);
+                const unitTypeColor = getUnitTypeColor(unitType);
+                const textColor = getContrastingTextColor(statusColor);
+
+                const serviceAbbr = (unitType.substring(0,3) || 'UNK').toUpperCase();
+
+                // Detailed tile for Call Details view
+                const unitDiv = document.createElement('div');
+                unitDiv.className = 'unit-card call-detail';
+                unitDiv.dataset.unitId = unitID;
+                unitDiv.style.backgroundColor = '#ffffff';
+                unitDiv.style.color = '#222';
+                unitDiv.style.borderLeft = `6px solid ${statusColor}`;
+                unitDiv.style.setProperty('--unit-type-color', unitTypeColor);
+                unitDiv.style.setProperty('--text-color', textColor);
+                unitDiv.innerHTML = `
+                    <div class="call-detail-unit-top" style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+                        <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+                            <span class="unit-service-abbr" style="background:${unitTypeColor};color:${getContrastingTextColor(unitTypeColor)};padding:8px 12px;border-radius:999px;font-weight:800;">${serviceAbbr}</span>
+                            <div style="display:flex;flex-direction:column;min-width:0;">
+                                <span class="unit-specific-type" style="font-size:1.08rem;font-weight:800;color:#222;white-space:nowrap;">${specificType || unitType}</span>
+                                <span class="unit-callsign-box" style="font-family:'Courier New', monospace;font-weight:900;font-size:1.02rem;color:#111;margin-top:6px;">${callsign} - ${status}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="call-detail-unit-meta" style="margin-top:10px;font-size:0.92rem;color:#444;display:flex;justify-content:space-between;align-items:center;gap:12px;">
+                        <div style="display:flex;flex-direction:column;gap:6px;min-width:0;">
+                            <span class="unit-status-label ${status.toLowerCase().replace(/\s/g, '-')}" style="display:inline-block;background:${statusColor};color:${getContrastingTextColor(statusColor)};padding:6px 10px;border-radius:8px;font-weight:800;">${status}</span>
+                            <div style="font-size:0.85rem;color:#666;">ID: ${unitID}</div>
+                        </div>
+                        <div style="color:#666;margin-left:12px;flex:1;text-align:right;min-width:0;">
+                            ${unitData.lastKnownLocation ? `Last seen: ${unitData.lastKnownLocation}` : ''}
+                        </div>
+                    </div>
+                `;
+
+                // Clicking a detailed tile opens unit details
+                unitDiv.addEventListener('click', () => {
+                    if (typeof viewUserDetails === 'function') {
+                        viewUserDetails(unitID, 'unit');
+                    }
+                });
+
+                attachedContainer.appendChild(unitDiv);
+            } catch (e) {
+                console.error('[ADMIN] Error rendering attached unit', e);
+            }
+        }
+
+                // Load call-specific logs into the Call Logs Panel
+                try {
+                    const logsPanel = document.getElementById('callLogsPanel');
+                    const logsContainer = document.getElementById('callLogsTable');
+                    if (logsPanel && logsContainer) {
+                        logsPanel.style.display = '';
+                        logsContainer.innerHTML = '<div class="loading-cell">Loading call logs...</div>';
+
+                        const logsRef = collection(db, 'logs');
+                        const logsQ = query(logsRef, where('callId', '==', callId), orderBy('timestamp', 'desc'));
+                        const logsSnap = await getDocs(logsQ);
+
+                        if (logsSnap.empty) {
+                            logsContainer.innerHTML = '<div class="no-logs-message">No logs found for this call.</div>';
+                        } else {
+                            const listEl = document.createElement('div');
+                            listEl.className = 'call-log-list';
+                            logsSnap.forEach(logDoc => {
+                                const d = logDoc.data();
+                                let ts = '';
+                                if (d.timestamp?.toDate) ts = d.timestamp.toDate().toLocaleString();
+                                else if (d.timestamp instanceof Date) ts = d.timestamp.toLocaleString();
+                                else ts = '';
+
+                                const item = document.createElement('div');
+                                item.className = 'call-log-item';
+                                item.innerHTML = `
+                                    <div class="call-log-time">${ts}</div>
+                                    <div class="call-log-entry"><strong>${d.action || 'Log'}</strong>: ${d.details || d.message || ''} <span class="call-log-meta">${d.callsign ? '• ' + d.callsign : ''} ${d.serviceType ? '• ' + d.serviceType : ''}</span></div>
+                                `;
+                                listEl.appendChild(item);
+                            });
+
+                            logsContainer.innerHTML = '';
+                            logsContainer.appendChild(listEl);
+                        }
+                    }
+                } catch (e) {
+                    console.error('[ADMIN] Error loading call logs for', callId, e);
+                }
+
+    } catch (error) {
+        console.error('Error in viewCallDetails:', error);
+        showNotification('Error loading call details', 'error');
+    }
 };
+
+// Render attached units inside the call card's scroll area (admin-specific)
+async function adminRenderAttachedUnitsForCall(callId) {
+    try {
+        const container = document.getElementById(`attached-units-${callId}`);
+        if (!container) return;
+
+        // Clear existing
+        while (container.firstChild) container.removeChild(container.firstChild);
+
+        const attachedQuery = query(collection(db, 'attachedUnit'), where('callID', '==', callId));
+        const attachedSnap = await getDocs(attachedQuery);
+
+        if (attachedSnap.empty) {
+            const el = document.createElement('div');
+            el.textContent = 'No Attached Units';
+            el.style.padding = '6px 12px';
+            el.style.opacity = '0.7';
+            container.appendChild(el);
+            return;
+        }
+
+        const seen = new Set();
+        for (const docSnap of attachedSnap.docs) {
+            const { unitID } = docSnap.data();
+            if (!unitID || seen.has(unitID)) continue;
+            seen.add(unitID);
+
+            try {
+                const unitRef = doc(db, 'units', unitID);
+                const unitDoc = await getDoc(unitRef);
+                if (!unitDoc.exists()) continue;
+                const unitData = unitDoc.data();
+
+                const callsign = (unitData.callsign || 'N/A').trim();
+                const unitType = unitData.unitType || 'Unknown';
+                const specificType = unitData.specificType || '';
+                const status = unitData.status || 'Unknown';
+
+                const statusColor = getStatusColor(status);
+                const unitTypeColor = getUnitTypeColor(unitType);
+                const textColor = getContrastingTextColor(statusColor);
+
+                const serviceAbbr = (unitType.substring(0,3) || 'UNK').toUpperCase();
+
+                const pill = document.createElement('div');
+                pill.className = 'unit-card';
+                pill.dataset.unitId = unitID;
+                pill.style.backgroundColor = '#ffffff';
+                pill.style.color = '#222';
+                pill.style.borderLeft = `6px solid ${statusColor}`;
+                pill.style.setProperty('--unit-type-color', unitTypeColor);
+                pill.style.setProperty('--text-color', textColor);
+                pill.innerHTML = `
+                    <span class="unit-main">
+                        <span class="unit-service-abbr" style="background:${unitTypeColor};color:${getContrastingTextColor(unitTypeColor)};">${serviceAbbr}</span>
+                        <span class="unit-specific-type">${specificType}<span class="unit-callsign-inline"><br>${callsign} - ${status}</span></span>
+                    </span>
+                `;
+
+                pill.addEventListener('click', (e) => {
+                    e.stopPropagation(); // prevent selecting the call
+                    if (typeof viewUserDetails === 'function') viewUserDetails(unitID, 'unit');
+                });
+
+                container.appendChild(pill);
+            } catch (e) {
+                console.error('[ADMIN] Error fetching unit for attachedUnit doc', e);
+            }
+        }
+    } catch (error) {
+        console.error('[ADMIN] adminRenderAttachedUnitsForCall error:', error);
+    }
+}
 
 window.updateCallStatus = function(callId) {
     showNotification(`Updating status for call: ${callId}`, 'info');
