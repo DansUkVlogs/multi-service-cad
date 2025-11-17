@@ -125,6 +125,69 @@
   </div>
 </div>
 
+  <!-- Incoming Call Popup (Non-intrusive) -->
+  <div id="incomingCallPopup" class="incoming-call-popup" style="display: none;">
+    <div class="incoming-call-content">
+      <div class="incoming-call-header">
+        <span class="phone-icon">📞</span>
+        <span class="incoming-text">Incoming Call</span>
+      </div>
+      <div class="incoming-call-info">
+        <div class="caller-name" id="incomingCallerName">Unknown Caller</div>
+        <div class="caller-number">999 Emergency</div>
+      </div>
+      <div class="incoming-call-actions">
+        <button id="answerCallBtn" class="answer-btn">
+          <span class="btn-icon">📞</span>
+          Answer
+        </button>
+        <button id="declineCallBtn" class="decline-btn">
+          <span class="btn-icon">📵</span>
+          Decline
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Call Answer Modal -->
+  <div id="callAnswerModal" class="modal" style="display: none;">
+    <div class="modal-content call-modal">
+      <div class="call-modal-header">
+        <h3>📞 Emergency Call</h3>
+        <button class="close" id="callModalClose">&times;</button>
+      </div>
+      <div class="call-modal-body">
+        <div class="caller-info">
+          <div class="caller-details">
+            <strong id="modalCallerName">Caller Name</strong>
+            <div class="call-duration" id="callDuration">00:00</div>
+          </div>
+        </div>
+        <div class="call-conversation">
+          <div id="callMessages" class="call-messages">
+            <div class="system-message">Call connected - Emergency Services</div>
+          </div>
+        </div>
+        <div class="call-controls">
+          <div class="voice-controls">
+            <button id="muteBtn" class="voice-btn mute-btn">
+              <span class="btn-icon">🔊</span>
+              Mute
+            </button>
+            <div class="call-status" id="voiceCallStatus">
+              <span class="status-indicator connecting">🔄</span>
+              <span class="status-text">Connecting...</span>
+            </div>
+          </div>
+          <button id="endCallBtn" class="end-call-btn">
+            <span class="btn-icon">📞</span>
+            End Call
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="dispatch.js"></script>
 </body>
 </html>

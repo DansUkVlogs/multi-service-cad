@@ -1,6 +1,6 @@
 
 import { db } from "../firebase/firebase.js";
-import { collection, addDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { collection, addDoc, deleteDoc, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { logUserAction } from '../firebase/logUserAction.js';
 import { initializeMessaging, cleanupMessaging, sendMessage, sendUserMessage, markMessageAsRead, markAllMessagesAsRead } from '../messaging-system.js';
 
@@ -8,6 +8,18 @@ import { initializeMessaging, cleanupMessaging, sendMessage, sendUserMessage, ma
 import { initializeForceLogout, cleanupForceLogout } from "../firebase/forceLogout.js";
 
 let liveCharacterId = null; // Store the unique ID of the live character
+
+// WebRTC Variables
+let localStream = null;
+let peerConnection = null;
+let currentCallId = null;
+let civilianIsMuted = false;
+let iceCandidateQueue = []; // Queue for ICE candidates received before remote description
+const iceServers = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' }
+];
 
 // Function to populate character slots dynamically
 function populateCharacterSlots() {
@@ -478,7 +490,7 @@ function openCallTypeModal() {
 }
 
 // Function to handle voice call modal (phone interface)
-function openVoiceCallModal() {
+async function openVoiceCallModal() {
     const voiceCallModal = document.getElementById("voiceCallModal");
     const phoneTime = document.getElementById("phoneTime");
     const phoneCallerName = document.getElementById("phoneCallerName");
@@ -495,13 +507,57 @@ function openVoiceCallModal() {
     // Set caller name
     const firstName = document.getElementById("first-name").value.trim();
     const lastName = document.getElementById("last-name").value.trim();
-    if (firstName && lastName) {
-        phoneCallerName.textContent = `${firstName} ${lastName}`;
-    } else {
-        phoneCallerName.textContent = "Unknown Caller";
-    }
+    const callerName = (firstName && lastName) ? `${firstName} ${lastName}` : "Unknown Caller";
+    phoneCallerName.textContent = callerName;
 
     voiceCallModal.style.display = "block";
+
+    // Create incoming call document immediately when voice call starts
+    let currentIncomingCallId = null;
+    try {
+        const incomingCallData = {
+            callerName: callerName,
+            civilianId: liveCharacterId,
+            status: 'calling',
+            timestamp: new Date(),
+            placeholder: false
+        };
+
+        // Add to incomingCalls collection immediately
+        const callRef = await addDoc(collection(db, "incomingCalls"), incomingCallData);
+        currentIncomingCallId = callRef.id;
+        console.log("Created incoming call document:", currentIncomingCallId);
+        
+        // Store call ID for WebRTC use
+        sessionStorage.setItem('currentCallId', currentIncomingCallId);
+        
+        // Set up listener for call status changes
+        const callDocRef = doc(db, "incomingCalls", currentIncomingCallId);
+        const unsubscribe = onSnapshot(callDocRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const callData = docSnap.data();
+                if (callData.status === 'answered') {
+                    // Call was answered by dispatch, update UI
+                    handleCallAnswered(ringTone);
+                } else if (callData.status === 'declined') {
+                    // Call was declined by dispatch
+                    handleCallDeclined(ringTone);
+                } else if (callData.status === 'ended') {
+                    // Call was ended by dispatch
+                    handleCallEndedByDispatch(ringTone);
+                }
+            }
+        });
+
+        // Store the unsubscribe function for cleanup
+        voiceCallModal.dataset.unsubscribe = 'listener-attached';
+        voiceCallModal._cleanup = unsubscribe;
+
+    } catch (error) {
+        console.error("Error creating incoming call:", error);
+        showNotification("Failed to initiate call. Please try again.", "error");
+        return;
+    }
 
     // Create and play ringing tone
     const ringTone = new Audio('../audio/dialing-tone.mp3');
@@ -518,6 +574,12 @@ function openVoiceCallModal() {
         ringTone.pause();
         ringTone.currentTime = 0;
         voiceCallModal.style.display = "none";
+        
+        // Clean up listener
+        if (voiceCallModal._cleanup) {
+            voiceCallModal._cleanup();
+            voiceCallModal._cleanup = null;
+        }
     };
 
     // Close button handler
@@ -529,23 +591,38 @@ function openVoiceCallModal() {
     // End call button handler
     const endCallBtn = document.getElementById("endCallBtn");
     endCallBtn.onclick = async () => {
-        stopRingingAndClose();
-        
         try {
+            // Update the incoming call status to ended if it exists
+            if (currentIncomingCallId) {
+                const callRef = doc(db, "incomingCalls", currentIncomingCallId);
+                await setDoc(callRef, {
+                    status: 'ended',
+                    endedAt: new Date(),
+                    endedBy: 'civilian'
+                }, { merge: true });
+                console.log("Updated incoming call status to ended by civilian");
+            }
+
             // Log the voice call action
-            await logUserAction(db, 'voice_call', {
+            await logUserAction(db, 'voice_call_ended', {
                 callerName: phoneCallerName.textContent,
                 service: 'Emergency Services',
                 callType: 'voice',
                 civilianId: liveCharacterId,
+                incomingCallId: currentIncomingCallId,
                 timestamp: new Date()
             });
 
-            showNotification("Voice call ended. Emergency services have been notified.", "success");
+            showNotification("Voice call ended.", "success");
         } catch (error) {
-            console.error("Error logging voice call:", error);
+            console.error("Error ending voice call:", error);
             showNotification("Call ended.", "success");
         }
+        
+        // Clean up WebRTC connection
+        cleanupWebRTC();
+        
+        stopRingingAndClose();
     };
 
     // Close on outside click
@@ -554,6 +631,337 @@ function openVoiceCallModal() {
             stopRingingAndClose();
         }
     });
+}
+
+// Function to handle when the call is answered by dispatch
+async function handleCallAnswered(ringTone) {
+    console.log("Call answered by dispatch!");
+    
+    // Stop ringing tone
+    if (ringTone) {
+        ringTone.pause();
+        ringTone.currentTime = 0;
+    }
+    
+    // Update UI to show call is connected
+    const callingText = document.querySelector('.calling-text');
+    const emergencyNumber = document.querySelector('.emergency-number');
+    const endCallBtn = document.getElementById('endCallBtn');
+    
+    if (callingText) callingText.textContent = 'Connected - Voice Chat Active';
+    if (emergencyNumber) emergencyNumber.textContent = 'Emergency Services';
+    if (endCallBtn) {
+        const labelElement = endCallBtn.querySelector('.phone-btn-label');
+        if (labelElement) labelElement.textContent = 'End Call';
+        endCallBtn.style.background = '#dc2626'; // Red color for end call
+    }
+
+    // Setup mute button for civilian
+    const civMuteBtn = document.getElementById('civMuteBtn');
+    if (civMuteBtn) {
+        civMuteBtn.onclick = () => {
+            toggleCivilianMute();
+        };
+    }
+    
+    showNotification("Call answered by emergency services - Voice chat starting...", "success");
+    
+    // Initialize WebRTC for voice chat
+    const callId = sessionStorage.getItem('currentCallId');
+    if (callId) {
+        await initializeWebRTCCivilian(callId);
+    }
+}
+
+// Function to handle when the call is declined by dispatch
+function handleCallDeclined(ringTone) {
+    console.log("Call declined by dispatch");
+    
+    // Stop ringing tone
+    if (ringTone) {
+        ringTone.pause();
+        ringTone.currentTime = 0;
+    }
+    
+    // Close the modal after a brief delay
+    setTimeout(() => {
+        const voiceCallModal = document.getElementById("voiceCallModal");
+        if (voiceCallModal) {
+            voiceCallModal.style.display = "none";
+            // Clean up listener
+            if (voiceCallModal._cleanup) {
+                voiceCallModal._cleanup();
+                voiceCallModal._cleanup = null;
+            }
+        }
+    }, 1000);
+    
+    showNotification("Call declined. Please try again or use text call.", "warning");
+}
+
+// Function to handle when the call is ended by dispatch
+function handleCallEndedByDispatch(ringTone) {
+    console.log("Call ended by dispatch");
+    
+    // Clean up WebRTC connection first
+    cleanupWebRTC();
+    
+    // Stop ringing tone
+    if (ringTone) {
+        ringTone.pause();
+        ringTone.currentTime = 0;
+    }
+    
+    // Close the modal immediately
+    const voiceCallModal = document.getElementById("voiceCallModal");
+    if (voiceCallModal) {
+        voiceCallModal.style.display = "none";
+        // Clean up listener
+        if (voiceCallModal._cleanup) {
+            voiceCallModal._cleanup();
+            voiceCallModal._cleanup = null;
+        }
+    }
+    
+    showNotification("Call ended by dispatcher. Emergency services have been notified.", "success");
+}
+
+// WebRTC Functions for Voice Chat
+async function initializeWebRTCCivilian(callId) {
+    try {
+        currentCallId = callId;
+        
+        // Get user media (audio only)
+        localStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            }, 
+            video: false 
+        });
+        
+        // Create peer connection
+        peerConnection = new RTCPeerConnection({ iceServers });
+        
+        // Add local stream to peer connection
+        localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, localStream);
+        });
+        
+        // Handle incoming stream
+        peerConnection.ontrack = (event) => {
+            console.log('Received remote stream from dispatcher');
+            
+            // Create or get remote audio element
+            let remoteAudio = document.getElementById('civilianRemoteAudio');
+            if (!remoteAudio) {
+                remoteAudio = document.createElement('audio');
+                remoteAudio.id = 'civilianRemoteAudio';
+                remoteAudio.autoplay = true;
+                remoteAudio.controls = true; // Add controls for debugging
+                remoteAudio.volume = 1.0;
+                document.body.appendChild(remoteAudio);
+            }
+            
+            remoteAudio.srcObject = event.streams[0];
+            
+            // Ensure audio plays
+            remoteAudio.play().then(() => {
+                console.log('✅ Civilian receiving dispatcher audio');
+            }).catch(err => {
+                console.error('❌ Failed to play dispatcher audio:', err);
+                // Try to play after user interaction
+                document.addEventListener('click', () => {
+                    remoteAudio.play().then(() => {
+                        console.log('✅ Dispatcher audio started after user interaction');
+                    }).catch(e => console.error('❌ Still failed to play:', e));
+                }, { once: true });
+            });
+        };
+        
+        // Handle ICE candidates
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                console.log('Sending ICE candidate to dispatch');
+                sendICECandidate(event.candidate, 'civilian');
+            }
+        };
+        
+        // Listen for signaling data from dispatch
+        listenForWebRTCSignaling();
+        
+        // CREATE AND SEND OFFER (civilian initiates WebRTC)
+        console.log('Creating WebRTC offer...');
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        
+        // Send offer to dispatch
+        await setDoc(doc(db, 'webrtcSignaling', currentCallId), {
+            type: 'offer',
+            data: offer,
+            sender: 'civilian',
+            timestamp: new Date()
+        });
+        
+        console.log('Civilian WebRTC offer sent to dispatch');
+        
+    } catch (error) {
+        console.error('Error initializing civilian WebRTC:', error);
+        showNotification('Failed to initialize voice chat', 'error');
+    }
+}
+
+async function handleWebRTCAnswer(answer) {
+    try {
+        if (!peerConnection) return;
+        
+        console.log('Handling WebRTC answer from dispatch');
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        
+        console.log('WebRTC connection established!');
+        
+        // Process any queued ICE candidates
+        await processQueuedIceCandidates();
+        
+    } catch (error) {
+        console.error('Error handling WebRTC answer:', error);
+    }
+}
+
+// Function to safely add ICE candidates with queue system
+async function addIceCandidateWithQueue(candidateData) {
+    try {
+        const iceCandidate = new RTCIceCandidate({
+            candidate: candidateData.candidate,
+            sdpMLineIndex: candidateData.sdpMLineIndex,
+            sdpMid: candidateData.sdpMid
+        });
+
+        // Check if remote description is set
+        if (peerConnection.remoteDescription) {
+            console.log('Adding ICE candidate immediately');
+            await peerConnection.addIceCandidate(iceCandidate);
+        } else {
+            console.log('Queueing ICE candidate for later processing');
+            iceCandidateQueue.push(iceCandidate);
+        }
+    } catch (error) {
+        console.error('Error adding ICE candidate:', error);
+    }
+}
+
+// Function to process queued ICE candidates
+async function processQueuedIceCandidates() {
+    console.log(`Processing ${iceCandidateQueue.length} queued ICE candidates`);
+    
+    for (const candidate of iceCandidateQueue) {
+        try {
+            await peerConnection.addIceCandidate(candidate);
+            console.log('Successfully added queued ICE candidate');
+        } catch (error) {
+            console.error('Error adding queued ICE candidate:', error);
+        }
+    }
+    
+    // Clear the queue
+    iceCandidateQueue = [];
+}
+
+async function sendICECandidate(candidate, sender) {
+    try {
+        // Convert RTCIceCandidate to plain object for Firebase
+        const candidateData = {
+            candidate: candidate.candidate,
+            sdpMLineIndex: candidate.sdpMLineIndex,
+            sdpMid: candidate.sdpMid
+        };
+        
+        await setDoc(doc(db, 'webrtcSignaling', currentCallId), {
+            type: 'ice-candidate',
+            data: candidateData,
+            sender: sender,
+            timestamp: new Date()
+        }, { merge: true });
+    } catch (error) {
+        console.error('Error sending ICE candidate:', error);
+    }
+}
+
+function listenForWebRTCSignaling() {
+    if (!currentCallId) return;
+    
+    // Listen for signals from dispatch
+    const signalingRef = doc(db, 'webrtcSignaling', currentCallId);
+    onSnapshot(signalingRef, async (docSnap) => {
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            
+            // Only process signals from dispatch
+            if (data.sender === 'dispatch') {
+                if (data.type === 'answer') {
+                    console.log('Received WebRTC answer from dispatch');
+                    await handleWebRTCAnswer(data.data);
+                } else if (data.type === 'ice-candidate') {
+                    console.log('Received ICE candidate from dispatch');
+                    if (peerConnection) {
+                        await addIceCandidateWithQueue(data.data);
+                    }
+                }
+            }
+        }
+    });
+}
+
+function cleanupWebRTC() {
+    console.log('Cleaning up civilian WebRTC connection');
+    
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+    }
+    
+    if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+    }
+    
+    currentCallId = null;
+    iceCandidateQueue = []; // Clear ICE candidate queue
+}
+
+// Function to toggle civilian microphone mute
+function toggleCivilianMute() {
+    if (!localStream) {
+        console.warn('No local stream available for muting');
+        return;
+    }
+    
+    const audioTracks = localStream.getAudioTracks();
+    if (audioTracks.length === 0) {
+        console.warn('No audio tracks available for muting');
+        return;
+    }
+    
+    // Toggle mute state
+    audioTracks.forEach(track => {
+        track.enabled = !track.enabled;
+    });
+    civilianIsMuted = !civilianIsMuted;
+    
+    // Update mute button UI
+    const civMuteBtn = document.getElementById('civMuteBtn');
+    if (civMuteBtn) {
+        const iconElement = civMuteBtn.querySelector('.phone-btn-icon');
+        const labelElement = civMuteBtn.querySelector('.phone-btn-label');
+        
+        if (iconElement) iconElement.textContent = civilianIsMuted ? '🔇' : '🔊';
+        if (labelElement) labelElement.textContent = civilianIsMuted ? 'Unmute' : 'Mute';
+        civMuteBtn.style.background = civilianIsMuted ? '#dc2626' : '#4CAF50';
+    }
+    
+    console.log(`Civilian microphone ${civilianIsMuted ? 'muted' : 'unmuted'}`);
+    showNotification(`Microphone ${civilianIsMuted ? 'muted' : 'unmuted'}`, civilianIsMuted ? 'warning' : 'success');
 }
 
 // Function to handle creating a new text call
@@ -705,9 +1113,28 @@ document.addEventListener("DOMContentLoaded", () => {
     newCallBtn.onclick = openCallTypeModal;
 
     // Handle page unload or navigation
-    window.addEventListener("beforeunload", unlive);
-    document.querySelector(".back-button").onclick = () => {
-        unlive();
+    window.addEventListener("beforeunload", async (event) => {
+        // Clean up any active voice calls
+        const voiceCallModal = document.getElementById("voiceCallModal");
+        if (voiceCallModal && voiceCallModal.style.display === "block") {
+            // If there's an active voice call, try to clean it up
+            if (voiceCallModal._cleanup) {
+                voiceCallModal._cleanup();
+            }
+        }
+        await unlive();
+    });
+    
+    document.querySelector(".back-button").onclick = async () => {
+        // Clean up any active voice calls
+        const voiceCallModal = document.getElementById("voiceCallModal");
+        if (voiceCallModal && voiceCallModal.style.display === "block") {
+            if (voiceCallModal._cleanup) {
+                voiceCallModal._cleanup();
+            }
+        }
+        
+        await unlive();
         window.location.href = "../index.html";
     };
 

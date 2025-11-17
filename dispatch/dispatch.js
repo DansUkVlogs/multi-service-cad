@@ -220,9 +220,11 @@ async function loadCalls() {
     try {
         console.log("Loading calls...");
         const snapshot = await getDocs(collection(db, "calls")); // Fetch all documents
-        const calls = snapshot.docs
-            .map(doc => ({ id: doc.id, ...doc.data() }))
-            .filter(call => !call.placeholder); // Exclude placeholder calls
+        const rawCalls = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log(`Raw calls from database:`, rawCalls);
+        
+        const calls = rawCalls.filter(call => !call.placeholder); // Exclude placeholder calls
+        console.log(`Filtered calls (excluding placeholders):`, calls);
 
         console.log(`Loaded ${calls.length} calls`);
 
@@ -908,17 +910,18 @@ function listenForCallUpdates() {
     let isInitialCallSnapshot = true;
 
     // Listen for changes in the "calls" collection
-    onSnapshot(
+        onSnapshot(
         callsRef,
         async (snapshot) => {
             if (isInitialCallSnapshot) {
                 isInitialCallSnapshot = false;
+                console.log("Skipping initial snapshot to avoid duplicate rendering");
                 return; // Skip the first snapshot to avoid duplicate rendering
             }
             console.log("Snapshot received for calls collection.");
-            const updatedCalls = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-            // Identify truly new calls
+            const allSnapshotCalls = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const updatedCalls = allSnapshotCalls.filter(call => !call.placeholder);
+            console.log(`Real-time update - Total calls: ${allSnapshotCalls.length}, Non-placeholder calls: ${updatedCalls.length}`);            // Identify truly new calls
             const newCallIds = updatedCalls
                 .filter(call => !allCalls.some(existingCall => existingCall.id === call.id))
                 .map(call => call.id);
@@ -3242,3 +3245,626 @@ function updateDispatcherSessionIdDisplay() {
 // Call this after adding/removing session
 // Example: after addDispatcherSession() or removeDispatcherSession()
 // updateDispatcherSessionIdDisplay();
+
+// === WEBRTC VOICE CHAT SYSTEM ===
+
+// WebRTC Configuration
+const rtcConfig = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+    ]
+};
+
+// Initialize WebRTC for voice chat
+async function initializeWebRTC() {
+    try {
+        // Get user media (microphone)
+        localStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            }, 
+            video: false 
+        });
+        
+        console.log('Local audio stream obtained');
+        return true;
+    } catch (error) {
+        console.error('Error accessing microphone:', error);
+        showNotification('Microphone access denied. Voice chat will not work.', 'error');
+        return false;
+    }
+}
+
+// Create peer connection
+async function createPeerConnection() {
+    peerConnection = new RTCPeerConnection(rtcConfig);
+    
+    // Add local stream to peer connection
+    if (localStream) {
+        localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, localStream);
+        });
+    }
+    
+    // Handle remote stream
+    peerConnection.ontrack = (event) => {
+        console.log('Received remote stream');
+        remoteStream = event.streams[0];
+        
+        // Create audio element to play remote stream
+        let remoteAudio = document.getElementById('dispatchRemoteAudio');
+        if (!remoteAudio) {
+            remoteAudio = document.createElement('audio');
+            remoteAudio.id = 'dispatchRemoteAudio';
+            remoteAudio.autoplay = true;
+            remoteAudio.controls = true; // Add controls for debugging
+            remoteAudio.volume = 1.0;
+            document.body.appendChild(remoteAudio);
+        }
+        remoteAudio.srcObject = remoteStream;
+        
+        // Ensure audio plays
+        remoteAudio.play().then(() => {
+            console.log('✅ Remote audio is playing');
+        }).catch(err => {
+            console.error('❌ Failed to play remote audio:', err);
+            // Try to play after user interaction
+            document.addEventListener('click', () => {
+                remoteAudio.play().then(() => {
+                    console.log('✅ Remote audio started after user interaction');
+                }).catch(e => console.error('❌ Still failed to play:', e));
+            }, { once: true });
+        });
+    };
+    
+    // Handle ICE candidates
+    peerConnection.onicecandidate = (event) => {
+        if (event.candidate && currentIncomingCall) {
+            // Send ICE candidate via Firebase
+            sendICECandidate(event.candidate);
+        }
+    };
+    
+    return peerConnection;
+}
+
+// Function to safely add ICE candidates with queue system
+async function addIceCandidateWithQueue(candidateData) {
+    try {
+        const iceCandidate = new RTCIceCandidate({
+            candidate: candidateData.candidate,
+            sdpMLineIndex: candidateData.sdpMLineIndex,
+            sdpMid: candidateData.sdpMid
+        });
+
+        // Check if remote description is set
+        if (peerConnection && peerConnection.remoteDescription) {
+            console.log('Adding ICE candidate immediately');
+            await peerConnection.addIceCandidate(iceCandidate);
+        } else {
+            console.log('Queueing ICE candidate for later processing');
+            iceCandidateQueue.push(iceCandidate);
+        }
+    } catch (error) {
+        console.error('Error adding ICE candidate:', error);
+    }
+}
+
+// Function to process queued ICE candidates
+async function processQueuedIceCandidates() {
+    console.log(`Processing ${iceCandidateQueue.length} queued ICE candidates`);
+    
+    for (const candidate of iceCandidateQueue) {
+        try {
+            if (peerConnection) {
+                await peerConnection.addIceCandidate(candidate);
+                console.log('Successfully added queued ICE candidate');
+            }
+        } catch (error) {
+            console.error('Error adding queued ICE candidate:', error);
+        }
+    }
+    
+    // Clear the queue
+    iceCandidateQueue = [];
+}
+
+// Send WebRTC signaling data via Firebase
+async function sendWebRTCSignal(type, data) {
+    if (!currentIncomingCall || !currentIncomingCall.callId) return;
+    
+    try {
+        const signalRef = doc(db, 'webrtcSignaling', currentIncomingCall.callId);
+        await setDoc(signalRef, {
+            type: type,
+            data: data,
+            sender: 'dispatch',
+            timestamp: new Date()
+        }, { merge: true });
+        
+        console.log(`Sent WebRTC signal: ${type}`);
+    } catch (error) {
+        console.error('Error sending WebRTC signal:', error);
+    }
+}
+
+// Send ICE candidate
+async function sendICECandidate(candidate) {
+    // Convert RTCIceCandidate to plain object for Firebase
+    const candidateData = {
+        candidate: candidate.candidate,
+        sdpMLineIndex: candidate.sdpMLineIndex,
+        sdpMid: candidate.sdpMid
+    };
+    await sendWebRTCSignal('ice-candidate', candidateData);
+}
+
+// Listen for WebRTC signals from civilian
+function listenForWebRTCSignals() {
+    if (!currentIncomingCall || !currentIncomingCall.callId) return;
+    
+    const signalRef = doc(db, 'webrtcSignaling', currentIncomingCall.callId);
+    
+    return onSnapshot(signalRef, async (docSnap) => {
+        if (docSnap.exists()) {
+            const signalData = docSnap.data();
+            
+            // Only process signals from civilian
+            if (signalData.sender === 'civilian') {
+                await handleWebRTCSignal(signalData.type, signalData.data);
+            }
+        }
+    });
+}
+
+// Handle incoming WebRTC signals
+async function handleWebRTCSignal(type, data) {
+    if (!peerConnection) return;
+    
+    try {
+        switch (type) {
+            case 'offer':
+                console.log('Received offer from civilian');
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(data));
+                
+                // Process any queued ICE candidates
+                await processQueuedIceCandidates();
+                
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                
+                await sendWebRTCSignal('answer', answer);
+                break;
+                
+            case 'ice-candidate':
+                console.log('Received ICE candidate from civilian');
+                await addIceCandidateWithQueue(data);
+                break;
+                
+            default:
+                console.log(`Unknown WebRTC signal type: ${type}`);
+        }
+    } catch (error) {
+        console.error('Error handling WebRTC signal:', error);
+    }
+}
+
+// Start voice chat
+async function startVoiceChat() {
+    console.log('Starting voice chat...');
+    
+    // Initialize WebRTC
+    const micAccess = await initializeWebRTC();
+    if (!micAccess) return false;
+    
+    // Create peer connection
+    await createPeerConnection();
+    
+    // Listen for signals from civilian
+    listenForWebRTCSignals();
+    
+    isCallActive = true;
+    return true;
+}
+
+// End voice chat
+function endVoiceChat() {
+    console.log('Ending voice chat...');
+    
+    // Stop local stream
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+    }
+    
+    // Close peer connection
+    if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+    }
+    
+    // Clear ICE candidate queue
+    iceCandidateQueue = [];
+    
+    // Remove remote audio element
+    const remoteAudio = document.getElementById('dispatchRemoteAudio');
+    if (remoteAudio) {
+        remoteAudio.remove();
+    }
+    
+    isCallActive = false;
+    isMuted = false;
+}
+
+// Toggle mute
+function toggleMute() {
+    if (localStream) {
+        const audioTracks = localStream.getAudioTracks();
+        audioTracks.forEach(track => {
+            track.enabled = !track.enabled;
+        });
+        isMuted = !isMuted;
+        
+        // Update mute button UI
+        const muteBtn = document.getElementById('muteBtn');
+        if (muteBtn) {
+            muteBtn.textContent = isMuted ? '🔇 Unmute' : '🔊 Mute';
+            muteBtn.style.background = isMuted ? '#dc2626' : '#059669';
+        }
+        
+        console.log(`Microphone ${isMuted ? 'muted' : 'unmuted'}`);
+    }
+}
+
+// === INCOMING CALL SYSTEM ===
+
+let currentIncomingCall = null;
+let dispatchRingtone = null;
+let callStartTime = null;
+let callDurationTimer = null;
+
+// WebRTC Voice Chat Variables
+let localStream = null;
+let remoteStream = null;
+let peerConnection = null;
+let isCallActive = false;
+let isMuted = false;
+let iceCandidateQueue = []; // Queue for ICE candidates received before remote description
+
+// Initialize incoming call system
+function initializeIncomingCallSystem() {
+    // Listen for voice calls from civilian page via Firebase
+    if (db) {
+        console.log('Initializing Firebase incoming call listener...');
+        
+        // Listen for new documents in incomingCalls collection
+        const incomingCallsRef = collection(db, 'incomingCalls');
+        const incomingCallsQuery = query(incomingCallsRef, where('placeholder', '==', false));
+        
+        onSnapshot(incomingCallsQuery, (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === 'added') {
+                    const callData = change.doc.data();
+                    const callId = change.doc.id;
+                    
+                    console.log('New incoming call detected:', callData);
+                    
+                    // Only trigger if this is a recent call (within last 10 seconds)
+                    const callTime = callData.timestamp?.toDate?.() || new Date(callData.timestamp);
+                    const timeDiff = new Date() - callTime;
+                    
+                    if (timeDiff <= 10000 && callData.status === 'calling') {
+                        handleIncomingCall(callId, callData);
+                    }
+                }
+            });
+        }, (error) => {
+            console.error('Error listening for incoming calls:', error);
+        });
+        
+        console.log('Incoming call system initialized with Firebase listener');
+    }
+}
+
+// Handle incoming call from Firebase
+function handleIncomingCall(callId, callData) {
+    if (currentIncomingCall) {
+        console.log('Already handling an incoming call, ignoring new call');
+        return;
+    }
+    
+    currentIncomingCall = {
+        callId: callId,
+        callerName: callData.callerName || "Unknown Caller",
+        civilianId: callData.civilianId,
+        timestamp: callData.timestamp?.toDate?.() || new Date(callData.timestamp)
+    };
+    
+    console.log('Processing incoming call:', currentIncomingCall);
+    
+    showIncomingCallPopup(currentIncomingCall.callerName);
+    playDispatchRingtone();
+}
+
+// Simulate an incoming call (kept for testing purposes)
+function simulateIncomingCall(callerName = "Test Caller") {
+    if (currentIncomingCall) {
+        console.log('Already handling an incoming call');
+        return;
+    }
+    
+    currentIncomingCall = {
+        callId: 'test-' + Date.now(),
+        callerName: callerName,
+        timestamp: new Date()
+    };
+    
+    showIncomingCallPopup(callerName);
+    playDispatchRingtone();
+}
+
+// Show the non-intrusive incoming call popup
+function showIncomingCallPopup(callerName) {
+    const popup = document.getElementById('incomingCallPopup');
+    const callerNameEl = document.getElementById('incomingCallerName');
+    
+    callerNameEl.textContent = callerName;
+    popup.style.display = 'block';
+    
+    // Set up event listeners
+    const answerBtn = document.getElementById('answerCallBtn');
+    const declineBtn = document.getElementById('declineCallBtn');
+    
+    answerBtn.onclick = () => {
+        answerCall();
+    };
+    
+    declineBtn.onclick = () => {
+        declineCall();
+    };
+}
+
+// Play dispatch ringtone
+function playDispatchRingtone() {
+    if (muteSounds) return;
+    
+    try {
+        if (dispatchRingtone) {
+            dispatchRingtone.pause();
+            dispatchRingtone.currentTime = 0;
+        }
+        
+        dispatchRingtone = new Audio('../audio/dispatch-ringtone.mp3');
+        dispatchRingtone.loop = true;
+        dispatchRingtone.volume = 0.7;
+        
+        dispatchRingtone.play().catch(error => {
+            console.log('Could not play dispatch ringtone:', error);
+        });
+    } catch (error) {
+        console.error('Error playing dispatch ringtone:', error);
+    }
+}
+
+// Stop dispatch ringtone
+function stopDispatchRingtone() {
+    if (dispatchRingtone) {
+        dispatchRingtone.pause();
+        dispatchRingtone.currentTime = 0;
+        dispatchRingtone = null;
+    }
+}
+
+// Answer the incoming call
+async function answerCall() {
+    if (!currentIncomingCall) return;
+    
+    // Hide popup and stop ringtone
+    document.getElementById('incomingCallPopup').style.display = 'none';
+    stopDispatchRingtone();
+    
+    // Start voice chat
+    const voiceChatStarted = await startVoiceChat();
+    if (!voiceChatStarted) {
+        showNotification('Could not start voice chat. Check microphone permissions.', 'warning');
+    }
+    
+    // Update Firebase document status if not a test call
+    if (currentIncomingCall.callId && !currentIncomingCall.callId.startsWith('test-')) {
+        try {
+            const callRef = doc(db, 'incomingCalls', currentIncomingCall.callId);
+            await setDoc(callRef, {
+                status: 'answered',
+                answeredAt: new Date(),
+                dispatcherId: sessionStorage.getItem('dispatcherSessionId') || 'unknown',
+                voiceChatEnabled: voiceChatStarted
+            }, { merge: true });
+            
+            console.log('Updated call status to answered - civilian will be notified');
+        } catch (error) {
+            console.error('Error updating call status:', error);
+        }
+    }
+    
+    // Open call modal
+    openCallAnswerModal(currentIncomingCall.callerName);
+    
+    // Log the action
+    logUserAction(db, 'answer_emergency_call', {
+        callerName: currentIncomingCall.callerName,
+        callId: currentIncomingCall.callId,
+        civilianId: currentIncomingCall.civilianId,
+        voiceChatEnabled: voiceChatStarted,
+        timestamp: new Date()
+    });
+}
+
+// Decline the incoming call
+async function declineCall() {
+    if (!currentIncomingCall) return;
+    
+    // Hide popup and stop ringtone
+    document.getElementById('incomingCallPopup').style.display = 'none';
+    stopDispatchRingtone();
+    
+    // Update Firebase document status if not a test call
+    if (currentIncomingCall.callId && !currentIncomingCall.callId.startsWith('test-')) {
+        try {
+            const callRef = doc(db, 'incomingCalls', currentIncomingCall.callId);
+            await setDoc(callRef, {
+                status: 'declined',
+                declinedAt: new Date(),
+                dispatcherId: sessionStorage.getItem('dispatcherSessionId') || 'unknown'
+            }, { merge: true });
+            
+            console.log('Updated call status to declined - civilian will be notified');
+        } catch (error) {
+            console.error('Error updating call status:', error);
+        }
+    }
+    
+    // Log the action
+    logUserAction(db, 'decline_emergency_call', {
+        callerName: currentIncomingCall.callerName,
+        callId: currentIncomingCall.callId,
+        civilianId: currentIncomingCall.civilianId,
+        timestamp: new Date()
+    });
+    
+    showNotification('Call declined', 'info');
+    currentIncomingCall = null;
+}
+
+// Open the call answer modal
+function openCallAnswerModal(callerName) {
+    const modal = document.getElementById('callAnswerModal');
+    const modalCallerName = document.getElementById('modalCallerName');
+    const callDurationEl = document.getElementById('callDuration');
+    
+    modalCallerName.textContent = callerName;
+    callStartTime = new Date();
+    
+    // Start call duration timer
+    callDurationTimer = setInterval(() => {
+        const now = new Date();
+        const duration = Math.floor((now - callStartTime) / 1000);
+        const minutes = Math.floor(duration / 60);
+        const seconds = duration % 60;
+        callDurationEl.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }, 1000);
+    
+    modal.style.display = 'block';
+    
+    // Set up event listeners
+    const closeBtn = document.getElementById('callModalClose');
+    const endCallBtn = document.getElementById('endCallBtn');
+    
+    closeBtn.onclick = () => {
+        endCall();
+    };
+    
+    endCallBtn.onclick = () => {
+        endCall();
+    };
+
+    // Set up mute button
+    const muteBtn = document.getElementById('muteBtn');
+    if (muteBtn) {
+        muteBtn.onclick = () => {
+            toggleMute();
+        };
+    }
+
+
+    
+    // Close on outside click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            endCall();
+        }
+    });
+}
+
+// End the current call
+async function endCall() {
+    const modal = document.getElementById('callAnswerModal');
+    modal.style.display = 'none';
+    
+    // Stop call duration timer
+    if (callDurationTimer) {
+        clearInterval(callDurationTimer);
+        callDurationTimer = null;
+    }
+    
+    // Calculate call duration
+    const callDuration = callStartTime ? Math.floor((new Date() - callStartTime) / 1000) : 0;
+    
+    // Notify civilian that call was ended by dispatch
+    if (currentIncomingCall && currentIncomingCall.callId && !currentIncomingCall.callId.startsWith('test-')) {
+        try {
+            const callRef = doc(db, 'incomingCalls', currentIncomingCall.callId);
+            await setDoc(callRef, {
+                status: 'ended',
+                endedAt: new Date(),
+                endedBy: 'dispatcher',
+                dispatcherId: sessionStorage.getItem('dispatcherSessionId') || 'unknown'
+            }, { merge: true });
+            
+            console.log('Updated incoming call status to ended - civilian will be notified');
+        } catch (error) {
+            console.error('Error updating incoming call status:', error);
+        }
+    }
+    
+    // Create a new call in the main calls collection after the voice call ends
+    if (currentIncomingCall) {
+        try {
+            const newCallData = {
+                callerName: currentIncomingCall.callerName,
+                description: "Voice call - Details to be added by dispatcher",
+                location: "Location to be determined",
+                service: "Multiple", // Default to Multiple since we don't know the service type yet
+                callType: "Emergency Call",
+                status: "NEW CALL",
+                timestamp: currentIncomingCall.timestamp || new Date(),
+                civilianId: currentIncomingCall.civilianId,
+                voiceCallDuration: callDuration,
+                originalIncomingCallId: currentIncomingCall.callId
+            };
+
+            const docRef = await addDoc(collection(db, "calls"), newCallData);
+            console.log("Created new call from voice call:", docRef.id);
+
+            showNotification(`Call ended. Created new call: ${currentIncomingCall.callerName}`, 'success');
+        } catch (error) {
+            console.error("Error creating call from voice call:", error);
+            showNotification('Call ended', 'info');
+        }
+        
+        // Log the action
+        logUserAction(db, 'end_emergency_call', {
+            callerName: currentIncomingCall.callerName,
+            duration: callDuration,
+            timestamp: new Date(),
+            civilianId: currentIncomingCall.civilianId
+        });
+    } else {
+        showNotification('Call ended', 'info');
+    }
+    
+    currentIncomingCall = null;
+    callStartTime = null;
+}
+
+// Test function to simulate incoming calls (can be called from console)
+window.testIncomingCall = function(callerName = "Test Caller") {
+    simulateIncomingCall(callerName);
+};
+
+// Initialize the incoming call system when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+    initializeIncomingCallSystem();
+});

@@ -633,6 +633,14 @@ button:disabled {
     text-transform: uppercase;
 }
 
+.phone-btn.mute-btn {
+    background: #4CAF50;
+}
+
+.phone-btn.mute-btn:hover {
+    background: #45a049;
+}
+
 /* Responsive adjustments for call type modal */
 @media (max-width: 600px) {
     .call-type-options {
