@@ -42,25 +42,48 @@
         <button id="closeCallBtn" class="close-call-btn">Close Call</button>
       </div>
       <div id="callInfo">
-        <p>
-          <select id="callServiceDropdown" class="service-card-dropdown">
+        <div class="call-info-row">
+          <label for="callServiceDropdown"><strong>Service:</strong></label>
+          <select id="callServiceDropdown" class="service-card-dropdown call-edit-field">
             <option value="Police">Police</option>
             <option value="Fire">Fire</option>
             <option value="Ambulance">Ambulance</option>
             <option value="Multiple">Multiple</option>
           </select>
-        </p>
-        <p><strong>Caller:</strong> <span id="callerName"></span></p>
-        <p><strong>Location:</strong> <span id="callLocation"></span></p>
-        <p><strong>Status:</strong> <span id="callStatus"></span></p>
-        <p><strong>Time:</strong> <span id="callTimestamp"></span></p>
+        </div>
+        
+        <div class="call-info-row">
+          <label for="editCallerName"><strong>Caller:</strong></label>
+          <input type="text" id="editCallerName" class="call-edit-field" placeholder="Caller name...">
+        </div>
+        
+        <div class="call-info-row">
+          <label for="editCallLocation"><strong>Location:</strong></label>
+          <input type="text" id="editCallLocation" class="call-edit-field" placeholder="Location...">
+        </div>
+        
+        <div class="call-info-row">
+          <label for="callTypeDropdown"><strong>Call Type:</strong></label>
+          <select id="callTypeDropdown" class="call-type-dropdown call-edit-field"></select>
+        </div>
+        
+        <div class="call-info-row">
+          <label for="callDescription"><strong>Description:</strong></label>
+          <textarea id="callDescription" class="call-description call-edit-field" rows="3" placeholder="Call description..."></textarea>
+        </div>
+        
+        <div class="call-info-row">
+          <strong>Status:</strong> <span id="callStatus"></span>
+        </div>
+        
+        <div class="call-info-row">
+          <strong>Time:</strong> <span id="callTimestamp"></span>
+        </div>
+        
+        <div class="call-info-row">
+          <strong>Call ID:</strong> <span id="callId"></span>
+        </div>
       </div>
-      <h3>Edit Call</h3>
-      <label for="callDescription">Description:</label>
-      <textarea id="callDescription" class="call-description"></textarea>
-      <label for="callTypeDropdown">Call Type:</label>
-      <select id="callTypeDropdown" class="call-type-dropdown"></select>
-      <button id="saveCallDetails">Save Changes</button>
       <h3>Attached Units</h3>
       <div id="attachedUnits" class="unit-list">
         <p>No Attached Units</p>
@@ -71,7 +94,6 @@
     <div class="dispatch-actions">
       <button id="attachBtn">← Attach</button>
       <button id="detachBtn">Detach →</button>
-      <button id="addCallBtn">Add Call</button> <!-- New Add Call button -->
     </div>
 
     <!-- Right: Available units -->
@@ -89,41 +111,7 @@
     </div>
   </div>
 
-  <!-- Modal for creating a new call -->
-<div id="addCallModal" class="modal">
-  <div class="modal-content">
-    <span class="close">&times;</span>
-    <h2>Create New Call</h2>
-    <form id="addCallForm">
-      <div class="form-group">
-        <label for="callerName">Caller Name</label>
-        <input type="text" id="callerName" name="callerName" value="DISPATCH GENERATED" readonly>
-      </div>
-      <div class="form-group">
-        <label for="description">Description</label>
-        <textarea id="description" name="description" required></textarea>
-      </div>
-      <div class="form-group">
-        <label for="location">Location</label>
-        <input type="text" id="location" name="location" required>
-      </div>
-      <div class="form-group">
-        <label for="service">Service</label>
-        <select id="service" name="service" required>
-          <option value="Multiple">Multiple</option>
-          <option value="Fire">Fire</option>
-          <option value="Police">Police</option>
-          <option value="Ambulance">Ambulance</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="callType">Call Type</label>
-        <select id="callType" name="callType" required></select>
-      </div>
-      <button type="submit" class="submit-call">Place Call</button>
-    </form>
-  </div>
-</div>
+
 
   <!-- Incoming Call Popup (Non-intrusive) -->
   <div id="incomingCallPopup" class="incoming-call-popup" style="display: none;">
@@ -168,21 +156,70 @@
             <div class="system-message">Call connected - Emergency Services</div>
           </div>
         </div>
+        
+        <!-- Call editing form (initially hidden) -->
+        <div id="callEditingForm" class="call-editing-form" style="display: none;">
+          <h3>📋 Call Details</h3>
+          <div class="form-row">
+            <label for="modalService">Service:</label>
+            <select id="modalService" class="modal-edit-field">
+              <option value="Police">Police</option>
+              <option value="Fire">Fire</option>
+              <option value="Ambulance">Ambulance</option>
+              <option value="Multiple">Multiple</option>
+            </select>
+          </div>
+          
+          <div class="form-row">
+            <label for="modalCallerNameEdit">Caller:</label>
+            <input type="text" id="modalCallerNameEdit" class="modal-edit-field" placeholder="Caller name...">
+          </div>
+          
+          <div class="form-row">
+            <label for="modalLocation">Location:</label>
+            <input type="text" id="modalLocation" class="modal-edit-field" placeholder="Location...">
+          </div>
+          
+          <div class="form-row">
+            <label for="modalCallType">Call Type:</label>
+            <select id="modalCallType" class="modal-edit-field"></select>
+          </div>
+          
+          <div class="form-row">
+            <label for="modalDescription">Description:</label>
+            <textarea id="modalDescription" class="modal-edit-field" rows="3" placeholder="Call description..."></textarea>
+          </div>
+          
+          <div class="modal-save-indicator">
+            <span id="modalSaveIndicator" class="save-indicator"></span>
+          </div>
+        </div>
+      </div>
         <div class="call-controls">
           <div class="voice-controls">
             <button id="muteBtn" class="voice-btn mute-btn">
               <span class="btn-icon">🔊</span>
               Mute
             </button>
-            <div class="call-status" id="voiceCallStatus">
+            <button id="testAudioBtn" class="voice-btn test-audio-btn" style="background: #4CAF50; display: none;">
+              <span class="btn-icon">🔊</span>
+              Test Audio
+            </button>
+            <div class="call-status" id="voiceCallStatus" style="display: none;">
               <span class="status-indicator connecting">🔄</span>
               <span class="status-text">Connecting...</span>
             </div>
           </div>
-          <button id="endCallBtn" class="end-call-btn">
-            <span class="btn-icon">📞</span>
-            End Call
-          </button>
+          <div class="call-action-buttons">
+            <button id="createCallFromVoiceBtn" class="create-call-btn">
+              <span class="btn-icon">📋</span>
+              New Call
+            </button>
+            <button id="endCallBtn" class="end-call-btn">
+              <span class="btn-icon">📞</span>
+              End Call
+            </button>
+          </div>
         </div>
       </div>
     </div>

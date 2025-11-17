@@ -1,6 +1,6 @@
 
 import { db } from "../firebase/firebase.js";
-import { collection, addDoc, deleteDoc, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { collection, addDoc, deleteDoc, doc, setDoc, onSnapshot, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 import { logUserAction } from '../firebase/logUserAction.js';
 import { initializeMessaging, cleanupMessaging, sendMessage, sendUserMessage, markMessageAsRead, markAllMessagesAsRead } from '../messaging-system.js';
 
@@ -15,6 +15,7 @@ let peerConnection = null;
 let currentCallId = null;
 let civilianIsMuted = false;
 let iceCandidateQueue = []; // Queue for ICE candidates received before remote description
+let webrtcSignalingListener = null; // Store the signaling listener for cleanup
 const iceServers = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
@@ -491,6 +492,12 @@ function openCallTypeModal() {
 
 // Function to handle voice call modal (phone interface)
 async function openVoiceCallModal() {
+    // Check if character is set up
+    if (!liveCharacterId) {
+        showNotification("Please enter your name first before making a call.", "error");
+        return;
+    }
+
     const voiceCallModal = document.getElementById("voiceCallModal");
     const phoneTime = document.getElementById("phoneTime");
     const phoneCallerName = document.getElementById("phoneCallerName");
@@ -620,7 +627,7 @@ async function openVoiceCallModal() {
         }
         
         // Clean up WebRTC connection
-        cleanupWebRTC();
+        await cleanupWebRTC();
         
         stopRingingAndClose();
     };
@@ -663,6 +670,28 @@ async function handleCallAnswered(ringTone) {
             toggleCivilianMute();
         };
     }
+
+    // Setup test audio button
+    const testAudioBtn = document.getElementById('testAudioBtn');
+    if (testAudioBtn) {
+        testAudioBtn.onclick = () => {
+            console.log('🔊 Testing audio playback...');
+            const remoteAudio = document.getElementById('civilianRemoteAudio');
+            if (remoteAudio && remoteAudio.srcObject) {
+                remoteAudio.volume = 1.0;
+                remoteAudio.play().then(() => {
+                    console.log('✅ Audio test successful');
+                    showNotification("Audio test - should hear dispatcher now", "success");
+                }).catch(err => {
+                    console.error('❌ Audio test failed:', err);
+                    showNotification("Audio test failed - " + err.message, "error");
+                });
+            } else {
+                console.warn('⚠️ No remote audio stream available');
+                showNotification("No audio stream available yet", "warning");
+            }
+        };
+    }
     
     showNotification("Call answered by emergency services - Voice chat starting...", "success");
     
@@ -700,11 +729,11 @@ function handleCallDeclined(ringTone) {
 }
 
 // Function to handle when the call is ended by dispatch
-function handleCallEndedByDispatch(ringTone) {
+async function handleCallEndedByDispatch(ringTone) {
     console.log("Call ended by dispatch");
     
     // Clean up WebRTC connection first
-    cleanupWebRTC();
+    await cleanupWebRTC();
     
     // Stop ringing tone
     if (ringTone) {
@@ -729,6 +758,12 @@ function handleCallEndedByDispatch(ringTone) {
 // WebRTC Functions for Voice Chat
 async function initializeWebRTCCivilian(callId) {
     try {
+        // Clean up any existing WebRTC connection first (only if one exists)
+        if (peerConnection || localStream) {
+            console.log('Cleaning up existing WebRTC connection before new call');
+            await cleanupWebRTC();
+        }
+        
         currentCallId = callId;
         
         // Get user media (audio only)
@@ -796,8 +831,10 @@ async function initializeWebRTCCivilian(callId) {
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
         
-        // Send offer to dispatch
-        await setDoc(doc(db, 'webrtcSignaling', currentCallId), {
+        // Send offer to dispatch with unique document ID
+        const signalId = `${currentCallId}_offer_${Date.now()}`;
+        await setDoc(doc(db, 'webrtcSignaling', signalId), {
+            callId: currentCallId,
             type: 'offer',
             data: offer,
             sender: 'civilian',
@@ -877,12 +914,14 @@ async function sendICECandidate(candidate, sender) {
             sdpMid: candidate.sdpMid
         };
         
-        await setDoc(doc(db, 'webrtcSignaling', currentCallId), {
+        const signalId = `${currentCallId}_ice_${sender}_${Date.now()}`;
+        await setDoc(doc(db, 'webrtcSignaling', signalId), {
+            callId: currentCallId,
             type: 'ice-candidate',
             data: candidateData,
             sender: sender,
             timestamp: new Date()
-        }, { merge: true });
+        });
     } catch (error) {
         console.error('Error sending ICE candidate:', error);
     }
@@ -891,29 +930,39 @@ async function sendICECandidate(candidate, sender) {
 function listenForWebRTCSignaling() {
     if (!currentCallId) return;
     
-    // Listen for signals from dispatch
-    const signalingRef = doc(db, 'webrtcSignaling', currentCallId);
-    onSnapshot(signalingRef, async (docSnap) => {
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            
-            // Only process signals from dispatch
-            if (data.sender === 'dispatch') {
-                if (data.type === 'answer') {
-                    console.log('Received WebRTC answer from dispatch');
-                    await handleWebRTCAnswer(data.data);
-                } else if (data.type === 'ice-candidate') {
-                    console.log('Received ICE candidate from dispatch');
-                    if (peerConnection) {
-                        await addIceCandidateWithQueue(data.data);
+    // Listen for signals from dispatch using collection query
+    const signalingRef = collection(db, 'webrtcSignaling');
+    const q = query(signalingRef, where('callId', '==', currentCallId));
+    
+    webrtcSignalingListener = onSnapshot(q, async (querySnapshot) => {
+        console.log(`DEBUG: Civilian listening for call ID: ${currentCallId}`);
+        
+        querySnapshot.docChanges().forEach(async (change) => {
+            if (change.type === 'added') {
+                const data = change.doc.data();
+                console.log(`DEBUG: Received new signal:`, data);
+                
+                // Only process signals from dispatch
+                if (data.sender === 'dispatch') {
+                    console.log(`DEBUG: Processing dispatch signal: ${data.type}`);
+                    if (data.type === 'answer') {
+                        console.log('Received WebRTC answer from dispatch');
+                        await handleWebRTCAnswer(data.data);
+                    } else if (data.type === 'ice-candidate') {
+                        console.log('Received ICE candidate from dispatch');
+                        if (peerConnection) {
+                            await addIceCandidateWithQueue(data.data);
+                        }
                     }
+                } else {
+                    console.log(`DEBUG: Ignoring signal from: ${data.sender}`);
                 }
             }
-        }
+        });
     });
 }
 
-function cleanupWebRTC() {
+async function cleanupWebRTC() {
     console.log('Cleaning up civilian WebRTC connection');
     
     if (localStream) {
@@ -926,8 +975,55 @@ function cleanupWebRTC() {
         peerConnection = null;
     }
     
+    // Remove remote audio element
+    const remoteAudio = document.getElementById('civilianRemoteAudio');
+    if (remoteAudio) {
+        remoteAudio.pause();
+        remoteAudio.srcObject = null;
+        remoteAudio.remove();
+    }
+    
+    // Reset mute state
+    civilianIsMuted = false;
+    
+    // Clean up Firebase listeners
+    if (webrtcSignalingListener) {
+        webrtcSignalingListener();
+        webrtcSignalingListener = null;
+    }
+    
+    // Clean up all WebRTC signaling documents for this call
+    if (currentCallId) {
+        try {
+            const signalingRef = collection(db, 'webrtcSignaling');
+            const q = query(signalingRef, where('callId', '==', currentCallId));
+            const querySnapshot = await getDocs(q);
+            
+            const deletePromises = [];
+            querySnapshot.forEach((doc) => {
+                deletePromises.push(deleteDoc(doc.ref));
+            });
+            
+            await Promise.all(deletePromises);
+            console.log(`Deleted ${deletePromises.length} WebRTC signaling documents for call: ${currentCallId}`);
+        } catch (error) {
+            console.warn('Could not delete WebRTC signaling documents:', error);
+        }
+    }
+    
+    // Clean up modal listeners (but preserve modal for reuse)
+    const voiceCallModal = document.getElementById('voiceCallModal');
+    if (voiceCallModal && voiceCallModal._cleanup) {
+        voiceCallModal._cleanup();
+        voiceCallModal._cleanup = null;
+        // Don't destroy the modal itself, just clean up its listeners
+        voiceCallModal.dataset.unsubscribe = '';
+    }
+    
     currentCallId = null;
     iceCandidateQueue = []; // Clear ICE candidate queue
+    
+    console.log('WebRTC cleanup completed');
 }
 
 // Function to toggle civilian microphone mute
@@ -1053,6 +1149,13 @@ function openNewCallModal() {
 
 // Ensure the buttons are functional on page load
 document.addEventListener("DOMContentLoaded", () => {
+    // Restore liveCharacterId from session storage if it exists
+    const storedCivilianId = sessionStorage.getItem('civilianId');
+    if (storedCivilianId) {
+        liveCharacterId = storedCivilianId;
+        console.log('Restored liveCharacterId from session:', liveCharacterId);
+    }
+
     // Initialize messaging system for civilian page
     const civilianUser = {
         type: 'civilian',

@@ -1508,6 +1508,32 @@ body {
     color: #475569;
 }
 
+.call-action-buttons {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.create-call-btn {
+    background: #059669;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1rem;
+}
+
+.create-call-btn:hover {
+    background: #065f46;
+    transform: translateY(-2px);
+}
+
 .end-call-btn {
     background: #ef4444;
     color: white;
@@ -1528,6 +1554,166 @@ body {
     transform: translateY(-2px);
 }
 
+/* Call editing interface */
+.call-info-row {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 15px;
+    gap: 5px;
+}
+
+.call-info-row label {
+    font-weight: bold;
+    color: #374151;
+    font-size: 0.9rem;
+}
+
+.call-edit-field {
+    padding: 8px 12px;
+    border: 2px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.call-edit-field:focus {
+    outline: none;
+    border-color: #eab308;
+    box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.1);
+}
+
+.call-edit-field:hover {
+    border-color: #9ca3af;
+}
+
+.call-edit-field.updated {
+    background: #fef3c7;
+    border-color: #eab308;
+    animation: fieldUpdate 0.5s ease;
+}
+
+@keyframes fieldUpdate {
+    0% { 
+        background: #dcfce7;
+        border-color: #22c55e;
+    }
+    100% { 
+        background: #fef3c7;
+        border-color: #eab308;
+    }
+}
+
+/* Auto-save indicator */
+.save-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.8rem;
+    color: #059669;
+    margin-left: 10px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.save-indicator.show {
+    opacity: 1;
+}
+
+.save-indicator.saving {
+    color: #d97706;
+}
+
+.save-indicator .spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid #e5e7eb;
+    border-top: 2px solid #d97706;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* New Call Button Enhancement */
+#addCallBtn {
+    background: linear-gradient(135deg, #059669, #065f46);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1rem;
+    margin-bottom: 10px;
+}
+
+#addCallBtn:hover {
+    background: linear-gradient(135deg, #065f46, #064e3b);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+}
+
+#addCallBtn::before {
+    content: "📋";
+    font-size: 1.2rem;
+}
+
+/* Call editing form in modal */
+.call-editing-form {
+    margin-top: 20px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 2px solid #e5e7eb;
+}
+
+.call-editing-form h3 {
+    margin: 0 0 15px 0;
+    color: #374151;
+}
+
+.form-row {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 12px;
+    gap: 5px;
+}
+
+.form-row label {
+    font-weight: bold;
+    color: #374151;
+    font-size: 0.9rem;
+}
+
+.modal-edit-field {
+    padding: 8px 12px;
+    border: 2px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.modal-edit-field:focus {
+    outline: none;
+    border-color: #eab308;
+    box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.1);
+}
+
+.modal-edit-field.updated {
+    background: #fef3c7;
+    border-color: #eab308;
+    animation: fieldUpdate 0.5s ease;
+}
+
+.modal-save-indicator {
+    text-align: center;
+    margin-top: 10px;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .incoming-call-popup {
@@ -1542,5 +1728,9 @@ body {
     .call-modal {
         margin: 20px;
         width: calc(100% - 40px);
+    }
+    
+    .call-info-row {
+        margin-bottom: 12px;
     }
 }

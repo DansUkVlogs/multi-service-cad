@@ -511,9 +511,24 @@ function listenForSelectedCallUpdates() {
         if (docSnap.exists()) {
             const callData = docSnap.data();
 
-            // Update the "Call Details" section
-            callerName.textContent = callData.callerName || "Unknown";
-            callLocation.textContent = callData.location || "Location not provided";
+            // Update editable fields (only if not currently being edited to avoid conflicts)
+            const editCallerName = document.getElementById('editCallerName');
+            const editCallLocation = document.getElementById('editCallLocation');
+            const callDescription = document.getElementById('callDescription');
+            const callTypeDropdown = document.getElementById('callTypeDropdown');
+
+            // Update fields only if they're not currently focused (being edited)
+            if (editCallerName && document.activeElement !== editCallerName) {
+                editCallerName.value = callData.callerName || "DISPATCH GENERATED";
+            }
+            if (editCallLocation && document.activeElement !== editCallLocation) {
+                editCallLocation.value = callData.location || "";
+            }
+            if (callDescription && document.activeElement !== callDescription) {
+                callDescription.value = callData.description || "";
+            }
+
+            // Update display-only fields
             callStatus.textContent = callData.status || "Awaiting Dispatch";
 
             // Format and update the timestamp
@@ -524,22 +539,17 @@ function listenForSelectedCallUpdates() {
             }
             callTimestamp.textContent = formattedTimestamp;
 
-            // Update the service dropdown
-            callServiceDropdown.value = callData.service || "Police";
-            callServiceDropdown.style.backgroundColor = getUnitTypeColor(callData.service || "Police");
-            callServiceDropdown.style.color = getContrastingTextColor(getUnitTypeColor(callData.service || "Police"));
-
-            // Update the description field
-            const callDescription = document.getElementById("callDescription");
-            if (callDescription) {
-                callDescription.value = callData.description || "";
+            // Update the service dropdown (only if not being edited)
+            if (document.activeElement !== callServiceDropdown) {
+                callServiceDropdown.value = callData.service || "Police";
+                callServiceDropdown.style.backgroundColor = getUnitTypeColor(callData.service || "Police");
+                callServiceDropdown.style.color = getContrastingTextColor(getUnitTypeColor(callData.service || "Police"));
             }
 
-            // Update the call type dropdown
-            const callTypeDropdown = document.getElementById("callTypeDropdown");
-            if (callTypeDropdown) {
-                await populateCallDetailsDropdown(callData.service || "Police"); // Repopulate dropdown options
-                callTypeDropdown.value = callData.callType || ""; // Select the current call type
+            // Update the call type dropdown (only if not being edited)
+            if (callTypeDropdown && document.activeElement !== callTypeDropdown) {
+                await populateCallDetailsDropdown(callData.service || "Police");
+                callTypeDropdown.value = callData.callType || "";
             }
 
             console.log("Call details and dropdown options updated in real-time.");
@@ -579,9 +589,20 @@ function selectCall(call) {
         // Show the Close Call button
         closeCallBtn.classList.add('show'); // Ensure the button is visible
 
-        // Populate call details
-        callerName.textContent = call.callerName || 'Unknown';
-        callLocation.textContent = call.location || 'Location not provided';
+        // Populate call details in new editable fields
+        const editCallerName = document.getElementById('editCallerName');
+        const editCallLocation = document.getElementById('editCallLocation');
+        const callDescription = document.getElementById('callDescription');
+        const callTypeDropdown = document.getElementById('callTypeDropdown');
+        const callIdElement = document.getElementById('callId');
+        
+        // Populate editable fields
+        if (editCallerName) editCallerName.value = call.callerName || 'DISPATCH GENERATED';
+        if (editCallLocation) editCallLocation.value = call.location || '';
+        if (callDescription) callDescription.value = call.description || '';
+        if (callIdElement) callIdElement.textContent = call.id || 'N/A';
+        
+        // Update display-only fields
         callStatus.textContent = call.status || 'Awaiting Dispatch';
 
         // Handle the timestamp
@@ -598,14 +619,7 @@ function selectCall(call) {
         callServiceDropdown.style.backgroundColor = getUnitTypeColor(call.service || 'Police'); // Update dropdown color
         callServiceDropdown.style.color = getContrastingTextColor(getUnitTypeColor(call.service || 'Police'));
 
-        // Populate the description field
-        const callDescription = document.getElementById('callDescription');
-        if (callDescription) {
-            callDescription.value = call.description || ''; // Set the description or leave it blank
-        }
-
         // Populate the call type dropdown based on the selected service
-        const callTypeDropdown = document.getElementById('callTypeDropdown');
         if (callTypeDropdown) {
             populateCallDetailsDropdown(call.service || 'Police'); // Populate dropdown based on service
             callTypeDropdown.value = call.callType || ''; // Select the current call type
@@ -626,6 +640,156 @@ function selectCall(call) {
 
         // Initialize the real-time listener for the selected call
         listenForSelectedCallUpdates();
+        
+        // Setup auto-save for call editing
+        setupCallAutoSave();
+    }
+}
+
+// Auto-save functionality for call editing
+let saveTimeout = null;
+let saveIndicator = null;
+
+function createSaveIndicator() {
+    if (!saveIndicator) {
+        saveIndicator = document.createElement('span');
+        saveIndicator.className = 'save-indicator';
+        saveIndicator.innerHTML = '<span class="status-text">Saved</span>';
+        
+        // Add it to the call details header
+        const header = document.querySelector('.call-details-header h2');
+        if (header) {
+            header.appendChild(saveIndicator);
+        }
+    }
+    return saveIndicator;
+}
+
+function showSaveIndicator(status = 'saving') {
+    const indicator = createSaveIndicator();
+    
+    if (status === 'saving') {
+        indicator.innerHTML = '<span class="spinner"></span><span class="status-text">Saving...</span>';
+        indicator.className = 'save-indicator show saving';
+    } else if (status === 'saved') {
+        indicator.innerHTML = '<span class="status-text">✓ Saved</span>';
+        indicator.className = 'save-indicator show';
+        
+        // Hide after 2 seconds
+        setTimeout(() => {
+            indicator.classList.remove('show');
+        }, 2000);
+    } else if (status === 'error') {
+        indicator.innerHTML = '<span class="status-text">⚠ Error</span>';
+        indicator.className = 'save-indicator show';
+        indicator.style.color = '#dc2626';
+        
+        setTimeout(() => {
+            indicator.classList.remove('show');
+        }, 3000);
+    }
+}
+
+async function saveCallField(fieldName, value) {
+    if (!selectedCallId) return;
+    
+    try {
+        showSaveIndicator('saving');
+        
+        const callDocRef = doc(db, "calls", selectedCallId);
+        const updateData = {};
+        updateData[fieldName] = value;
+        
+        // Update status if callType changes
+        if (fieldName === 'callType' || fieldName === 'service') {
+            const currentCall = allCalls.find(call => call.id === selectedCallId);
+            if (currentCall) {
+                const callTypeDropdown = document.getElementById('callTypeDropdown');
+                const selectedOption = callTypeDropdown?.options[callTypeDropdown?.selectedIndex];
+                const callTypeText = selectedOption?.text || value;
+                updateData.status = `${value}-${callTypeText}`;
+            }
+        }
+        
+        await setDoc(callDocRef, updateData, { merge: true });
+        console.log(`Auto-saved ${fieldName}:`, value);
+        
+        showSaveIndicator('saved');
+        
+        // Log the update
+        await logUserAction(db, 'update_call_field', { 
+            callId: selectedCallId, 
+            field: fieldName, 
+            value: value 
+        });
+        
+    } catch (error) {
+        console.error(`Error auto-saving ${fieldName}:`, error);
+        showSaveIndicator('error');
+    }
+}
+
+function setupCallAutoSave() {
+    // Get all editable fields
+    const editCallerName = document.getElementById('editCallerName');
+    const editCallLocation = document.getElementById('editCallLocation');
+    const callDescription = document.getElementById('callDescription');
+    const callServiceDropdown = document.getElementById('callServiceDropdown');
+    const callTypeDropdown = document.getElementById('callTypeDropdown');
+    
+    // Auto-save function with debouncing
+    function scheduleAutoSave(fieldName, value) {
+        // Clear existing timeout
+        if (saveTimeout) {
+            clearTimeout(saveTimeout);
+        }
+        
+        // Add visual feedback
+        const field = document.getElementById(fieldName === 'callerName' ? 'editCallerName' : 
+                                           fieldName === 'location' ? 'editCallLocation' : 
+                                           fieldName === 'description' ? 'callDescription' :
+                                           fieldName === 'service' ? 'callServiceDropdown' :
+                                           'callTypeDropdown');
+        if (field) {
+            field.classList.add('updated');
+            setTimeout(() => field.classList.remove('updated'), 500);
+        }
+        
+        // Schedule save after 1 second of inactivity
+        saveTimeout = setTimeout(() => {
+            saveCallField(fieldName, value);
+        }, 1000);
+    }
+    
+    // Add event listeners for auto-save
+    if (editCallerName) {
+        editCallerName.addEventListener('input', (e) => {
+            scheduleAutoSave('callerName', e.target.value);
+        });
+    }
+    
+    if (editCallLocation) {
+        editCallLocation.addEventListener('input', (e) => {
+            scheduleAutoSave('location', e.target.value);
+        });
+    }
+    
+    if (callDescription) {
+        callDescription.addEventListener('input', (e) => {
+            scheduleAutoSave('description', e.target.value);
+        });
+    }
+    
+    if (callServiceDropdown) {
+        callServiceDropdown.addEventListener('change', (e) => {
+            saveCallField('service', e.target.value);
+        });
+    }
+    
+    if (callTypeDropdown) {
+        callTypeDropdown.addEventListener('change', (e) => {
+            saveCallField('callType', e.target.value);
+        });
     }
 }
 
@@ -1711,75 +1875,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Add Call button
-    const addCallBtn = document.getElementById("addCallBtn");
-    if (addCallBtn) {
-        addCallBtn.addEventListener("click", async () => {
-            await logUserAction(db, 'open_add_call_modal', {});
-            const addCallModal = document.getElementById("addCallModal");
-            if (addCallModal) {
-                addCallModal.style.display = "block"; // Show the modal
-            }
-        });
 
-        // Close the Add Call modal when clicking the close button
-        const closeModalButton = document.querySelector("#addCallModal .close");
-        if (closeModalButton) {
-            closeModalButton.addEventListener("click", async () => {
-                await logUserAction(db, 'close_add_call_modal', {});
-                const addCallModal = document.getElementById("addCallModal");
-                if (addCallModal) {
-                    addCallModal.style.display = "none"; // Hide the modal
-                }
-            });
-        }
-
-        // Handle form submission for adding a new call
-        const addCallForm = document.getElementById("addCallForm");
-        if (addCallForm) {
-            addCallForm.addEventListener("submit", async (e) => {
-                e.preventDefault();
-
-                const callerName = "DISPATCH GENERATED"; // Default caller name
-                const description = document.getElementById("description").value.trim();
-                const location = document.getElementById("location").value.trim();
-                const service = document.getElementById("service").value;
-                const callType = document.getElementById("callType").value;
-
-                if (!description || !location || !service || !callType) {
-                    await logUserAction(db, 'add_call_failed', { description, location, service, callType, reason: 'Missing required fields' });
-                    showNotification("Please fill out all required fields.", "error");
-                    return;
-                }
-
-                try {
-                    await addDoc(collection(db, "calls"), {
-                        callerName,
-                        description,
-                        location,
-                        service,
-                        callType,
-                        status: `${callType}-${document.getElementById("callType").options[document.getElementById("callType").selectedIndex].text}`,
-                        timestamp: new Date(),
-                    });
-                    await logUserAction(db, 'add_call', { callerName, description, location, service, callType });
-                    showNotification("New call added successfully.", "success");
-
-                    const addCallModal = document.getElementById("addCallModal");
-                    if (addCallModal) {
-                        addCallModal.style.display = "none"; // Close the modal
-                    }
-                    addCallForm.reset(); // Reset the form
-                    await loadCalls(); // Reload the calls list
-                    // Note: Sound will be played by the real-time listener when it detects the new call
-                } catch (error) {
-                    await logUserAction(db, 'add_call_error', { error: error.message });
-                    console.error("Error adding new call:", error);
-                    showNotification("Failed to add new call. Please try again.", "error");
-                }
-            });
-        }
-    }
 
     // Close Call button with confirmation modal (copied from ambulance.js)
     if (closeCallBtn) {
@@ -3259,6 +3355,20 @@ const rtcConfig = {
 // Initialize WebRTC for voice chat
 async function initializeWebRTC() {
     try {
+        // Clean up any existing peer connection first (but preserve signaling for civilian)
+        if (peerConnection) {
+            console.log('Closing existing peer connection for new call');
+            peerConnection.close();
+            peerConnection = null;
+        }
+        
+        // Stop existing local stream if any
+        if (localStream) {
+            console.log('Stopping existing local stream for new call');
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+        }
+        
         // Get user media (microphone)
         localStream = await navigator.mediaDevices.getUserMedia({ 
             audio: {
@@ -3300,8 +3410,9 @@ async function createPeerConnection() {
             remoteAudio = document.createElement('audio');
             remoteAudio.id = 'dispatchRemoteAudio';
             remoteAudio.autoplay = true;
-            remoteAudio.controls = true; // Add controls for debugging
+            remoteAudio.controls = false; // Hidden audio element
             remoteAudio.volume = 1.0;
+            remoteAudio.style.display = 'none'; // Hide the audio element
             document.body.appendChild(remoteAudio);
         }
         remoteAudio.srcObject = remoteStream;
@@ -3377,15 +3488,19 @@ async function sendWebRTCSignal(type, data) {
     if (!currentIncomingCall || !currentIncomingCall.callId) return;
     
     try {
-        const signalRef = doc(db, 'webrtcSignaling', currentIncomingCall.callId);
+        const signalId = `${currentIncomingCall.callId}_${type}_dispatch_${Date.now()}`;
+        const signalRef = doc(db, 'webrtcSignaling', signalId);
+        console.log(`DEBUG: Sending WebRTC ${type} for call ID: ${currentIncomingCall.callId}`);
+        
         await setDoc(signalRef, {
+            callId: currentIncomingCall.callId,
             type: type,
             data: data,
             sender: 'dispatch',
             timestamp: new Date()
-        }, { merge: true });
+        });
         
-        console.log(`Sent WebRTC signal: ${type}`);
+        console.log(`SUCCESS: Sent WebRTC signal: ${type} to Firebase`);
     } catch (error) {
         console.error('Error sending WebRTC signal:', error);
     }
@@ -3406,17 +3521,20 @@ async function sendICECandidate(candidate) {
 function listenForWebRTCSignals() {
     if (!currentIncomingCall || !currentIncomingCall.callId) return;
     
-    const signalRef = doc(db, 'webrtcSignaling', currentIncomingCall.callId);
+    const signalRef = collection(db, 'webrtcSignaling');
+    const q = query(signalRef, where('callId', '==', currentIncomingCall.callId));
     
-    return onSnapshot(signalRef, async (docSnap) => {
-        if (docSnap.exists()) {
-            const signalData = docSnap.data();
-            
-            // Only process signals from civilian
-            if (signalData.sender === 'civilian') {
-                await handleWebRTCSignal(signalData.type, signalData.data);
+    return onSnapshot(q, async (querySnapshot) => {
+        querySnapshot.docChanges().forEach(async (change) => {
+            if (change.type === 'added') {
+                const signalData = change.doc.data();
+                
+                // Only process signals from civilian
+                if (signalData.sender === 'civilian') {
+                    await handleWebRTCSignal(signalData.type, signalData.data);
+                }
             }
-        }
+        });
     });
 }
 
@@ -3471,32 +3589,11 @@ async function startVoiceChat() {
 }
 
 // End voice chat
-function endVoiceChat() {
+async function endVoiceChat() {
     console.log('Ending voice chat...');
     
-    // Stop local stream
-    if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
-    }
-    
-    // Close peer connection
-    if (peerConnection) {
-        peerConnection.close();
-        peerConnection = null;
-    }
-    
-    // Clear ICE candidate queue
-    iceCandidateQueue = [];
-    
-    // Remove remote audio element
-    const remoteAudio = document.getElementById('dispatchRemoteAudio');
-    if (remoteAudio) {
-        remoteAudio.remove();
-    }
-    
-    isCallActive = false;
-    isMuted = false;
+    // Use the centralized cleanup function
+    await cleanupWebRTCDispatch();
 }
 
 // Toggle mute
@@ -3525,6 +3622,43 @@ let currentIncomingCall = null;
 let dispatchRingtone = null;
 let callStartTime = null;
 let callDurationTimer = null;
+
+// Separate cleanup function for reuse
+async function cleanupWebRTCDispatch() {
+    console.log('Cleaning up dispatch WebRTC connection');
+    
+    // Stop local stream
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+    }
+    
+    // Close peer connection
+    if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+    }
+    
+    // Clear ICE candidate queue
+    iceCandidateQueue = [];
+    
+    // Note: Let civilian handle WebRTC signaling document cleanup to avoid race conditions
+    
+    // Remove remote audio element
+    const remoteAudio = document.getElementById('dispatchRemoteAudio');
+    if (remoteAudio) {
+        remoteAudio.pause();
+        remoteAudio.srcObject = null;
+        remoteAudio.remove();
+    }
+    
+    // Reset states
+    isCallActive = false;
+    isMuted = false;
+    remoteStream = null;
+    
+    console.log('Dispatch WebRTC cleanup completed');
+}
 
 // WebRTC Voice Chat Variables
 let localStream = null;
@@ -3770,6 +3904,14 @@ function openCallAnswerModal(callerName) {
         endCall();
     };
 
+    // Set up create call from voice button
+    const createCallFromVoiceBtn = document.getElementById('createCallFromVoiceBtn');
+    if (createCallFromVoiceBtn) {
+        createCallFromVoiceBtn.onclick = async () => {
+            await createCallFromVoiceChat();
+        };
+    }
+
     // Set up mute button
     const muteBtn = document.getElementById('muteBtn');
     if (muteBtn) {
@@ -3778,14 +3920,27 @@ function openCallAnswerModal(callerName) {
         };
     }
 
-
-    
-    // Close on outside click
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            endCall();
-        }
-    });
+    // Set up test audio button
+    const testAudioBtn = document.getElementById('testAudioBtn');
+    if (testAudioBtn) {
+        testAudioBtn.onclick = () => {
+            console.log('🔊 Testing audio playback...');
+            const remoteAudio = document.getElementById('dispatchRemoteAudio');
+            if (remoteAudio && remoteAudio.srcObject) {
+                remoteAudio.volume = 1.0;
+                remoteAudio.play().then(() => {
+                    console.log('✅ Audio test successful');
+                    showNotification("Audio test - should hear civilian now", "success");
+                }).catch(err => {
+                    console.error('❌ Audio test failed:', err);
+                    showNotification("Audio test failed - " + err.message, "error");
+                });
+            } else {
+                console.warn('⚠️ No remote audio stream available');
+                showNotification("No audio stream available yet", "warning");
+            }
+        };
+    }
 }
 
 // End the current call
@@ -3820,7 +3975,8 @@ async function endCall() {
     }
     
     // Create a new call in the main calls collection after the voice call ends
-    if (currentIncomingCall) {
+    // Only if a call wasn't already created manually
+    if (currentIncomingCall && !callCreatedFromVoice) {
         try {
             const newCallData = {
                 callerName: currentIncomingCall.callerName,
@@ -3843,20 +3999,250 @@ async function endCall() {
             console.error("Error creating call from voice call:", error);
             showNotification('Call ended', 'info');
         }
-        
-        // Log the action
+    } else if (currentIncomingCall) {
+        showNotification('Call ended', 'info');
+    }
+
+    // Log the action if we had an incoming call
+    if (currentIncomingCall) {
         logUserAction(db, 'end_emergency_call', {
             callerName: currentIncomingCall.callerName,
             duration: callDuration,
             timestamp: new Date(),
             civilianId: currentIncomingCall.civilianId
         });
-    } else {
-        showNotification('Call ended', 'info');
     }
     
+    // Reset the flag for future calls
+    callCreatedFromVoice = false;
+    
+    // Clear current incoming call
     currentIncomingCall = null;
     callStartTime = null;
+}
+
+// Track if a call was created from voice chat
+let callCreatedFromVoice = null;
+
+// Create a new call from the voice chat
+async function createCallFromVoiceChat() {
+    try {
+        const callerName = currentIncomingCall?.callerName || "DISPATCH GENERATED";
+        const service = "Police"; // Default service
+        const callType = "P999"; // Default call type
+        const description = `Call from ${callerName} - details to be added`;
+        const location = "Location TBD";
+        
+        // Create the call document
+        const newCallRef = await addDoc(collection(db, "calls"), {
+            callerName,
+            description,
+            location,
+            service,
+            callType,
+            status: `${callType}-Other call`,
+            timestamp: new Date(),
+        });
+        
+        // Store the call ID for tracking
+        callCreatedFromVoice = newCallRef.id;
+        
+        // Log the action
+        await logUserAction(db, 'create_call_from_voice', { 
+            callId: newCallRef.id,
+            callerName, 
+            voiceCallId: currentIncomingCall?.callId || 'unknown'
+        });
+        
+        // Show the call editing form in the modal
+        showCallEditingInModal(newCallRef.id, {
+            callerName,
+            description,
+            location,
+            service,
+            callType,
+            status: `${callType}-Other call`
+        });
+        
+        showNotification(`New call created - edit details below`, "success");
+        
+        // Also auto-select in the main interface
+        setTimeout(async () => {
+            await loadCalls(); // Reload the calls list
+            const newCall = { 
+                id: newCallRef.id, 
+                callerName, 
+                description, 
+                location, 
+                service, 
+                callType,
+                status: `${callType}-Other call`,
+                timestamp: new Date()
+            };
+            selectCall(newCall); // Automatically select the new call
+        }, 500);
+        
+    } catch (error) {
+        console.error("Error creating call from voice chat:", error);
+        showNotification("Failed to create new call. Please try again.", "error");
+    }
+}
+
+// Show call editing form in the modal
+async function showCallEditingInModal(callId, callData) {
+    // Hide the conversation area and show the editing form
+    const callMessages = document.getElementById('callMessages');
+    const callEditingForm = document.getElementById('callEditingForm');
+    
+    if (callMessages) callMessages.style.display = 'none';
+    if (callEditingForm) callEditingForm.style.display = 'block';
+    
+    // Populate the form fields
+    const modalService = document.getElementById('modalService');
+    const modalCallerNameEdit = document.getElementById('modalCallerNameEdit');
+    const modalLocation = document.getElementById('modalLocation');
+    const modalCallType = document.getElementById('modalCallType');
+    const modalDescription = document.getElementById('modalDescription');
+    
+    if (modalService) modalService.value = callData.service || 'Police';
+    if (modalCallerNameEdit) modalCallerNameEdit.value = callData.callerName || '';
+    if (modalLocation) modalLocation.value = callData.location || '';
+    if (modalDescription) modalDescription.value = callData.description || '';
+    
+    // Populate call type dropdown
+    if (modalCallType) {
+        await populateModalCallTypeDropdown(callData.service || 'Police');
+        modalCallType.value = callData.callType || '';
+    }
+    
+    // Setup auto-save for modal fields
+    setupModalAutoSave(callId);
+    
+    // Update service dropdown color
+    updateModalServiceColor(callData.service || 'Police');
+}
+
+// Populate modal call type dropdown
+async function populateModalCallTypeDropdown(service) {
+    const modalCallType = document.getElementById('modalCallType');
+    if (!modalCallType) return;
+    
+    try {
+        const dropdownOptions = await fetchDropdownOptions();
+        const options = dropdownOptions[service] || [];
+        
+        modalCallType.innerHTML = '<option value="">Select Call Type</option>';
+        
+        options.forEach(option => {
+            const optionElement = document.createElement('option');
+            optionElement.value = option.id;
+            optionElement.textContent = `${option.id} - ${option.type}`;
+            modalCallType.appendChild(optionElement);
+        });
+    } catch (error) {
+        console.error('Error loading call type options for modal:', error);
+    }
+}
+
+// Update modal service dropdown color
+function updateModalServiceColor(service) {
+    const modalService = document.getElementById('modalService');
+    if (!modalService) return;
+    
+    modalService.style.backgroundColor = getUnitTypeColor(service);
+    modalService.style.color = getContrastingTextColor(getUnitTypeColor(service));
+}
+
+// Setup auto-save for modal editing fields
+function setupModalAutoSave(callId) {
+    const fields = [
+        { id: 'modalService', fieldName: 'service' },
+        { id: 'modalCallerNameEdit', fieldName: 'callerName' },
+        { id: 'modalLocation', fieldName: 'location' },
+        { id: 'modalCallType', fieldName: 'callType' },
+        { id: 'modalDescription', fieldName: 'description' }
+    ];
+    
+    fields.forEach(({ id, fieldName }) => {
+        const element = document.getElementById(id);
+        if (!element) return;
+        
+        // Remove existing listeners to avoid duplicates
+        element.replaceWith(element.cloneNode(true));
+        const newElement = document.getElementById(id);
+        
+        const saveFunction = async (value) => {
+            try {
+                showModalSaveIndicator('saving');
+                
+                const callDocRef = doc(db, "calls", callId);
+                const updateData = {};
+                updateData[fieldName] = value;
+                
+                // Update status if callType changes
+                if (fieldName === 'callType' || fieldName === 'service') {
+                    const modalCallType = document.getElementById('modalCallType');
+                    const selectedOption = modalCallType?.options[modalCallType?.selectedIndex];
+                    const callTypeText = selectedOption?.text || value;
+                    const parts = callTypeText.split(' - ');
+                    const typeDescription = parts.length > 1 ? parts[1] : parts[0];
+                    updateData.status = `${value}-${typeDescription}`;
+                }
+                
+                await setDoc(callDocRef, updateData, { merge: true });
+                
+                // Update service color if service changed
+                if (fieldName === 'service') {
+                    updateModalServiceColor(value);
+                    await populateModalCallTypeDropdown(value);
+                }
+                
+                showModalSaveIndicator('saved');
+                
+                // Visual feedback
+                newElement.classList.add('updated');
+                setTimeout(() => newElement.classList.remove('updated'), 500);
+                
+                console.log(`Modal auto-saved ${fieldName}:`, value);
+                
+            } catch (error) {
+                console.error(`Error saving ${fieldName}:`, error);
+                showModalSaveIndicator('error');
+            }
+        };
+        
+        if (newElement.type === 'textarea' || newElement.type === 'text') {
+            let timeout;
+            newElement.addEventListener('input', (e) => {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => saveFunction(e.target.value), 1000);
+            });
+        } else {
+            newElement.addEventListener('change', (e) => {
+                saveFunction(e.target.value);
+            });
+        }
+    });
+}
+
+// Modal save indicator
+function showModalSaveIndicator(status) {
+    let indicator = document.getElementById('modalSaveIndicator');
+    if (!indicator) return;
+    
+    if (status === 'saving') {
+        indicator.innerHTML = '<span class="spinner"></span><span class="status-text">Saving...</span>';
+        indicator.className = 'save-indicator show saving';
+    } else if (status === 'saved') {
+        indicator.innerHTML = '<span class="status-text">✓ Saved</span>';
+        indicator.className = 'save-indicator show';
+        setTimeout(() => indicator.classList.remove('show'), 2000);
+    } else if (status === 'error') {
+        indicator.innerHTML = '<span class="status-text">⚠ Error</span>';
+        indicator.className = 'save-indicator show';
+        indicator.style.color = '#dc2626';
+        setTimeout(() => indicator.classList.remove('show'), 3000);
+    }
 }
 
 // Test function to simulate incoming calls (can be called from console)
